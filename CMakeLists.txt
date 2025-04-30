@@ -1,0 +1,146 @@
+cmake_minimum_required(VERSION 3.14)
+project(gmp-featurizer LANGUAGES CXX)
+
+# Set the output directory for executables
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
+
+# Set Boost pool include path
+set(BOOST_POOL_INCLUDE_DIR "/media/xx/LEAVE/coding/boost/libs/pool/include")
+
+# Option to build tests
+option(BUILD_TESTS "Build the tests" OFF)
+
+# Create a library target with header files
+add_library(gmp-featurizer-lib STATIC)
+
+# Add source files to the library
+target_sources(gmp-featurizer-lib
+    PRIVATE
+    src/geometry.cpp
+)
+
+# Create the main executable
+add_executable(gmp-featurizer src/main.cpp)
+
+# Link the executable against the library
+target_link_libraries(gmp-featurizer
+    PRIVATE
+    gmp-featurizer-lib
+)
+
+# Set include directories for the library
+target_include_directories(gmp-featurizer-lib
+    PUBLIC
+    ${CMAKE_SOURCE_DIR}/src
+    ${BOOST_POOL_INCLUDE_DIR}
+)
+
+if(BUILD_TESTS)
+    # Enable testing
+    enable_testing()
+    
+    # Include FetchContent for downloading Google Test
+    include(FetchContent)
+    FetchContent_Declare(
+        googletest
+        GIT_REPOSITORY https://github.com/google/googletest.git
+        GIT_TAG release-1.12.1
+    )
+    # For Windows: Prevent overriding the parent project's compiler/linker settings
+    set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+    FetchContent_MakeAvailable(googletest)
+
+    # Set output directory for test executables to test folder
+    set(TEST_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/test)
+    
+    # Create test executables
+    add_executable(gmp-resources-test
+        test/resources.cpp
+    )
+
+    add_executable(gmp-math-test
+        test/math.cpp
+    )
+
+    add_executable(gmp-geometry-test
+        test/geometry.cpp
+    )
+
+    add_executable(gmp-atom-test
+        test/atom.cpp
+    )
+
+    # Link against Google Test and the library
+    target_link_libraries(gmp-resources-test
+        PRIVATE
+        GTest::gtest_main
+        GTest::gmock_main
+        gmp-featurizer-lib
+    )
+
+    target_link_libraries(gmp-math-test
+        PRIVATE
+        GTest::gtest_main
+        GTest::gmock_main
+        gmp-featurizer-lib
+    )
+
+    target_link_libraries(gmp-geometry-test
+        PRIVATE
+        GTest::gtest_main
+        GTest::gmock_main
+        gmp-featurizer-lib
+    )
+
+    target_link_libraries(gmp-atom-test
+        PRIVATE
+        GTest::gtest_main
+        GTest::gmock_main
+        gmp-featurizer-lib
+    )
+
+    # Include directories for tests
+    target_include_directories(gmp-resources-test
+        PRIVATE
+        ${CMAKE_SOURCE_DIR}/src
+    )
+
+    target_include_directories(gmp-math-test
+        PRIVATE
+        ${CMAKE_SOURCE_DIR}/src
+    )
+
+    target_include_directories(gmp-geometry-test
+        PRIVATE
+        ${CMAKE_SOURCE_DIR}/src
+    )
+
+    target_include_directories(gmp-atom-test
+        PRIVATE
+        ${CMAKE_SOURCE_DIR}/src
+    )
+
+    # Set the output directory for the test executables
+    set_target_properties(gmp-resources-test PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY ${TEST_RUNTIME_OUTPUT_DIRECTORY}
+    )
+
+    set_target_properties(gmp-math-test PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY ${TEST_RUNTIME_OUTPUT_DIRECTORY}
+    )
+
+    set_target_properties(gmp-geometry-test PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY ${TEST_RUNTIME_OUTPUT_DIRECTORY}
+    )
+
+    set_target_properties(gmp-atom-test PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY ${TEST_RUNTIME_OUTPUT_DIRECTORY}
+    )
+
+    # Register tests
+    include(GoogleTest)
+    gtest_discover_tests(gmp-resources-test)
+    gtest_discover_tests(gmp-math-test)
+    gtest_discover_tests(gmp-geometry-test)
+    gtest_discover_tests(gmp-atom-test)
+endif()
