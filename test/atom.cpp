@@ -60,6 +60,7 @@ TEST(atom_system, atom_assignment) {
 
 // Test unit_cell_t class
 TEST(atom, system_constructors) {
+    auto& host_memory = gmp_resource::instance(128, 1<<20).get_host_memory();
     // Default constructor
     unit_cell_t system1;
     EXPECT_TRUE(system1.get_atoms().empty());
@@ -69,7 +70,6 @@ TEST(atom, system_constructors) {
     EXPECT_TRUE(system1.get_periodicity()[2]);
 
     // Constructor with values
-    auto& host_memory = gmp_resource::instance().get_host_memory();
     vec<atom_t> atoms(host_memory.get_allocator<atom_t>());
     atoms.push_back(atom_t(1.0, 2.0, 3.0));
     atoms.push_back(atom_t(4.0, 5.0, 6.0));
@@ -92,7 +92,7 @@ TEST(atom, system_constructors) {
 }
 
 TEST(atom, system_assignment) {
-    auto& host_memory = gmp_resource::instance().get_host_memory();
+    auto& host_memory = gmp_resource::instance(128, 1<<20).get_host_memory();
     
     // Create first system
     vec<atom_t> atoms1(host_memory.get_allocator<atom_t>());
@@ -115,7 +115,7 @@ TEST(atom, system_assignment) {
 }
 
 TEST(atom, system_mutators) {
-    auto& host_memory = gmp_resource::instance().get_host_memory();
+    auto& host_memory = gmp_resource::instance(128, 1<<20).get_host_memory();
     unit_cell_t system;
 
     // Test set_atoms
@@ -139,7 +139,7 @@ TEST(atom, system_mutators) {
 }
 
 TEST(atom, system_accessors) {
-    auto& host_memory = gmp_resource::instance().get_host_memory();
+    auto& host_memory = gmp_resource::instance(128, 1<<20).get_host_memory();
     
     // Create system with some atoms
     vec<atom_t> atoms(host_memory.get_allocator<atom_t>());

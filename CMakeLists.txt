@@ -143,4 +143,12 @@ if(BUILD_TESTS)
     gtest_discover_tests(gmp-math-test)
     gtest_discover_tests(gmp-geometry-test)
     gtest_discover_tests(gmp-atom-test)
+
+    # Add a custom target to build and run all tests
+    add_custom_target(run_all_tests
+        COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
+        DEPENDS gmp-resources-test gmp-math-test gmp-geometry-test gmp-atom-test
+        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+        COMMENT "Running all tests..."
+    )
 endif()

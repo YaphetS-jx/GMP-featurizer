@@ -14,10 +14,10 @@ TEST(gmp_resources, singleton) {
 
     using namespace gmp::resources;
     // Get the resource instance and initialize host memory pool
-    auto& resources = gmp_resource::instance(64, 1<<20);
+    auto& resources = gmp_resource::instance(128, 1<<20);
     auto& host_memory = resources.get_host_memory();
 
-    auto& resources2 = gmp_resource::instance();
+    auto& resources2 = gmp_resource::instance(64, 1<<10);
     EXPECT_EQ(&resources, &resources2) << "Singleton instances should be the same";
     auto& host_memory2 = HostMemory::instance();
     EXPECT_EQ(&host_memory, &host_memory2) << "Singleton instances should be the same";
@@ -54,7 +54,7 @@ TEST(gmp_resources, smart_pointers) {
 
     using namespace gmp::resources;
 
-    auto& pool = gmp_resource::instance().get_host_memory().get_pool();
+    auto& pool = gmp_resource::instance(128, 1<<20).get_host_memory().get_pool();
     auto test = make_pool_unique<test_t>(pool, 1);
     
     // Verify the object was created correctly
@@ -95,16 +95,25 @@ TEST(gmp_resources, class_sizes) {
     using namespace gmp::atom;
     using namespace gmp::geometry;
 
+    auto& pool = gmp_resource::instance(128, 1<<20).get_host_memory().get_pool();
+
     // Print sizes of atom system related classes    
     std::cout << "Size of atom_t: " << sizeof(atom_t) << " bytes" << std::endl;
+    EXPECT_TRUE(sizeof(atom_t) <= pool.get_requested_size());
     std::cout << "Size of unit_cell_t: " << sizeof(unit_cell_t) << " bytes" << std::endl;
+    EXPECT_TRUE(sizeof(unit_cell_t) <= pool.get_requested_size());
     std::cout << "Size of point_flt64: " << sizeof(point_flt64) << " bytes" << std::endl;
+    EXPECT_TRUE(sizeof(point_flt64) <= pool.get_requested_size());
     
     // Print sizes of geometry related classes
     std::cout << "Size of lattice_t: " << sizeof(lattice_t) << " bytes" << std::endl;
+    EXPECT_TRUE(sizeof(lattice_t) <= pool.get_requested_size());
     std::cout << "Size of array3d_flt64: " << sizeof(array3d_flt64) << " bytes" << std::endl;
+    EXPECT_TRUE(sizeof(array3d_flt64) <= pool.get_requested_size());
     std::cout << "Size of matrix3d_flt64: " << sizeof(matrix3d_flt64) << " bytes" << std::endl;
+    EXPECT_TRUE(sizeof(matrix3d_flt64) <= pool.get_requested_size());
     std::cout << "Size of sym_matrix3d_flt64: " << sizeof(sym_matrix3d_flt64) << " bytes" << std::endl;
+    EXPECT_TRUE(sizeof(sym_matrix3d_flt64) <= pool.get_requested_size());
 }
 
 int main(int argc, char **argv) {

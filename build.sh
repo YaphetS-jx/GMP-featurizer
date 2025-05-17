@@ -1,9 +1,9 @@
 # Create a build directory
-mkdir build
+mkdir -p build
 cd build
 
 # Configure the project with CMake
-cmake ..
+cmake -DBUILD_TESTS=ON ..
 
 # Build the project
 make

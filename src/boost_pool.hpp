@@ -64,34 +64,48 @@ namespace gmp { namespace resources {
     // Pool allocator     
     template <typename T> struct pool_allocator {
         using value_type = T;
-        pool_allocator(PoolType& pool) : _pool(pool) {
+        
+        // Default constructor (needed for std::vector)
+        pool_allocator() : _pool(nullptr) {}
+        
+        pool_allocator(PoolType& pool) : _pool(&pool) {
             assert(pool_size() >= sizeof(T));
         }
         template <typename U>
         pool_allocator(pool_allocator<U> const& other) : _pool(other._pool) {
-            assert(pool_size() >= sizeof(T));
+            assert(_pool && pool_size() >= sizeof(T));
         }
+        // allocator
         T *allocate(const size_t n) {
-            T* ret = static_cast<T*>(_pool.ordered_malloc(n));
+            if (!_pool) throw std::bad_alloc();
+            T* ret = static_cast<T*>(_pool->ordered_malloc(n));
             if (!ret && n) throw std::bad_alloc();
-            // std::cout << "pool allocated " << n << " blocks" << std::endl;
             return ret;
         }
+        // deallocator
         void deallocate(T* ptr, const size_t n) {
-            if (ptr && n) _pool.ordered_free(ptr, n);
-            // std::cout << "pool deallocated " << n << " blocks" << std::endl;
+            if (_pool && ptr && n) _pool->ordered_free(ptr, n);
         }
-        size_t pool_size() const { return _pool.get_requested_size(); }
+        // pool size
+        size_t pool_size() const { 
+            return _pool ? _pool->get_requested_size() : 0; 
+        }
 
         // equality operators
         bool operator==(const pool_allocator& other) const {
-            return &_pool == &other._pool;
+            return _pool == other._pool;
         }
         bool operator!=(const pool_allocator& other) const {
             return !(*this == other);
         }
+
+        // Add propagate_on_container_move_assignment
+        using propagate_on_container_move_assignment = std::true_type;
+        using propagate_on_container_copy_assignment = std::true_type;
+        using propagate_on_container_swap = std::true_type;
+        using is_always_equal = std::false_type;
     private:
-        PoolType& _pool;
+        PoolType* _pool;
     };
 
     // print memory info
