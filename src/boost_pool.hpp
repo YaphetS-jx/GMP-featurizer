@@ -3,6 +3,8 @@
 #include <boost/pool/pool.hpp>
 #include <memory>
 #include <iostream>
+#include <vector>
+#include "error.hpp"
 
 namespace gmp { namespace resources {
 
@@ -109,7 +111,7 @@ namespace gmp { namespace resources {
     };
 
     // print memory info
-    void print_boost_pool_memory_info(PoolType& pool) {
+    inline void print_boost_pool_memory_info(PoolType& pool) {
         auto format_size = [](uint64_t bytes) -> std::string {
             const char* units[] = {"B", "KB", "MB", "GB", "TB"};
             int unit_index = 0;

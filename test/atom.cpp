@@ -1,7 +1,6 @@
 #include <gtest/gtest.h>
 #include "atom.hpp"
 #include "resources.hpp"
-#include "fwd.hpp"
 
 using namespace gmp;
 using namespace gmp::atom;

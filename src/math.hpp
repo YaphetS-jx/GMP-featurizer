@@ -2,6 +2,7 @@
 #include <cmath>
 #include <type_traits>
 #include <limits>
+#include "error.hpp"
 
 namespace gmp { namespace math {
 
@@ -200,6 +201,7 @@ namespace gmp { namespace math {
             // Calculate determinant directly
             T det = this->det();
             if (isZero(det)) {
+                update_error(error_t::matrix_singular);
                 return matrix3d_t<T>();  // Return zero matrix for singular case
             }
             

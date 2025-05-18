@@ -1,7 +1,7 @@
 #pragma once
 #include <string>
 #include "geometry.hpp"
-#include "fwd.hpp"
+#include "types.hpp"
 #include "resources.hpp"
 
 namespace gmp { namespace atom {

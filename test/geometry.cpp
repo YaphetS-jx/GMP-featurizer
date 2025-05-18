@@ -1,5 +1,4 @@
 #include <gtest/gtest.h>
-#include "fwd.hpp"
 #include "geometry.hpp"
 
 using namespace gmp::geometry;

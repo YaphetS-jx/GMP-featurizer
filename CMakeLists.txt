@@ -17,6 +17,7 @@ add_library(gmp-featurizer-lib STATIC)
 target_sources(gmp-featurizer-lib
     PRIVATE
     src/geometry.cpp
+    src/error.cpp
 )
 
 # Create the main executable
@@ -52,7 +53,7 @@ if(BUILD_TESTS)
 
     # Set output directory for test executables to test folder
     set(TEST_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/test)
-    
+
     # Create test executables
     add_executable(gmp-resources-test
         test/resources.cpp
@@ -68,6 +69,10 @@ if(BUILD_TESTS)
 
     add_executable(gmp-atom-test
         test/atom.cpp
+    )
+
+    add_executable(gmp-util-test
+        test/util.cpp
     )
 
     # Link against Google Test and the library
@@ -99,6 +104,13 @@ if(BUILD_TESTS)
         gmp-featurizer-lib
     )
 
+    target_link_libraries(gmp-util-test
+        PRIVATE
+        GTest::gtest_main
+        GTest::gmock_main
+        gmp-featurizer-lib
+    )
+
     # Include directories for tests
     target_include_directories(gmp-resources-test
         PRIVATE
@@ -120,6 +132,11 @@ if(BUILD_TESTS)
         ${CMAKE_SOURCE_DIR}/src
     )
 
+    target_include_directories(gmp-util-test
+        PRIVATE
+        ${CMAKE_SOURCE_DIR}/src
+    )
+
     # Set the output directory for the test executables
     set_target_properties(gmp-resources-test PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY ${TEST_RUNTIME_OUTPUT_DIRECTORY}
@@ -137,17 +154,22 @@ if(BUILD_TESTS)
         RUNTIME_OUTPUT_DIRECTORY ${TEST_RUNTIME_OUTPUT_DIRECTORY}
     )
 
+    set_target_properties(gmp-util-test PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY ${TEST_RUNTIME_OUTPUT_DIRECTORY}
+    )
+
     # Register tests
     include(GoogleTest)
     gtest_discover_tests(gmp-resources-test)
     gtest_discover_tests(gmp-math-test)
     gtest_discover_tests(gmp-geometry-test)
     gtest_discover_tests(gmp-atom-test)
+    gtest_discover_tests(gmp-util-test)
 
     # Add a custom target to build and run all tests
     add_custom_target(run_all_tests
         COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
-        DEPENDS gmp-resources-test gmp-math-test gmp-geometry-test gmp-atom-test
+        DEPENDS gmp-resources-test gmp-math-test gmp-geometry-test gmp-atom-test gmp-util-test
         WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
         COMMENT "Running all tests..."
     )

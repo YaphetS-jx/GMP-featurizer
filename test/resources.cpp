@@ -2,7 +2,8 @@
 #include "resources.hpp"
 #include "boost_pool.hpp"
 #include "atom.hpp"
-
+#include "input.hpp"
+#include "types.hpp"
 using namespace gmp::resources;
 using namespace gmp::atom;
 
@@ -23,8 +24,8 @@ TEST(gmp_resources, singleton) {
     EXPECT_EQ(&host_memory, &host_memory2) << "Singleton instances should be the same";
 
     // Create a vector using the custom allocator
-    using IntVector = std::vector<int, pool_allocator<int>>;
-    IntVector vec(host_memory.get_allocator<int>());
+    using IntVec = gmp::vec<int>;  // Using our vec type alias
+    IntVec vec(host_memory.get_allocator<int>());
 
     // Test the vector
     vec.push_back(42);
@@ -94,7 +95,7 @@ TEST(gmp_resources, class_sizes) {
 
     using namespace gmp::atom;
     using namespace gmp::geometry;
-
+    using namespace gmp::input;
     auto& pool = gmp_resource::instance(128, 1<<20).get_host_memory().get_pool();
 
     // Print sizes of atom system related classes    
@@ -114,6 +115,18 @@ TEST(gmp_resources, class_sizes) {
     EXPECT_TRUE(sizeof(matrix3d_flt64) <= pool.get_requested_size());
     std::cout << "Size of sym_matrix3d_flt64: " << sizeof(sym_matrix3d_flt64) << " bytes" << std::endl;
     EXPECT_TRUE(sizeof(sym_matrix3d_flt64) <= pool.get_requested_size());
+
+    // Print sizes of input related classes
+    std::cout << "Size of input_t: " << sizeof(input_t) << " bytes" << std::endl;
+    EXPECT_TRUE(sizeof(input_t) <= pool.get_requested_size());
+    std::cout << "Size of file_path_t: " << sizeof(file_path_t) << " bytes" << std::endl;
+    EXPECT_TRUE(sizeof(file_path_t) <= pool.get_requested_size());
+    std::cout << "Size of feature_t: " << sizeof(feature_t) << " bytes" << std::endl;
+    EXPECT_TRUE(sizeof(feature_t) <= pool.get_requested_size());
+    std::cout << "Size of descriptor_config_t: " << sizeof(descriptor_config_t) << " bytes" << std::endl;
+    EXPECT_TRUE(sizeof(descriptor_config_t) <= pool.get_requested_size());
+    std::cout << "Size of reference_config_t: " << sizeof(reference_config_t) << " bytes" << std::endl;
+    EXPECT_TRUE(sizeof(reference_config_t) <= pool.get_requested_size());
 }
 
 int main(int argc, char **argv) {

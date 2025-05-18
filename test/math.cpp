@@ -1,5 +1,4 @@
 #include <gtest/gtest.h>
-#include "fwd.hpp"
 #include "math.hpp"
 using namespace gmp::math;
 
