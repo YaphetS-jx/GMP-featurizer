@@ -12,8 +12,8 @@ TEST(gmp_resources, singleton) {
     std::cout << "--------------------------------" << std::endl;
     std::cout << "GMPResourcesTest, SingletonInstance" << std::endl;
     std::cout << "--------------------------------" << std::endl;
-
-    using namespace gmp::resources;
+    
+    using namespace gmp::containers;
     // Get the resource instance and initialize host memory pool
     auto& resources = gmp_resource::instance(128, 1<<20);
     auto& host_memory = resources.get_host_memory();
@@ -24,7 +24,7 @@ TEST(gmp_resources, singleton) {
     EXPECT_EQ(&host_memory, &host_memory2) << "Singleton instances should be the same";
 
     // Create a vector using the custom allocator
-    using IntVec = gmp::vec<int>;  // Using our vec type alias
+    using IntVec = vec<int>;  // Using our vec type alias
     IntVec vec(host_memory.get_allocator<int>());
 
     // Test the vector

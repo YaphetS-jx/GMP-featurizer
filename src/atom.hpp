@@ -6,8 +6,8 @@
 
 namespace gmp { namespace atom {
     
-    using namespace gmp::geometry;
-    using namespace gmp::resources;
+    using namespace gmp::geometry;    
+    using namespace gmp::containers;
 
     class atom_t {
     public:        
@@ -56,20 +56,14 @@ namespace gmp { namespace atom {
     public:        
         // ctor 
         unit_cell_t()
-            : atoms{gmp_resource::instance().get_host_memory().get_allocator<atom_t>()}, 
-              lattice{gmp::resources::make_pool_unique<lattice_t>(gmp_resource::instance().get_host_memory().get_pool())}, 
-              periodicity{true, true, true} {}
+            : atoms{}, lattice{}, periodicity{true, true, true} {}
 
         unit_cell_t(vec<atom_t>&& atoms, gmp_unique_ptr<lattice_t>&& lattice, const array3d_bool& periodicity = array3d_bool{true, true, true})
-            : atoms{std::move(atoms)}, 
-              lattice{std::move(lattice)}, 
-              periodicity{periodicity} {}
+            : atoms{std::move(atoms)}, lattice{std::move(lattice)}, periodicity{periodicity} {}
 
         // move constructor  
         unit_cell_t(unit_cell_t&& other) noexcept
-            : atoms{std::move(other.atoms)},
-              lattice{std::move(other.lattice)},
-              periodicity{std::move(other.periodicity)} {}
+            : atoms{std::move(other.atoms)}, lattice{std::move(other.lattice)}, periodicity{std::move(other.periodicity)} {}
 
         // move assignment
         unit_cell_t& operator=(unit_cell_t&& other) noexcept {

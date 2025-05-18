@@ -5,7 +5,7 @@
 using namespace gmp;
 using namespace gmp::atom;
 using namespace gmp::geometry;
-using namespace gmp::resources;
+using namespace gmp::containers;
 
 // Test atom_t class
 TEST(atom_system, atom_constructors) {
@@ -63,17 +63,17 @@ TEST(atom, system_constructors) {
     // Default constructor
     unit_cell_t system1;
     EXPECT_TRUE(system1.get_atoms().empty());
-    EXPECT_TRUE(system1.get_lattice());
+    EXPECT_FALSE(system1.get_lattice());
     EXPECT_TRUE(system1.get_periodicity()[0]);
     EXPECT_TRUE(system1.get_periodicity()[1]);
     EXPECT_TRUE(system1.get_periodicity()[2]);
 
     // Constructor with values
-    vec<atom_t> atoms(host_memory.get_allocator<atom_t>());
+    vec<atom_t> atoms;
     atoms.push_back(atom_t(1.0, 2.0, 3.0));
     atoms.push_back(atom_t(4.0, 5.0, 6.0));
 
-    auto lattice = make_pool_unique<lattice_t>(host_memory.get_pool());
+    auto lattice = make_gmp_unique<lattice_t>();
     array3d_bool periodic{false, true, false};
 
     unit_cell_t system2(std::move(atoms), std::move(lattice), periodic);
@@ -94,15 +94,15 @@ TEST(atom, system_assignment) {
     auto& host_memory = gmp_resource::instance(128, 1<<20).get_host_memory();
     
     // Create first system
-    vec<atom_t> atoms1(host_memory.get_allocator<atom_t>());
+    vec<atom_t> atoms1;
     atoms1.push_back(atom_t(1.0, 2.0, 3.0));
-    auto lattice1 = make_pool_unique<lattice_t>(host_memory.get_pool());
+    auto lattice1 = make_gmp_unique<lattice_t>();
     unit_cell_t system1(std::move(atoms1), std::move(lattice1));
 
     // Create second system
-    vec<atom_t> atoms2(host_memory.get_allocator<atom_t>());
+    vec<atom_t> atoms2;
     atoms2.push_back(atom_t(4.0, 5.0, 6.0));
-    auto lattice2 = make_pool_unique<lattice_t>(host_memory.get_pool());
+    auto lattice2 = make_gmp_unique<lattice_t>();
     unit_cell_t system2(std::move(atoms2), std::move(lattice2));
 
     // Move assignment
@@ -118,14 +118,14 @@ TEST(atom, system_mutators) {
     unit_cell_t system;
 
     // Test set_atoms
-    vec<atom_t> atoms(host_memory.get_allocator<atom_t>());
+    vec<atom_t> atoms;
     atoms.push_back(atom_t(1.0, 2.0, 3.0));
     system.set_atoms(std::move(atoms));
     EXPECT_EQ(system.get_atoms().size(), 1);
     EXPECT_DOUBLE_EQ(system[0].x(), 1.0);
 
     // Test set_lattice
-    auto lattice = make_pool_unique<lattice_t>(host_memory.get_pool());
+    auto lattice = make_gmp_unique<lattice_t>();
     system.set_lattice(std::move(lattice));
     EXPECT_TRUE(system.get_lattice());
 
@@ -141,10 +141,10 @@ TEST(atom, system_accessors) {
     auto& host_memory = gmp_resource::instance(128, 1<<20).get_host_memory();
     
     // Create system with some atoms
-    vec<atom_t> atoms(host_memory.get_allocator<atom_t>());
+    vec<atom_t> atoms;
     atoms.push_back(atom_t(1.0, 2.0, 3.0));
     atoms.push_back(atom_t(4.0, 5.0, 6.0));
-    auto lattice = make_pool_unique<lattice_t>(host_memory.get_pool());
+    auto lattice = make_gmp_unique<lattice_t>();
     array3d_bool periodic{false, true, false};
     
     unit_cell_t system(std::move(atoms), std::move(lattice), periodic);

@@ -32,6 +32,12 @@ namespace gmp { namespace resources {
         T& operator*() const { return *ptr_; }
         T* operator->() const { return ptr_.get(); }
         explicit operator bool() const { return static_cast<bool>(ptr_); }
+        
+        // Add methods needed for conversion
+        T* release() { return ptr_.release(); }
+        PoolType* get_pool() const { return ptr_.get_deleter().pool; }
+        size_t get_count() const { return ptr_.get_deleter().n; }
+        
         // Move only
         pool_unique_ptr(pool_unique_ptr&&) = default;
         pool_unique_ptr& operator=(pool_unique_ptr&&) = default;
