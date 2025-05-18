@@ -43,7 +43,9 @@ namespace gmp { namespace resources {
     template <typename T, typename PoolType, typename... Args>
     pool_unique_ptr<T, PoolType> make_pool_unique(PoolType& pool, Args&&... args) {
         void* mem = pool.ordered_malloc(1);
-        if (!mem) throw std::bad_alloc();
+        if (!mem) {
+            GMP_EXIT(error_t::memory_bad_alloc);
+        }
         T* obj = new (mem) T(std::forward<Args>(args)...); // placement new
         return pool_unique_ptr<T, PoolType>(obj, &pool, 1);
     }
@@ -52,7 +54,9 @@ namespace gmp { namespace resources {
     template <typename T, typename PoolType, typename... Args>
     std::shared_ptr<T> make_pool_shared(PoolType& pool, Args&&... args) {
         void* mem = pool.ordered_malloc(1);
-        if (!mem) throw std::bad_alloc();
+        if (!mem) {
+            GMP_EXIT(error_t::memory_bad_alloc);
+        }
         T* obj = new (mem) T(std::forward<Args>(args)...); // placement new
         return std::shared_ptr<T>(obj, [&pool](T* p) {
             if (p) {
@@ -79,9 +83,13 @@ namespace gmp { namespace resources {
         }
         // allocator
         T *allocate(const size_t n) {
-            if (!_pool) throw std::bad_alloc();
+            if (!_pool) {
+                GMP_EXIT(error_t::memory_bad_alloc);                
+            }
             T* ret = static_cast<T*>(_pool->ordered_malloc(n));
-            if (!ret && n) throw std::bad_alloc();
+            if (!ret && n) {
+                GMP_EXIT(error_t::memory_bad_alloc);
+            }
             return ret;
         }
         // deallocator

@@ -5,6 +5,8 @@ namespace gmp {
 
     enum class error_t {
         success,
+        // memory errors        
+        memory_bad_alloc,
         // input errors 
         invalid_argument,
         unstreamable_string,
@@ -31,4 +33,12 @@ namespace gmp {
                         << " with error: " << gmp::to_string(val) << std::endl; \
             exit(static_cast<int>(val));                                        \
         }                                                                       \
+    } while (0)
+
+#define GMP_EXIT(val)                                                           \
+    do {                                                                        \
+        std::cerr << "GMP Function \"" << __func__                              \
+                    << "\" failed at " << __FILE__ << ":" << __LINE__           \
+                    << " with error: " << gmp::to_string(val) << std::endl;     \
+        exit(static_cast<int>(val));                                            \
     } while (0)

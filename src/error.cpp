@@ -14,6 +14,7 @@ namespace gmp {
     const char* to_string(error_t err) {
         switch (err) {
             case error_t::success: return "Success";
+            case error_t::memory_bad_alloc: return "Memory Allocation Failed";
             case error_t::invalid_argument: return "Invalid Argument";
             case error_t::unstreamable_string: return "Unstreamable String";
             case error_t::incomplete_data_set: return "Incomplete Data Set";
