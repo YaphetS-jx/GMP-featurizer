@@ -19,25 +19,25 @@ namespace gmp { namespace resources {
 
         // initialize host memory pool
         void initialize(size_t node_size = DEFAULT_NODE_SIZE, size_t next_size = DEFAULT_NEXT_SIZE, size_t max_size = DEFAULT_MAX_SIZE) {
-            _pool = std::make_unique<PoolType>(node_size, next_size, max_size);
+            pool_ = std::make_unique<PoolType>(node_size, next_size, max_size);
         }
 
         ~HostMemory() = default;
 
         // get memory pool allocator
         template <typename T>
-        pool_allocator<T> get_allocator() {
-            return pool_allocator<T>(*_pool);
+        pool_allocator<T> get_allocator() const {
+            return pool_allocator<T>(*pool_);
         }
 
         // get memory pool
-        PoolType& get_pool() {
-            return *_pool;
+        PoolType& get_pool() const {
+            return *pool_;
         }
 
         // print memory info
-        void print_memory_info() {
-            print_boost_pool_memory_info(*_pool);
+        void print_memory_info() const {
+            print_boost_pool_memory_info(*pool_);
         }
 
         constexpr static size_t DEFAULT_NODE_SIZE = (1<<7);         // default for 128 bytes memory for node size
@@ -49,7 +49,7 @@ namespace gmp { namespace resources {
         HostMemory(const HostMemory&) = delete;
         HostMemory& operator=(const HostMemory&) = delete;
 
-        std::unique_ptr<PoolType> _pool;
+        std::unique_ptr<PoolType> pool_;
     };
 
     // collection of all resources
@@ -62,7 +62,7 @@ namespace gmp { namespace resources {
         }
 
         // get host memory pool
-        HostMemory& get_host_memory() {
+        HostMemory& get_host_memory() const {
             return HostMemory::instance();
         }
 

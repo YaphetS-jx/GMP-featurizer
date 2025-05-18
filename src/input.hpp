@@ -6,6 +6,7 @@
 namespace gmp { namespace input {
 
     using namespace gmp::math;
+    using namespace gmp::containers;
 
     // enums 
     enum class cutoff_method_t { custom_cutoff, cutoff_sigma, cutoff_sigma_widest_gaussian, 

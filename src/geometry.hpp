@@ -22,66 +22,67 @@ namespace gmp { namespace geometry {
     class lattice_t {
     public:
         // constructor
-        lattice_t() : lattice_vectors{array3d_flt64{}, array3d_flt64{}, array3d_flt64{}} {}
+        lattice_t() : lattice_vectors_{array3d_flt64{}, array3d_flt64{}, array3d_flt64{}} {}
         
         // constructor with unit lattice vectors and cell length
         lattice_t(const array3d_flt64& v1, const array3d_flt64& v2, const array3d_flt64& v3, 
                 double a = 1.0, double b = 1.0, double c = 1.0) 
-            : lattice_vectors{v1*a, v2*b, v3*c} {}
+            : lattice_vectors_{v1*a, v2*b, v3*c} {}
         
         lattice_t(const matrix3d_flt64& lattice_vectors)
-            : lattice_vectors{lattice_vectors} {}
+            : lattice_vectors_{lattice_vectors} {}
 
         lattice_t(const lattice_t& other)
-            : lattice_vectors{other.lattice_vectors} {}
+            : lattice_vectors_{other.lattice_vectors_} {}
+            
         lattice_t(lattice_t&& other) noexcept
-            : lattice_vectors{std::move(other.lattice_vectors)} {}
+            : lattice_vectors_{std::move(other.lattice_vectors_)} {}
         
         // assignment operator
         lattice_t& operator=(const lattice_t& other) {
-            lattice_vectors = other.lattice_vectors;
+            lattice_vectors_ = other.lattice_vectors_;
             return *this;
         }
         lattice_t& operator=(lattice_t&& other) noexcept {
-            lattice_vectors = std::move(other.lattice_vectors);
+            lattice_vectors_ = std::move(other.lattice_vectors_);
             return *this;
         }
         
         // Access lattice vectors
-        const array3d_flt64& operator[](size_t i) const { return lattice_vectors[i]; }
-        array3d_flt64& operator[](size_t i) { return lattice_vectors[i]; }
+        const array3d_flt64& operator[](size_t i) const { return lattice_vectors_[i]; }
+        array3d_flt64& operator[](size_t i) { return lattice_vectors_[i]; }
 
         // get inverse lattice vectors
         matrix3d_flt64 get_inverse_lattice_vector() const {            
-            return lattice_vectors.inverse();
+            return lattice_vectors_.inverse();
         }
 
         // get volume of cell
         double get_volume() const {
-            return std::abs(lattice_vectors.det());
+            return std::abs(lattice_vectors_.det());
         }
 
         // normalize lattice vectors to unit length
         matrix3d_flt64 normalize() const {
             matrix3d_flt64 result;
             for(int i = 0; i < 3; i++) {
-                result[i] = lattice_vectors[i] / lattice_vectors[i].norm();
+                result[i] = lattice_vectors_[i] / lattice_vectors_[i].norm();
             }
             return result;
         }
 
         // get lattice metric
         sym_matrix3d_flt64 get_metric() const {
-            return sym_matrix3d_flt64(lattice_vectors[0].dot(lattice_vectors[0]),
-                                  lattice_vectors[1].dot(lattice_vectors[1]),
-                                  lattice_vectors[2].dot(lattice_vectors[2]),
-                                  lattice_vectors[0].dot(lattice_vectors[1]),
-                                  lattice_vectors[0].dot(lattice_vectors[2]),
-                                  lattice_vectors[1].dot(lattice_vectors[2]));
+            return sym_matrix3d_flt64(lattice_vectors_[0].dot(lattice_vectors_[0]),
+                                  lattice_vectors_[1].dot(lattice_vectors_[1]),
+                                  lattice_vectors_[2].dot(lattice_vectors_[2]),
+                                  lattice_vectors_[0].dot(lattice_vectors_[1]),
+                                  lattice_vectors_[0].dot(lattice_vectors_[2]),
+                                  lattice_vectors_[1].dot(lattice_vectors_[2]));
         }
 
     private:
-        matrix3d_flt64 lattice_vectors;
+        matrix3d_flt64 lattice_vectors_;
     };
 
     // Convert cell parameters to lattice vectors

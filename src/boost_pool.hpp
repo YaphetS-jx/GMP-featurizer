@@ -13,30 +13,45 @@ namespace gmp { namespace resources {
     // Pool-aware deleter
     template <typename T, typename PoolType>
     struct pool_deleter {
-        PoolType* pool;
-        size_t n;
+    private:
+        PoolType* pool_;
+        size_t n_;
+        
+    public:
+        // Constructor
+        pool_deleter(PoolType* pool, size_t n) : pool_(pool), n_(n) {}
+        
+        // Accessor methods
+        PoolType* get_pool() const { return pool_; }
+        size_t get_count() const { return n_; }
+        
+        // Deleter operator
         void operator()(T* ptr) const {
-            if (ptr) pool->ordered_free(ptr, n);
-            // std::cout << "deleter deallocated " << n << " blocks" << std::endl;
+            if (ptr) pool_->ordered_free(ptr, n_);
+            // std::cout << "deleter deallocated " << n_ << " blocks" << std::endl;
         }
     };
 
     template <typename T, typename PoolType>
     class pool_unique_ptr {
+    private:
         using Deleter = pool_deleter<T, PoolType>;
         std::unique_ptr<T, Deleter> ptr_;
+        
     public:
         pool_unique_ptr(T* ptr, PoolType* pool, size_t n = 1)
             : ptr_(ptr, Deleter{pool, n}) {}
+            
+        // Accessor methods
         T* get() const { return ptr_.get(); }
         T& operator*() const { return *ptr_; }
         T* operator->() const { return ptr_.get(); }
         explicit operator bool() const { return static_cast<bool>(ptr_); }
         
-        // Add methods needed for conversion
+        // Methods needed for conversion
         T* release() { return ptr_.release(); }
-        PoolType* get_pool() const { return ptr_.get_deleter().pool; }
-        size_t get_count() const { return ptr_.get_deleter().n; }
+        PoolType* get_pool() const { return ptr_.get_deleter().get_pool(); }
+        size_t get_count() const { return ptr_.get_deleter().get_count(); }
         
         // Move only
         pool_unique_ptr(pool_unique_ptr&&) = default;
@@ -75,42 +90,54 @@ namespace gmp { namespace resources {
 
     // Pool allocator     
     template <typename T> struct pool_allocator {
+    private:
+        PoolType* pool_;
+        
+    public:
         using value_type = T;
         
         // Default constructor (needed for std::vector)
-        pool_allocator() : _pool(nullptr) {}
+        pool_allocator() : pool_(nullptr) {}
         
-        pool_allocator(PoolType& pool) : _pool(&pool) {
+        pool_allocator(PoolType& pool) : pool_(&pool) {
             assert(pool_size() >= sizeof(T));
         }
+        
         template <typename U>
-        pool_allocator(pool_allocator<U> const& other) : _pool(other._pool) {
-            assert(_pool && pool_size() >= sizeof(T));
+        pool_allocator(pool_allocator<U> const& other) : pool_(other.get_pool()) {
+            assert(pool_ && pool_size() >= sizeof(T));
         }
+        
+        // Get the pool pointer
+        PoolType* get_pool() const { return pool_; }
+        
         // allocator
         T *allocate(const size_t n) {
-            if (!_pool) {
+            if (!pool_) {
                 GMP_EXIT(error_t::memory_bad_alloc);                
             }
-            T* ret = static_cast<T*>(_pool->ordered_malloc(n));
+            T* ret = static_cast<T*>(pool_->ordered_malloc(n));
             if (!ret && n) {
                 GMP_EXIT(error_t::memory_bad_alloc);
             }
             return ret;
         }
+        
         // deallocator
         void deallocate(T* ptr, const size_t n) {
-            if (_pool && ptr && n) _pool->ordered_free(ptr, n);
+            if (pool_ && ptr && n) pool_->ordered_free(ptr, n);
         }
+        
         // pool size
         size_t pool_size() const { 
-            return _pool ? _pool->get_requested_size() : 0; 
+            return pool_ ? pool_->get_requested_size() : 0; 
         }
 
         // equality operators
         bool operator==(const pool_allocator& other) const {
-            return _pool == other._pool;
+            return pool_ == other.get_pool();
         }
+        
         bool operator!=(const pool_allocator& other) const {
             return !(*this == other);
         }
@@ -120,8 +147,6 @@ namespace gmp { namespace resources {
         using propagate_on_container_copy_assignment = std::true_type;
         using propagate_on_container_swap = std::true_type;
         using is_always_equal = std::false_type;
-    private:
-        PoolType* _pool;
     };
 
     // print memory info
