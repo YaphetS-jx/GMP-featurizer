@@ -41,7 +41,7 @@ namespace gmp { namespace input {
     private:
         std::string atom_file_;
         std::string psp_file_;
-        std::string output_file_;
+        std::string output_file_{"./gmpFeatures.dat"};
     public:
         // accessor
         const std::string& get_atom_file() const { return atom_file_; }
@@ -75,7 +75,7 @@ namespace gmp { namespace input {
         ~descriptor_config_t() = default;
 
     private:
-        vec<feature_t> feature_list_;
+        std::vector<feature_t> feature_list_;
         cutoff_method_t cutoff_method_;
         scaling_mode_t scaling_mode_;
         double cutoff_;
@@ -84,7 +84,7 @@ namespace gmp { namespace input {
 
     public:
         // accessor
-        const vec<feature_t>& get_feature_list() const { return feature_list_; }
+        const std::vector<feature_t>& get_feature_list() const { return feature_list_; }
         cutoff_method_t get_cutoff_method() const { return cutoff_method_; }
         scaling_mode_t get_scaling_mode() const { return scaling_mode_; }
         double get_cutoff() const { return cutoff_; }
@@ -134,15 +134,15 @@ namespace gmp { namespace input {
     // input class
     class input_t {
     public:
-        input_t() : files(make_gmp_unique<file_path_t>()), descriptor_config(make_gmp_unique<descriptor_config_t>()) {}
+        input_t() : files(), descriptor_config() {}
         ~input_t() = default;
 
     public: 
         // input paths
-        gmp_unique_ptr<file_path_t> files;
+        std::unique_ptr<file_path_t> files;
 
         // descriptor_config
-        gmp_unique_ptr<descriptor_config_t> descriptor_config;
+        std::unique_ptr<descriptor_config_t> descriptor_config;
 
     public: 
         // functions
@@ -159,11 +159,11 @@ namespace gmp { namespace input {
     void read_psp_file(const std::string& psp_file, const atom_type_map_t& atom_type_map, vec<vec<gaussian_t>>& gaussian_table);
 
     // read atom file
-    void read_atom_file(const std::string& atom_file, lattice_t& lattice, vec<atom_t>& atoms, atom_type_map_t& atom_type_map);
+    void read_atom_file(const std::string& atom_file, std::unique_ptr<lattice_t>& lattice, vec<atom_t>& atoms, atom_type_map_t& atom_type_map);
 
     // reference configuration
     struct reference_config_t {
-        vec<array3d_flt64> ref_positions;
+        std::vector<array3d_flt64> ref_positions;
         double largest_cutoff = 0.0;
     };
 

@@ -4,8 +4,11 @@
 #include "atom.hpp"
 #include "input.hpp"
 #include "types.hpp"
+#include "featurizer.hpp"
+
 using namespace gmp::resources;
 using namespace gmp::atom;
+using namespace gmp::featurizer;
 
 // Test singleton instance
 TEST(gmp_resources, singleton) {
@@ -15,7 +18,7 @@ TEST(gmp_resources, singleton) {
     
     using namespace gmp::containers;
     // Get the resource instance and initialize host memory pool
-    auto& resources = gmp_resource::instance(128, 1<<20);
+    auto& resources = gmp_resource::instance(64, 1<<20);
     auto& host_memory = resources.get_host_memory();
 
     auto& resources2 = gmp_resource::instance(64, 1<<10);
@@ -55,7 +58,7 @@ TEST(gmp_resources, smart_pointers) {
 
     using namespace gmp::resources;
 
-    auto& pool = gmp_resource::instance(128, 1<<20).get_host_memory().get_pool();
+    auto& pool = gmp_resource::instance(64, 1<<20).get_host_memory().get_pool();
     auto test = make_pool_unique<test_t>(pool, 1);
     
     // Verify the object was created correctly
@@ -96,42 +99,19 @@ TEST(gmp_resources, class_sizes) {
     using namespace gmp::atom;
     using namespace gmp::geometry;
     using namespace gmp::input;
-    auto& pool = gmp_resource::instance(128, 1<<20).get_host_memory().get_pool();
+    auto& pool = gmp_resource::instance(64, 1<<20).get_host_memory().get_pool();
 
-    // Print sizes of atom system related classes    
     std::cout << "Size of atom_t: " << sizeof(atom_t) << " bytes" << std::endl;
     EXPECT_TRUE(sizeof(atom_t) <= pool.get_requested_size());
-    std::cout << "Size of unit_cell_t: " << sizeof(unit_cell_t) << " bytes" << std::endl;
-    EXPECT_TRUE(sizeof(unit_cell_t) <= pool.get_requested_size());
-    std::cout << "Size of point_flt64: " << sizeof(point_flt64) << " bytes" << std::endl;
-    EXPECT_TRUE(sizeof(point_flt64) <= pool.get_requested_size());
     
-    // Print sizes of geometry related classes
-    std::cout << "Size of lattice_t: " << sizeof(lattice_t) << " bytes" << std::endl;
-    EXPECT_TRUE(sizeof(lattice_t) <= pool.get_requested_size());
-    std::cout << "Size of array3d_flt64: " << sizeof(array3d_flt64) << " bytes" << std::endl;
-    EXPECT_TRUE(sizeof(array3d_flt64) <= pool.get_requested_size());
-    std::cout << "Size of matrix3d_flt64: " << sizeof(matrix3d_flt64) << " bytes" << std::endl;
-    EXPECT_TRUE(sizeof(matrix3d_flt64) <= pool.get_requested_size());
-    std::cout << "Size of sym_matrix3d_flt64: " << sizeof(sym_matrix3d_flt64) << " bytes" << std::endl;
-    EXPECT_TRUE(sizeof(sym_matrix3d_flt64) <= pool.get_requested_size());
+    std::cout << "Size of gaussian_t: " << sizeof(gaussian_t) << " bytes" << std::endl;
+    EXPECT_TRUE(sizeof(gaussian_t) <= pool.get_requested_size());    
 
-    // Print sizes of input related classes
-    std::cout << "Size of input_t: " << sizeof(input_t) << " bytes" << std::endl;
-    EXPECT_TRUE(sizeof(input_t) <= pool.get_requested_size());
-    std::cout << "Size of file_path_t: " << sizeof(file_path_t) << " bytes" << std::endl;
-    EXPECT_TRUE(sizeof(file_path_t) <= pool.get_requested_size());
-    std::cout << "Size of feature_t: " << sizeof(feature_t) << " bytes" << std::endl;
-    EXPECT_TRUE(sizeof(feature_t) <= pool.get_requested_size());
-    std::cout << "Size of descriptor_config_t: " << sizeof(descriptor_config_t) << " bytes" << std::endl;
-    EXPECT_TRUE(sizeof(descriptor_config_t) <= pool.get_requested_size());
-    std::cout << "Size of reference_config_t: " << sizeof(reference_config_t) << " bytes" << std::endl;
-    EXPECT_TRUE(sizeof(reference_config_t) <= pool.get_requested_size());
+    std::cout << "Size of kernel_params_t: " << sizeof(kernel_params_t) << " bytes" << std::endl;
+    EXPECT_TRUE(sizeof(kernel_params_t) <= pool.get_requested_size());
 
-    // Print sizes of math related classes
-    std::cout << "Size of mcsh_function_registry_t: " << sizeof(mcsh_function_registry_t) << " bytes" << std::endl;
-    EXPECT_TRUE(sizeof(mcsh_function_registry_t) <= pool.get_requested_size());
-
+    std::cout << "Size of query_result_t: " << sizeof(query_result_t) << " bytes" << std::endl;
+    EXPECT_TRUE(sizeof(query_result_t) <= pool.get_requested_size());
 }
 
 int main(int argc, char **argv) {

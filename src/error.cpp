@@ -20,7 +20,7 @@ namespace gmp {
             case error_t::invalid_argument: return "Invalid Argument";
             case error_t::invalid_cutoff_method: return "Invalid Cutoff Method";
             case error_t::invalid_scaling_mode: return "Invalid Scaling Mode";
-            case error_t::feature_list_mismatch: return "Feature List Mismatch";
+            case error_t::invalid_feature_list: return "Invalid Feature List";
             case error_t::invalid_order_sigma: return "Invalid Order or Sigma";
             case error_t::unstreamable_string: return "Unstreamable String";
             case error_t::incomplete_data_set: return "Incomplete Data Set";

@@ -21,11 +21,7 @@ namespace gmp { namespace input {
     // descriptor config
     void descriptor_config_t::set_feature_list(std::vector<int> orders, std::vector<double> sigmas, std::vector<std::tuple<int, double>> feature_list) 
     {
-        // check if feature option is valid 
-        if ((orders.size() != sigmas.size()) || (!feature_list.empty() && (!orders.empty() || !sigmas.empty()))) {
-            update_error(gmp::error_t::feature_list_mismatch);
-            return;
-        }
+        feature_list_.clear();
 
         // parse feature list
         if (!feature_list.empty()) {
@@ -50,6 +46,11 @@ namespace gmp { namespace input {
                     }
                 }
             }
+        }
+
+        if (feature_list_.empty()) {
+            update_error(gmp::error_t::invalid_feature_list);
+            return;
         }
 
         // sort the feature list based on sigma, then order 
@@ -127,13 +128,16 @@ namespace gmp { namespace input {
     }
 
     // read cif file 
-    void read_atom_file(const std::string& atom_file, lattice_t& lattice, vec<atom_t>& atoms, atom_type_map_t& atom_type_map) 
+    void read_atom_file(const std::string& atom_file, std::unique_ptr<lattice_t>& lattice, vec<atom_t>& atoms, atom_type_map_t& atom_type_map) 
     {
         std::ifstream file(atom_file);
         if (!file.is_open()) {
             update_error(gmp::error_t::invalid_atom_file);
             return;
         }
+
+        atoms.clear();
+        atom_type_map.clear();
 
         std::string line;
         bool read_atoms = false;
@@ -251,6 +255,9 @@ namespace gmp { namespace input {
         std::vector<int> orders;
         std::vector<double> sigmas;
         std::vector<std::tuple<int, double>> feature_list;
+        
+        files = std::make_unique<file_path_t>();
+        descriptor_config = std::make_unique<descriptor_config_t>();
 
         for (int idx = 1; idx < argc; idx += 2) {
             const std::string &key = argv[idx];
@@ -338,8 +345,8 @@ namespace gmp { namespace input {
 
     void input_t::print_config() const 
     {
-        files->print_config();
-        descriptor_config->print_config();
+        if (files) files->print_config();
+        if (descriptor_config) descriptor_config->print_config();
     }
 
 }}

@@ -19,7 +19,6 @@ protected:
 };
 
 TEST_F(InputTest, file_path_t) {
-    auto& pool = gmp_resource::instance(128, 1<<20).get_host_memory().get_pool();
     file_path_t file_paths;
     
     // Test setters
@@ -33,8 +32,7 @@ TEST_F(InputTest, file_path_t) {
     EXPECT_EQ(file_paths.get_output_file(), "output.dat");
 }
 
-TEST_F(InputTest, descriptor_config_t) {
-    auto& pool = gmp_resource::instance(128, 1<<20).get_host_memory().get_pool();
+TEST_F(InputTest, descriptor_config_t) {    
     descriptor_config_t config;
     
     // Test default values
@@ -71,9 +69,9 @@ TEST_F(InputTest, descriptor_config_t) {
 }
 
 TEST_F(InputTest, read_atom_file) {
-    auto& pool = gmp_resource::instance(128, 1<<20).get_host_memory().get_pool();
+    auto& pool = gmp_resource::instance(64, 1<<20).get_host_memory().get_pool();
     // Test reading a CIF file
-    lattice_t lattice;
+    std::unique_ptr<lattice_t> lattice;
     vec<atom_t> atoms;
     atom_type_map_t atom_type_map;
     
@@ -85,9 +83,9 @@ TEST_F(InputTest, read_atom_file) {
     EXPECT_EQ(gmp::gmp_error, gmp::error_t::success);
     
     // Check lattice parameters
-    EXPECT_DOUBLE_EQ(lattice.get_cell_lengths()[0], 8.214313113733247);
-    EXPECT_DOUBLE_EQ(lattice.get_cell_lengths()[1], 7.369244);
-    EXPECT_DOUBLE_EQ(lattice.get_cell_lengths()[2], 8.908923002714356);
+    EXPECT_DOUBLE_EQ(lattice->get_cell_lengths()[0], 8.214313113733247);
+    EXPECT_DOUBLE_EQ(lattice->get_cell_lengths()[1], 7.369244);
+    EXPECT_DOUBLE_EQ(lattice->get_cell_lengths()[2], 8.908923002714356);
     
     // Check atoms
     EXPECT_EQ(atoms.size(), 16); // 16 atoms in the CIF file
@@ -107,7 +105,7 @@ TEST_F(InputTest, read_atom_file) {
 }
 
 TEST_F(InputTest, read_psp_file) {
-    auto& pool = gmp_resource::instance(128, 1<<20).get_host_memory().get_pool();
+    auto& pool = gmp_resource::instance(64, 1<<20).get_host_memory().get_pool();
     // First set up atom type map
     atom_type_map_t atom_type_map;
     atom_type_map["K"] = 0;
@@ -147,7 +145,7 @@ TEST_F(InputTest, read_psp_file) {
 }
 
 TEST_F(InputTest, input_t_parse_arguments) {
-    auto& pool = gmp_resource::instance(128, 1<<20).get_host_memory().get_pool();
+    auto& pool = gmp_resource::instance(64, 1<<20).get_host_memory().get_pool();
     input_t input;
     
     // Set up argc and argv for testing with absolute paths
@@ -187,7 +185,6 @@ TEST_F(InputTest, input_t_parse_arguments) {
 }
 
 TEST_F(InputTest, to_string_functions) {
-    auto& pool = gmp_resource::instance(128, 1<<20).get_host_memory().get_pool();
     // Test cutoff_method_t to_string
     EXPECT_EQ(gmp_to_string(cutoff_method_t::custom_cutoff), "custom_cutoff");
     EXPECT_EQ(gmp_to_string(cutoff_method_t::cutoff_sigma), "cutoff_sigma");

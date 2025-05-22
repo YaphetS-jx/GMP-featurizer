@@ -1,6 +1,10 @@
 cmake_minimum_required(VERSION 3.14)
 project(gmp-featurizer LANGUAGES CXX)
 
+# Set debug mode
+set(CMAKE_BUILD_TYPE Debug)
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g -O0")
+
 # Set the output directory for executables
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 

@@ -43,10 +43,12 @@ namespace gmp { namespace atom {
     public:
         // ctor 
         unit_cell_t()
-            : atoms_(), lattice_(), periodicity_{true, true, true} {}
+            : atoms_(), lattice_(), atom_type_map_(), periodicity_{true, true, true} {}
 
-        unit_cell_t(vec<atom_t>&& atoms, gmp_unique_ptr<lattice_t>&& lattice, const array3d_bool& periodicity = array3d_bool{true, true, true})
-            : atoms_{std::move(atoms)}, lattice_{std::move(lattice)}, periodicity_{periodicity} {}
+        unit_cell_t(vec<atom_t>&& atoms, std::unique_ptr<lattice_t>&& lattice, 
+            atom_type_map_t&& atom_type_map, const array3d_bool& periodicity = array3d_bool{true, true, true})
+            : atoms_{std::move(atoms)}, lattice_{std::move(lattice)}, 
+            atom_type_map_{std::move(atom_type_map)}, periodicity_{periodicity} {}
 
         // move constructor and assignment are deleted
         unit_cell_t(unit_cell_t&& other) = delete;
@@ -59,19 +61,19 @@ namespace gmp { namespace atom {
 
         // accessors
         const vec<atom_t>& get_atoms() const { return atoms_; }
-        const gmp_unique_ptr<lattice_t>& get_lattice() const { return lattice_; }
+        const std::unique_ptr<lattice_t>& get_lattice() const { return lattice_; }
         const array3d_bool& get_periodicity() const { return periodicity_; }
         const atom_t& operator[](size_t i) const { return atoms_[i]; }
         const atom_type_map_t& get_atom_type_map() const { return atom_type_map_; }
 
         // mutators
-        void set_lattice(gmp_unique_ptr<lattice_t>&& lattice) { lattice_ = std::move(lattice); }
+        void set_lattice(std::unique_ptr<lattice_t>&& lattice) { lattice_ = std::move(lattice); }
         void set_atoms(vec<atom_t>&& atoms) { atoms_ = std::move(atoms); }
-        void set_atom_type_map(const atom_type_map_t& atom_type_map) { atom_type_map_ = atom_type_map; }
+        void set_atom_type_map(atom_type_map_t&& atom_type_map) { atom_type_map_ = std::move(atom_type_map); }
         void set_periodicity(const array3d_bool& periodicity) { periodicity_ = periodicity; }
 
     private:
-        gmp_unique_ptr<lattice_t> lattice_;
+        std::unique_ptr<lattice_t> lattice_;
         vec<atom_t> atoms_;
         atom_type_map_t atom_type_map_;
         array3d_bool periodicity_;

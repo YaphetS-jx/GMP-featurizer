@@ -88,9 +88,9 @@ namespace gmp { namespace featurizer {
             const descriptor_config_t& descriptor_config, const unit_cell_t& unit_cell, const psp_config_t& psp_config);
 
     private: 
-        gmp_unique_ptr<query_info_t> query_info_;
-        gmp_unique_ptr<kernel_params_table_t> kernel_params_table_;
-        gmp_unique_ptr<cutoff_table_t> cutoff_table_;
+        std::unique_ptr<query_info_t> query_info_;
+        std::unique_ptr<kernel_params_table_t> kernel_params_table_;
+        std::unique_ptr<cutoff_table_t> cutoff_table_;
     };
 
     // functions 

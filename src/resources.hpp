@@ -40,7 +40,7 @@ namespace gmp { namespace resources {
             print_boost_pool_memory_info(*pool_);
         }
 
-        constexpr static size_t DEFAULT_NODE_SIZE = (1<<7);         // default for 128 bytes memory for node size
+        constexpr static size_t DEFAULT_NODE_SIZE = (1<<6);         // default for 64 bytes memory for node size
         constexpr static size_t DEFAULT_NEXT_SIZE = (1<<26);    // default for 64MB memory for next block size 
         constexpr static size_t DEFAULT_MAX_SIZE = (1<<30);     // default for 1GB memory for max block size 
         

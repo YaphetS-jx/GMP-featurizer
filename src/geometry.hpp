@@ -21,34 +21,20 @@ namespace gmp { namespace geometry {
     // Lattice system - represents a crystal lattice with 3 basis vectors
     class lattice_t {
     public:
-        // constructor
-        lattice_t() : lattice_vectors_{}, metric_{} {}
-
-        // constructor with unit lattice vectors and cell length
-        lattice_t(const array3d_flt64& v1, const array3d_flt64& v2, const array3d_flt64& v3, 
-                double a = 1.0, double b = 1.0, double c = 1.0) 
-            : lattice_vectors_{v1*a, v2*b, v3*c}, metric_{} {}
-
-        lattice_t(matrix3d_flt64 lattice_vectors) : lattice_vectors_(lattice_vectors), metric_{} {}
+        lattice_t(matrix3d_flt64 lattice_vectors) : lattice_vectors_(lattice_vectors), metric_{} 
+        {
+            update_metric();
+        }
         
         // copy constructor
-        lattice_t(const lattice_t& other) : lattice_vectors_(other.lattice_vectors_), metric_(other.metric_) {}
-        
-        lattice_t operator=(const lattice_t& other) {
-            lattice_vectors_ = other.lattice_vectors_;
-            metric_ = other.metric_;
-            // inverse_lattice_vectors_ = other.inverse_lattice_vectors_;
-            return *this;
+        lattice_t(const lattice_t& other) : lattice_vectors_(other.lattice_vectors_), metric_(other.metric_) 
+        {
+            update_metric();
         }
         
         // Access lattice vectors
         const array3d_flt64& operator[](size_t i) const { return lattice_vectors_[i]; }
         array3d_flt64& operator[](size_t i) { return lattice_vectors_[i]; }
-
-        // get inverse lattice vectors
-        // void update_inverse_lattice_vectors() {            
-        //     inverse_lattice_vectors_ = lattice_vectors_.inverse();
-        // }
 
         // get lattice metric
         void update_metric() {
@@ -108,6 +94,6 @@ namespace gmp { namespace geometry {
     };
 
     // Convert cell parameters to lattice vectors
-    lattice_t cell_info_to_lattice(const array3d_flt64& cell_lengths, const array3d_flt64& cell_angles);
+    std::unique_ptr<lattice_t> cell_info_to_lattice(const array3d_flt64& cell_lengths, const array3d_flt64& cell_angles);
 
 }}

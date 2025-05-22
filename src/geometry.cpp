@@ -5,7 +5,7 @@ namespace gmp { namespace geometry {
     using namespace gmp::math;
 
     // Convert cell parameters to lattice vectors
-    lattice_t cell_info_to_lattice(const array3d_flt64& cell_lengths, const array3d_flt64& cell_angles) {
+    std::unique_ptr<lattice_t> cell_info_to_lattice(const array3d_flt64& cell_lengths, const array3d_flt64& cell_angles) {
         
         // Define rotated X, Y, Z system with default orientation
         array3d_flt64 Z{0.0, 0.0, 1.0};  // ab_normal
@@ -52,10 +52,7 @@ namespace gmp { namespace geometry {
         // Build intermediate matrix with rows va, vb, vc
         matrix3d_flt64 abc(va, vb, vc);
 
-        // Multiply abc and T to obtain final cell matrix
-        lattice_t lattice(abc * T);
-        // lattice.update_inverse_lattice_vectors();
-        lattice.update_metric();
-        return lattice;
+        // Multiply abc and T to obtain final cell matrix        
+        return std::make_unique<lattice_t>(abc * T);
     }
 }}

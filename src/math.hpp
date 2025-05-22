@@ -359,23 +359,12 @@ namespace gmp { namespace math {
             static mcsh_function_registry_t instance;
             return instance;
         }
-        
-        // Add a test-friendly version that doesn't allocate memory
-        static mcsh_function_registry_t& get_test_instance() {
-            static mcsh_function_registry_t test_instance(false); // Don't register functions
-            return test_instance;
-        }
 
         const solid_gmp_function_t& get_function(int order) const {
             return order < 0 ? functions_[0] : functions_[order];
         }
 
         int get_num_values(int order) const {
-            // If functions aren't registered, return predefined values for tests
-            if (functions_.size() == 0) {
-                static const int sizes[] = {1, 1, 3, 6, 10, 15, 21, 28, 36, 45, 55};
-                return order < 0 || order >= 11 ? 0 : sizes[order + 1];
-            }
             return order < 0 ? num_values_[0] : num_values_[order];
         }
 
@@ -401,8 +390,7 @@ namespace gmp { namespace math {
             // Reserve space for values
             num_values_.reserve(10);
             
-            // Add values one by one
-            num_values_.push_back(1);  // for order -1
+            // Add values one by one            
             num_values_.push_back(1);  // for order 0
             num_values_.push_back(3);  // for order 1
             num_values_.push_back(6);  // for order 2
@@ -416,8 +404,8 @@ namespace gmp { namespace math {
         }
         
     private: 
-        vec<solid_gmp_function_t> functions_;
-        vec<int> num_values_;
+        std::vector<solid_gmp_function_t> functions_;
+        std::vector<int> num_values_;
     };
     
     // functions 

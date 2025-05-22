@@ -11,7 +11,7 @@ namespace gmp {
         invalid_argument,
         invalid_cutoff_method,
         invalid_scaling_mode,
-        feature_list_mismatch,
+        invalid_feature_list,
         invalid_order_sigma,
         unstreamable_string,
         incomplete_data_set,

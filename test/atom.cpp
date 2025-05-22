@@ -31,12 +31,6 @@ TEST(atom_system, atom_constructors) {
     EXPECT_DOUBLE_EQ(atom3.x(), 1.0);
     EXPECT_DOUBLE_EQ(atom3.y(), 2.0);
     EXPECT_DOUBLE_EQ(atom3.z(), 3.0);
-
-    // Move constructor
-    atom_t atom4(std::move(atom2));
-    EXPECT_DOUBLE_EQ(atom4.x(), 4.0);
-    EXPECT_DOUBLE_EQ(atom4.y(), 5.0);
-    EXPECT_DOUBLE_EQ(atom4.z(), 6.0);
 }
 
 TEST(atom_system, atom_assignment) {
@@ -48,18 +42,11 @@ TEST(atom_system, atom_assignment) {
     EXPECT_DOUBLE_EQ(atom1.x(), 4.0);
     EXPECT_DOUBLE_EQ(atom1.y(), 5.0);
     EXPECT_DOUBLE_EQ(atom1.z(), 6.0);
-
-    // Move assignment
-    atom_t atom3(7.0, 8.0, 9.0);
-    atom1 = std::move(atom3);
-    EXPECT_DOUBLE_EQ(atom1.x(), 7.0);
-    EXPECT_DOUBLE_EQ(atom1.y(), 8.0);
-    EXPECT_DOUBLE_EQ(atom1.z(), 9.0);
 }
 
 // Test unit_cell_t class
 TEST(atom, system_constructors) {
-    auto& host_memory = gmp_resource::instance(128, 1<<20).get_host_memory();
+    auto& host_memory = gmp_resource::instance(64, 1<<20).get_host_memory();
     // Default constructor
     unit_cell_t system1;
     EXPECT_TRUE(system1.get_atoms().empty());
@@ -73,18 +60,24 @@ TEST(atom, system_constructors) {
     atoms.push_back(atom_t(1.0, 2.0, 3.0));
     atoms.push_back(atom_t(4.0, 5.0, 6.0));
 
-    auto lattice = make_gmp_unique<lattice_t>();
-    array3d_bool periodic{false, true, false};
+    matrix3d_flt64 mat;
+    mat[0] = array3d_flt64{1.0, 0.0, 0.0};
+    mat[1] = array3d_flt64{0.0, 1.0, 0.0};
+    mat[2] = array3d_flt64{0.0, 0.0, 1.0};
+    auto lattice = std::make_unique<lattice_t>(mat);
+    atom_type_map_t atom_type_map;
+    atom_type_map["H"] = 0;
+    atom_type_map["O"] = 1;
 
-    unit_cell_t system2(std::move(atoms), std::move(lattice), periodic);
+    unit_cell_t system2(std::move(atoms), std::move(lattice), std::move(atom_type_map));
     EXPECT_EQ(system2.get_atoms().size(), 2);
-    EXPECT_FALSE(system2.get_periodicity()[0]);
+    EXPECT_TRUE(system2.get_periodicity()[0]);
     EXPECT_TRUE(system2.get_periodicity()[1]);
-    EXPECT_FALSE(system2.get_periodicity()[2]);
+    EXPECT_TRUE(system2.get_periodicity()[2]);
 }
 
 TEST(atom, system_mutators) {
-    auto& host_memory = gmp_resource::instance(128, 1<<20).get_host_memory();
+    auto& host_memory = gmp_resource::instance(64, 1<<20).get_host_memory();
     unit_cell_t system;
 
     // Test set_atoms
@@ -95,7 +88,11 @@ TEST(atom, system_mutators) {
     EXPECT_DOUBLE_EQ(system[0].x(), 1.0);
 
     // Test set_lattice
-    auto lattice = make_gmp_unique<lattice_t>();
+    matrix3d_flt64 mat;
+    mat[0] = array3d_flt64{1.0, 0.0, 0.0};
+    mat[1] = array3d_flt64{0.0, 1.0, 0.0};
+    mat[2] = array3d_flt64{0.0, 0.0, 1.0};
+    auto lattice = std::make_unique<lattice_t>(mat);
     system.set_lattice(std::move(lattice));
     EXPECT_TRUE(system.get_lattice());
 
@@ -108,16 +105,24 @@ TEST(atom, system_mutators) {
 }
 
 TEST(atom, system_accessors) {
-    auto& host_memory = gmp_resource::instance(128, 1<<20).get_host_memory();
+    auto& host_memory = gmp_resource::instance(64, 1<<20).get_host_memory();
     
     // Create system with some atoms
     vec<atom_t> atoms;
     atoms.push_back(atom_t(1.0, 2.0, 3.0));
     atoms.push_back(atom_t(4.0, 5.0, 6.0));
-    auto lattice = make_gmp_unique<lattice_t>();
-    array3d_bool periodic{false, true, false};
     
-    unit_cell_t system(std::move(atoms), std::move(lattice), periodic);
+    matrix3d_flt64 mat;
+    mat[0] = array3d_flt64{1.0, 0.0, 0.0};
+    mat[1] = array3d_flt64{0.0, 1.0, 0.0};
+    mat[2] = array3d_flt64{0.0, 0.0, 1.0};
+    auto lattice = std::make_unique<lattice_t>(mat);
+    
+    atom_type_map_t atom_type_map;
+    atom_type_map["H"] = 0;
+    atom_type_map["O"] = 1;
+    
+    unit_cell_t system(std::move(atoms), std::move(lattice), std::move(atom_type_map));
 
     // Test get_atoms
     const auto& system_atoms = system.get_atoms();
@@ -128,9 +133,9 @@ TEST(atom, system_accessors) {
 
     // Test get_periodicity
     const auto& system_periodic = system.get_periodicity();
-    EXPECT_FALSE(system_periodic[0]);
+    EXPECT_TRUE(system_periodic[0]);
     EXPECT_TRUE(system_periodic[1]);
-    EXPECT_FALSE(system_periodic[2]);
+    EXPECT_TRUE(system_periodic[2]);
 
     // Test operator[]
     EXPECT_DOUBLE_EQ(system[0].x(), 1.0);

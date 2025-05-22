@@ -163,11 +163,8 @@ TEST(math, sym_matrix3d_t) {
 
 // Very basic test for mcsh_function_registry_t
 TEST(math, mcsh_function_registry_t) {
-    // Initialize the memory pool
-    auto& pool = gmp_resource::instance(128, 1<<20).get_host_memory().get_pool();
-    
     // Use the test-friendly instance instead of the regular one
-    auto& registry = mcsh_function_registry_t::get_test_instance();
+    auto& registry = mcsh_function_registry_t::get_instance();
     
     // Now we can safely test the values without memory allocation issues
     EXPECT_EQ(registry.get_num_values(0), 1);

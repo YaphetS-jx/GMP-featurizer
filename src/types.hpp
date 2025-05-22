@@ -33,30 +33,7 @@ namespace gmp { namespace containers {
     };
 
     template <typename T>
-    class gmp_unique_ptr : public resources::pool_unique_ptr<T, resources::PoolType> {
-        using base = resources::pool_unique_ptr<T, resources::PoolType>;
-    public:
-        // Default constructor creates null pointer with default pool
-        gmp_unique_ptr() : base(nullptr, &get_default_pool()) {}
-        
-        // Constructor with specific pool
-        explicit gmp_unique_ptr(resources::PoolType& pool) : base(nullptr, &pool) {}
-
-        // Forward the main constructor
-        gmp_unique_ptr(T* ptr, resources::PoolType* pool = &get_default_pool(), size_t n = 1) : base(ptr, pool, n) {}
-        
-        // Conversion constructor from base class
-        gmp_unique_ptr(resources::pool_unique_ptr<T, resources::PoolType>&& other) 
-            : base(other.release(), other.get_pool(), other.get_count()) {}
-        
-        // Move operations
-        gmp_unique_ptr(gmp_unique_ptr&&) = default;
-        gmp_unique_ptr& operator=(gmp_unique_ptr&&) = default;
-        
-        // Delete copy operations
-        gmp_unique_ptr(const gmp_unique_ptr&) = delete;
-        gmp_unique_ptr& operator=(const gmp_unique_ptr&) = delete;
-    };
+    using gmp_unique_ptr = resources::pool_unique_ptr<T, resources::PoolType>;
 
     // Helper function to create gmp_unique_ptr with default pool
     template <typename T, typename... Args>
