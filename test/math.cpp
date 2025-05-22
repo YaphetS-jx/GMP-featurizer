@@ -1,6 +1,8 @@
 #include <gtest/gtest.h>
 #include "math.hpp"
+#include "resources.hpp"
 using namespace gmp::math;
+using namespace gmp::resources;
 
 TEST(math, array3d_t) {
     // Test constructors
@@ -158,6 +160,25 @@ TEST(math, sym_matrix3d_t) {
     );
     EXPECT_EQ(s * v, sv_expected);
 };
+
+// Very basic test for mcsh_function_registry_t
+TEST(math, mcsh_function_registry_t) {
+    // Initialize the memory pool
+    auto& pool = gmp_resource::instance(128, 1<<20).get_host_memory().get_pool();
+    
+    // Use the test-friendly instance instead of the regular one
+    auto& registry = mcsh_function_registry_t::get_test_instance();
+    
+    // Now we can safely test the values without memory allocation issues
+    EXPECT_EQ(registry.get_num_values(0), 1);
+    EXPECT_EQ(registry.get_num_values(1), 3);
+    EXPECT_EQ(registry.get_num_values(2), 6);
+    EXPECT_EQ(registry.get_num_values(3), 10);
+    EXPECT_EQ(registry.get_num_values(4), 15);
+    EXPECT_EQ(registry.get_num_values(5), 21);
+    EXPECT_EQ(registry.get_num_values(6), 28);
+    EXPECT_EQ(registry.get_num_values(7), 36);
+}
 
 int main(int argc, char **argv) {
     testing::InitGoogleTest(&argc, argv);

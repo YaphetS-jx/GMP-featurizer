@@ -5,14 +5,22 @@ namespace gmp {
 
     enum class error_t {
         success,
-        // memory errors        
+        // memory errors
         memory_bad_alloc,
         // input errors 
         invalid_argument,
+        invalid_cutoff_method,
+        invalid_scaling_mode,
+        feature_list_mismatch,
+        invalid_order_sigma,
         unstreamable_string,
         incomplete_data_set,
+        invalid_psp_file,
+        invalid_atom_file,
+        missing_atom_psp, 
         // math errors
-        matrix_singular
+        matrix_singular,
+        invalid_mcsh_order
     };
 
     // Global error variable declaration
@@ -20,7 +28,7 @@ namespace gmp {
 
     // Function declarations
     void update_error(error_t err);
-    const char* to_string(error_t err);
+    const char* gmp_to_string(error_t err);
     error_t get_last_error();
 
 } // namespace gmp
@@ -30,7 +38,7 @@ namespace gmp {
         if ((val) != gmp::error_t::success) {                                   \
             std::cerr << "GMP Function \"" << __func__                          \
                         << "\" failed at " << __FILE__ << ":" << __LINE__       \
-                        << " with error: " << gmp::to_string(val) << std::endl; \
+                        << " with error: " << gmp::gmp_to_string(val) << std::endl; \
             exit(static_cast<int>(val));                                        \
         }                                                                       \
     } while (0)
@@ -39,6 +47,6 @@ namespace gmp {
     do {                                                                        \
         std::cerr << "GMP Function \"" << __func__                              \
                     << "\" failed at " << __FILE__ << ":" << __LINE__           \
-                    << " with error: " << gmp::to_string(val) << std::endl;     \
+                    << " with error: " << gmp::gmp_to_string(val) << std::endl;     \
         exit(static_cast<int>(val));                                            \
     } while (0)

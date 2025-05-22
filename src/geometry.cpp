@@ -53,6 +53,9 @@ namespace gmp { namespace geometry {
         matrix3d_flt64 abc(va, vb, vc);
 
         // Multiply abc and T to obtain final cell matrix
-        return lattice_t(abc * T);
+        lattice_t lattice(abc * T);
+        // lattice.update_inverse_lattice_vectors();
+        lattice.update_metric();
+        return lattice;
     }
 }}

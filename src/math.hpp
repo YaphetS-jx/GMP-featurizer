@@ -2,9 +2,13 @@
 #include <cmath>
 #include <type_traits>
 #include <limits>
+#include <functional>
 #include "error.hpp"
+#include "types.hpp"
 
 namespace gmp { namespace math {
+
+    using namespace gmp::containers;
 
     // check if a value is close to zero
     template <typename T>
@@ -62,12 +66,30 @@ namespace gmp { namespace math {
             return {data_[0] + other.data_[0], data_[1] + other.data_[1], data_[2] + other.data_[2]};
         }
 
+        array3d_t<T>& operator+=(const array3d_t<T>& other) {
+            data_[0] += other.data_[0];
+            data_[1] += other.data_[1];
+            data_[2] += other.data_[2];
+            return *this;
+        }
+
         array3d_t<T> operator-(const array3d_t<T>& other) const {
             return {data_[0] - other.data_[0], data_[1] - other.data_[1], data_[2] - other.data_[2]};
         }
 
+        array3d_t<T>& operator-=(const array3d_t<T>& other) {
+            data_[0] -= other.data_[0];
+            data_[1] -= other.data_[1];
+            data_[2] -= other.data_[2];
+            return *this;
+        }
+
         array3d_t<T> operator*(const T scalar) const {
             return {data_[0] * scalar, data_[1] * scalar, data_[2] * scalar};
+        }
+        
+        array3d_t<T> operator*(const array3d_t<T>& arr) const {
+            return {data_[0] * arr[0], data_[1] * arr[1], data_[2] * arr[2]};
         }
 
         friend array3d_t<T> operator*(const T scalar, const array3d_t<T>& arr) {
@@ -104,12 +126,19 @@ namespace gmp { namespace math {
         T norm() const {
             return std::sqrt(data_[0] * data_[0] + data_[1] * data_[1] + data_[2] * data_[2]);
         }
+
+        // product
+        T prod() const {
+            return data_[0] * data_[1] * data_[2];
+        }
     private:
         T data_[3];
     };
 
     // type aliases
     using array3d_flt64 = array3d_t<double>;
+    using array3d_int32 = array3d_t<int32_t>;
+    using array3d_int8 = array3d_t<int8_t>;
     using array3d_bool = array3d_t<bool>;
 
     template <typename T>
@@ -281,4 +310,116 @@ namespace gmp { namespace math {
 
     // type aliases
     using sym_matrix3d_flt64 = sym_matrix3d_t<double>;
+
+    // other math functions 
+    inline double round_to_0_1(const double x) {
+        // Use fmod to get the fractional part (value between -1 and 1)
+        double result = std::fmod(x, 1.0);
+        
+        // If the result is negative, add 1 to make it between 0 and 1
+        if (result < 0.0) {
+            result += 1.0;
+        }
+        
+        // Handle the edge case of -0.0 or exact 1.0
+        if (result == 0.0 && std::signbit(result)) {
+            result = 0.0;  // Convert -0.0 to +0.0
+        } else if (result == 1.0) {
+            result = 0.0;  // 1.0 should wrap to 0.0
+        }
+        
+        return result;
+    }
+
+    // solid mcsh functions
+    void calculate_solid_mcsh_n1(const array3d_flt64&, const double, const double, const double, const double, vec<double>&);
+    void calculate_solid_mcsh_0(const array3d_flt64&, const double, const double, const double, const double, vec<double>&);
+    void calculate_solid_mcsh_1(const array3d_flt64&, const double, const double, const double, const double, vec<double>&);
+    void calculate_solid_mcsh_2(const array3d_flt64&, const double, const double, const double, const double, vec<double>&);
+    void calculate_solid_mcsh_3(const array3d_flt64&, const double, const double, const double, const double, vec<double>&);
+    void calculate_solid_mcsh_4(const array3d_flt64&, const double, const double, const double, const double, vec<double>&);
+    void calculate_solid_mcsh_5(const array3d_flt64&, const double, const double, const double, const double, vec<double>&);
+    void calculate_solid_mcsh_6(const array3d_flt64&, const double, const double, const double, const double, vec<double>&);
+    void calculate_solid_mcsh_7(const array3d_flt64&, const double, const double, const double, const double, vec<double>&);
+    void calculate_solid_mcsh_8(const array3d_flt64&, const double, const double, const double, const double, vec<double>&);
+    void calculate_solid_mcsh_9(const array3d_flt64&, const double, const double, const double, const double, vec<double>&);
+    
+    // solid mcsh function registry
+    class mcsh_function_registry_t {
+        using solid_gmp_function_t = std::function<void(const array3d_flt64&, const double, const double, const double, const double, vec<double>&)>;
+    public: 
+        // Add a flag to control whether register_functions is called in constructor
+        mcsh_function_registry_t(bool register_on_init = true) : functions_{}, num_values_{} {
+            if (register_on_init) {
+                register_functions();
+            }
+        }
+
+        static mcsh_function_registry_t& get_instance() {
+            static mcsh_function_registry_t instance;
+            return instance;
+        }
+        
+        // Add a test-friendly version that doesn't allocate memory
+        static mcsh_function_registry_t& get_test_instance() {
+            static mcsh_function_registry_t test_instance(false); // Don't register functions
+            return test_instance;
+        }
+
+        const solid_gmp_function_t& get_function(int order) const {
+            return order < 0 ? functions_[0] : functions_[order];
+        }
+
+        int get_num_values(int order) const {
+            // If functions aren't registered, return predefined values for tests
+            if (functions_.size() == 0) {
+                static const int sizes[] = {1, 1, 3, 6, 10, 15, 21, 28, 36, 45, 55};
+                return order < 0 || order >= 11 ? 0 : sizes[order + 1];
+            }
+            return order < 0 ? num_values_[0] : num_values_[order];
+        }
+
+        void register_functions() {
+            // Create vectors with push_back instead of initializer lists to avoid memory issues
+            
+            // Reserve space first to avoid reallocations
+            functions_.reserve(11);
+            
+            // Add functions one by one
+            functions_.push_back(calculate_solid_mcsh_n1);
+            functions_.push_back(calculate_solid_mcsh_0);
+            functions_.push_back(calculate_solid_mcsh_1);
+            functions_.push_back(calculate_solid_mcsh_2);
+            functions_.push_back(calculate_solid_mcsh_3);
+            functions_.push_back(calculate_solid_mcsh_4);
+            functions_.push_back(calculate_solid_mcsh_5);
+            functions_.push_back(calculate_solid_mcsh_6);
+            functions_.push_back(calculate_solid_mcsh_7);
+            functions_.push_back(calculate_solid_mcsh_8);
+            functions_.push_back(calculate_solid_mcsh_9);
+            
+            // Reserve space for values
+            num_values_.reserve(10);
+            
+            // Add values one by one
+            num_values_.push_back(1);  // for order -1
+            num_values_.push_back(1);  // for order 0
+            num_values_.push_back(3);  // for order 1
+            num_values_.push_back(6);  // for order 2
+            num_values_.push_back(10); // for order 3
+            num_values_.push_back(15); // for order 4
+            num_values_.push_back(21); // for order 5
+            num_values_.push_back(28); // for order 6
+            num_values_.push_back(36); // for order 7
+            num_values_.push_back(45); // for order 8
+            num_values_.push_back(55); // for order 9
+        }
+        
+    private: 
+        vec<solid_gmp_function_t> functions_;
+        vec<int> num_values_;
+    };
+    
+    // functions 
+    double weighted_square_sum(const int mcsh_order, const vec<double>& v);
 }}

@@ -18,6 +18,10 @@ target_sources(gmp-featurizer-lib
     PRIVATE
     src/geometry.cpp
     src/error.cpp
+    src/input.cpp
+    src/featurizer.cpp
+    src/query.cpp
+    src/math.cpp
 )
 
 # Create the main executable
@@ -75,6 +79,14 @@ if(BUILD_TESTS)
         test/util.cpp
     )
 
+    add_executable(gmp-input-test
+        test/input.cpp
+    )
+
+    add_executable(gmp-query-test
+        test/query.cpp
+    )
+
     # Link against Google Test and the library
     target_link_libraries(gmp-resources-test
         PRIVATE
@@ -111,6 +123,20 @@ if(BUILD_TESTS)
         gmp-featurizer-lib
     )
 
+    target_link_libraries(gmp-input-test
+        PRIVATE
+        GTest::gtest_main
+        GTest::gmock_main
+        gmp-featurizer-lib
+    )
+
+    target_link_libraries(gmp-query-test
+        PRIVATE
+        GTest::gtest_main
+        GTest::gmock_main
+        gmp-featurizer-lib
+    )
+
     # Include directories for tests
     target_include_directories(gmp-resources-test
         PRIVATE
@@ -137,6 +163,16 @@ if(BUILD_TESTS)
         ${CMAKE_SOURCE_DIR}/src
     )
 
+    target_include_directories(gmp-input-test
+        PRIVATE
+        ${CMAKE_SOURCE_DIR}/src
+    )
+
+    target_include_directories(gmp-query-test
+        PRIVATE
+        ${CMAKE_SOURCE_DIR}/src
+    )
+
     # Set the output directory for the test executables
     set_target_properties(gmp-resources-test PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY ${TEST_RUNTIME_OUTPUT_DIRECTORY}
@@ -158,6 +194,14 @@ if(BUILD_TESTS)
         RUNTIME_OUTPUT_DIRECTORY ${TEST_RUNTIME_OUTPUT_DIRECTORY}
     )
 
+    set_target_properties(gmp-input-test PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY ${TEST_RUNTIME_OUTPUT_DIRECTORY}
+    )
+
+    set_target_properties(gmp-query-test PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY ${TEST_RUNTIME_OUTPUT_DIRECTORY}
+    )
+
     # Register tests
     include(GoogleTest)
     gtest_discover_tests(gmp-resources-test)
@@ -165,11 +209,13 @@ if(BUILD_TESTS)
     gtest_discover_tests(gmp-geometry-test)
     gtest_discover_tests(gmp-atom-test)
     gtest_discover_tests(gmp-util-test)
+    gtest_discover_tests(gmp-input-test)
+    gtest_discover_tests(gmp-query-test)
 
     # Add a custom target to build and run all tests
     add_custom_target(run_all_tests
         COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
-        DEPENDS gmp-resources-test gmp-math-test gmp-geometry-test gmp-atom-test gmp-util-test
+        DEPENDS gmp-resources-test gmp-math-test gmp-geometry-test gmp-atom-test gmp-util-test gmp-input-test gmp-query-test
         WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
         COMMENT "Running all tests..."
     )

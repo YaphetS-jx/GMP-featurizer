@@ -4,6 +4,8 @@
 #include <memory>
 #include <iostream>
 #include <vector>
+#include <iomanip>
+#include <sstream>
 #include "error.hpp"
 
 namespace gmp { namespace resources {

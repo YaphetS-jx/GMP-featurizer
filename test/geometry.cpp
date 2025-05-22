@@ -1,5 +1,8 @@
 #include <gtest/gtest.h>
 #include "geometry.hpp"
+#include <iostream>
+#include <iomanip>
+
 
 using namespace gmp::geometry;
 using namespace gmp::math;
@@ -78,29 +81,6 @@ TEST(geometry, lattice_t_access) {
     EXPECT_EQ(lat[0], array3d_flt64(2, 1, 0.6));
 }
 
-TEST(geometry, lattice_t_inverse) {
-    // Create a triclinic lattice
-    array3d_flt64 v1(1, 0.5, 0.3);
-    array3d_flt64 v2(0.2, 1.2, 0.4);
-    array3d_flt64 v3(0.1, 0.3, 1.1);
-    lattice_t lat(v1, v2, v3);
-
-    // Get inverse lattice vectors
-    matrix3d_flt64 inv = lat.get_inverse_lattice_vector();
-    
-    // Verify that inverse * original = identity (approximately)
-    matrix3d_flt64 product = inv * matrix3d_flt64(lat[0], lat[1], lat[2]);
-    for(int i = 0; i < 3; i++) {
-        for(int j = 0; j < 3; j++) {
-            if(i == j) {
-                EXPECT_NEAR(product[i][j], 1.0, 1e-10);
-            } else {
-                EXPECT_NEAR(product[i][j], 0.0, 1e-10);
-            }
-        }
-    }
-}
-
 TEST(geometry, lattice_t_volume) {
     // Create a triclinic lattice
     array3d_flt64 v1(1, 0.5, 0.3);
@@ -141,26 +121,23 @@ TEST(geometry, lattice_t_normalize) {
     EXPECT_NEAR(cross3.norm(), 0.0, 1e-10);
 }
 
-TEST(geometry, lattice_t_metric) {
+TEST(geometry, lattice_t_distance) {
     // Create a triclinic lattice
-    array3d_flt64 v1(1, 0.5, 0.3);
-    array3d_flt64 v2(0.2, 1.2, 0.4);
-    array3d_flt64 v3(0.1, 0.3, 1.1);
+    array3d_flt64 v1(8.2143131137332475, 0.0000000000000000, 0.0000000000000000);
+    array3d_flt64 v2(0.0000000000000000, 7.3692440000000001, 0.0000000000000000);
+    array3d_flt64 v3(-5.0606965770721848, 0.0000000000000000, 7.3320024020115309);
     lattice_t lat(v1, v2, v3);
 
-    // Get metric tensor
-    sym_matrix3d_flt64 metric = lat.get_metric();
-
-    // Verify metric tensor properties
-    // 1. Diagonal elements are squared lengths
-    EXPECT_DOUBLE_EQ(metric[0], v1.dot(v1));  // g11
-    EXPECT_DOUBLE_EQ(metric[1], v2.dot(v2));  // g22
-    EXPECT_DOUBLE_EQ(metric[2], v3.dot(v3));  // g33
-
-    // 2. Off-diagonal elements are dot products
-    EXPECT_DOUBLE_EQ(metric[3], v1.dot(v2));  // g12
-    EXPECT_DOUBLE_EQ(metric[4], v1.dot(v3));  // g13
-    EXPECT_DOUBLE_EQ(metric[5], v2.dot(v3));  // g23
+    // Update metric tensor
+    lat.update_metric();
+    
+    point_flt64 p1 = {1.2, 3.4, 5.6};
+    point_flt64 p2 = {6.5, 2.3, 4.3};
+    array3d_flt64 cell_shift(0, 0, 0);
+    array3d_flt64 difference;
+    
+    double distance2 = lat.calculate_distance_squared(p1, p2, cell_shift, difference);    
+    EXPECT_DOUBLE_EQ(distance2, 2668.0511005315929651);
 }
 
 TEST(geometry, lattice_t_cell_info_to_lattice) {
@@ -173,10 +150,18 @@ TEST(geometry, lattice_t_cell_info_to_lattice) {
 
     // test volume
     EXPECT_DOUBLE_EQ(lat.get_volume(), 443.8301369664612821);
-    // metric tensor
-    EXPECT_EQ(lat.get_metric(), 
-        sym_matrix3d_flt64(array3d_flt64(67.4749399304500059, 54.3057571315360050, 79.3689090682929788),
-        array3d_flt64(0.0000000000000037, -41.5701462576690020, 0.0000000000000040)));
+    
+    // Test interplanar spacing
+    array3d_flt64 spacing = lat.get_interplanar_spacing();
+    EXPECT_GT(spacing[0], 0.0);
+    EXPECT_GT(spacing[1], 0.0);
+    EXPECT_GT(spacing[2], 0.0);
+    
+    // Test cell lengths
+    array3d_flt64 lengths = lat.get_cell_lengths();
+    EXPECT_DOUBLE_EQ(lengths[0], cell_lengths[0]);
+    EXPECT_DOUBLE_EQ(lengths[1], cell_lengths[1]);
+    EXPECT_DOUBLE_EQ(lengths[2], cell_lengths[2]);
 }
 
 int main(int argc, char **argv) {

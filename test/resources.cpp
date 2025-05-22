@@ -127,6 +127,11 @@ TEST(gmp_resources, class_sizes) {
     EXPECT_TRUE(sizeof(descriptor_config_t) <= pool.get_requested_size());
     std::cout << "Size of reference_config_t: " << sizeof(reference_config_t) << " bytes" << std::endl;
     EXPECT_TRUE(sizeof(reference_config_t) <= pool.get_requested_size());
+
+    // Print sizes of math related classes
+    std::cout << "Size of mcsh_function_registry_t: " << sizeof(mcsh_function_registry_t) << " bytes" << std::endl;
+    EXPECT_TRUE(sizeof(mcsh_function_registry_t) <= pool.get_requested_size());
+
 }
 
 int main(int argc, char **argv) {

@@ -22,29 +22,22 @@ namespace gmp { namespace geometry {
     class lattice_t {
     public:
         // constructor
-        lattice_t() : lattice_vectors_{array3d_flt64{}, array3d_flt64{}, array3d_flt64{}} {}
-        
+        lattice_t() : lattice_vectors_{}, metric_{} {}
+
         // constructor with unit lattice vectors and cell length
         lattice_t(const array3d_flt64& v1, const array3d_flt64& v2, const array3d_flt64& v3, 
                 double a = 1.0, double b = 1.0, double c = 1.0) 
-            : lattice_vectors_{v1*a, v2*b, v3*c} {}
-        
-        lattice_t(const matrix3d_flt64& lattice_vectors)
-            : lattice_vectors_{lattice_vectors} {}
+            : lattice_vectors_{v1*a, v2*b, v3*c}, metric_{} {}
 
-        lattice_t(const lattice_t& other)
-            : lattice_vectors_{other.lattice_vectors_} {}
-            
-        lattice_t(lattice_t&& other) noexcept
-            : lattice_vectors_{std::move(other.lattice_vectors_)} {}
+        lattice_t(matrix3d_flt64 lattice_vectors) : lattice_vectors_(lattice_vectors), metric_{} {}
         
-        // assignment operator
-        lattice_t& operator=(const lattice_t& other) {
+        // copy constructor
+        lattice_t(const lattice_t& other) : lattice_vectors_(other.lattice_vectors_), metric_(other.metric_) {}
+        
+        lattice_t operator=(const lattice_t& other) {
             lattice_vectors_ = other.lattice_vectors_;
-            return *this;
-        }
-        lattice_t& operator=(lattice_t&& other) noexcept {
-            lattice_vectors_ = std::move(other.lattice_vectors_);
+            metric_ = other.metric_;
+            // inverse_lattice_vectors_ = other.inverse_lattice_vectors_;
             return *this;
         }
         
@@ -53,8 +46,18 @@ namespace gmp { namespace geometry {
         array3d_flt64& operator[](size_t i) { return lattice_vectors_[i]; }
 
         // get inverse lattice vectors
-        matrix3d_flt64 get_inverse_lattice_vector() const {            
-            return lattice_vectors_.inverse();
+        // void update_inverse_lattice_vectors() {            
+        //     inverse_lattice_vectors_ = lattice_vectors_.inverse();
+        // }
+
+        // get lattice metric
+        void update_metric() {
+            metric_ = sym_matrix3d_flt64(lattice_vectors_[0].dot(lattice_vectors_[0]),
+                                  lattice_vectors_[1].dot(lattice_vectors_[1]),
+                                  lattice_vectors_[2].dot(lattice_vectors_[2]),
+                                  lattice_vectors_[0].dot(lattice_vectors_[1]),
+                                  lattice_vectors_[0].dot(lattice_vectors_[2]),
+                                  lattice_vectors_[1].dot(lattice_vectors_[2]));
         }
 
         // get volume of cell
@@ -71,18 +74,37 @@ namespace gmp { namespace geometry {
             return result;
         }
 
-        // get lattice metric
-        sym_matrix3d_flt64 get_metric() const {
-            return sym_matrix3d_flt64(lattice_vectors_[0].dot(lattice_vectors_[0]),
-                                  lattice_vectors_[1].dot(lattice_vectors_[1]),
-                                  lattice_vectors_[2].dot(lattice_vectors_[2]),
-                                  lattice_vectors_[0].dot(lattice_vectors_[1]),
-                                  lattice_vectors_[0].dot(lattice_vectors_[2]),
-                                  lattice_vectors_[1].dot(lattice_vectors_[2]));
+        // get inter-planar spacing
+        array3d_flt64 get_interplanar_spacing() const {
+            double volume = get_volume();
+            array3d_flt64 b1 = lattice_vectors_[1].cross(lattice_vectors_[2]) / volume;
+            array3d_flt64 b2 = lattice_vectors_[2].cross(lattice_vectors_[0]) / volume;
+            array3d_flt64 b3 = lattice_vectors_[0].cross(lattice_vectors_[1]) / volume;
+            return array3d_flt64(1.0 / b1.norm(), 1.0 / b2.norm(), 1.0 / b3.norm());
+        }
+
+        array3d_flt64 get_cell_lengths() const {
+            return array3d_flt64(lattice_vectors_[0].norm(), lattice_vectors_[1].norm(), lattice_vectors_[2].norm());
+        }
+
+        double calculate_distance_squared(const point_flt64& p1, const point_flt64& p2, const array3d_flt64& cell_shift, array3d_flt64& difference) const {
+            difference = array3d_flt64(p1.x - p2.x, p1.y - p2.y, p1.z - p2.z);
+            difference += cell_shift;
+            return difference.dot(metric_ * difference);
+        }
+
+        double calculate_distance(const point_flt64& p1, const point_flt64& p2, const array3d_flt64& cell_shift, array3d_flt64& difference) const {
+            return std::sqrt(calculate_distance_squared(p1, p2, cell_shift, difference));
+        }
+
+        array3d_flt64 fractional_to_cartesian(const array3d_flt64& fractional) const {
+            return lattice_vectors_ * fractional;
         }
 
     private:
         matrix3d_flt64 lattice_vectors_;
+        // matrix3d_flt64 inverse_lattice_vectors_;
+        sym_matrix3d_flt64 metric_;
     };
 
     // Convert cell parameters to lattice vectors

@@ -14,17 +14,17 @@ TEST(atom_system, atom_constructors) {
     EXPECT_DOUBLE_EQ(atom1.x(), 1.0);
     EXPECT_DOUBLE_EQ(atom1.y(), 2.0);
     EXPECT_DOUBLE_EQ(atom1.z(), 3.0);
-    EXPECT_DOUBLE_EQ(atom1.get_occupancy(), 1.0);
-    EXPECT_EQ(atom1.get_type(), "X");
+    EXPECT_DOUBLE_EQ(atom1.occ(), 1.0);
+    EXPECT_EQ(atom1.id(), std::numeric_limits<uint8_t>::max());
 
     // Constructor with point and custom values
     point_flt64 pos{4.0, 5.0, 6.0};
-    atom_t atom2(pos, 0.5, "C");
+    atom_t atom2(pos, 0.5, 2);
     EXPECT_DOUBLE_EQ(atom2.x(), 4.0);
     EXPECT_DOUBLE_EQ(atom2.y(), 5.0);
     EXPECT_DOUBLE_EQ(atom2.z(), 6.0);
-    EXPECT_DOUBLE_EQ(atom2.get_occupancy(), 0.5);
-    EXPECT_EQ(atom2.get_type(), "C");
+    EXPECT_DOUBLE_EQ(atom2.occ(), 0.5);
+    EXPECT_EQ(atom2.id(), 2);
 
     // Copy constructor
     atom_t atom3(atom1);
@@ -81,36 +81,6 @@ TEST(atom, system_constructors) {
     EXPECT_FALSE(system2.get_periodicity()[0]);
     EXPECT_TRUE(system2.get_periodicity()[1]);
     EXPECT_FALSE(system2.get_periodicity()[2]);
-
-    // Move constructor
-    unit_cell_t system3(std::move(system2));
-    EXPECT_EQ(system3.get_atoms().size(), 2);
-    EXPECT_FALSE(system3.get_periodicity()[0]);
-    EXPECT_TRUE(system3.get_periodicity()[1]);
-    EXPECT_FALSE(system3.get_periodicity()[2]);
-}
-
-TEST(atom, system_assignment) {
-    auto& host_memory = gmp_resource::instance(128, 1<<20).get_host_memory();
-    
-    // Create first system
-    vec<atom_t> atoms1;
-    atoms1.push_back(atom_t(1.0, 2.0, 3.0));
-    auto lattice1 = make_gmp_unique<lattice_t>();
-    unit_cell_t system1(std::move(atoms1), std::move(lattice1));
-
-    // Create second system
-    vec<atom_t> atoms2;
-    atoms2.push_back(atom_t(4.0, 5.0, 6.0));
-    auto lattice2 = make_gmp_unique<lattice_t>();
-    unit_cell_t system2(std::move(atoms2), std::move(lattice2));
-
-    // Move assignment
-    system1 = std::move(system2);
-    EXPECT_EQ(system1.get_atoms().size(), 1);
-    EXPECT_DOUBLE_EQ(system1[0].x(), 4.0);
-    EXPECT_DOUBLE_EQ(system1[0].y(), 5.0);
-    EXPECT_DOUBLE_EQ(system1[0].z(), 6.0);
 }
 
 TEST(atom, system_mutators) {

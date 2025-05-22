@@ -5,6 +5,10 @@
 
 namespace gmp { namespace containers {
 
+    // type aliases 
+    using atom_type_id_t = std::uint8_t;
+    using atom_type_map_t = std::unordered_map<std::string, atom_type_id_t>;
+    
     using namespace gmp::resources;
 
     inline PoolType& get_default_pool() {
@@ -37,9 +41,9 @@ namespace gmp { namespace containers {
         
         // Constructor with specific pool
         explicit gmp_unique_ptr(resources::PoolType& pool) : base(nullptr, &pool) {}
-        
+
         // Forward the main constructor
-        gmp_unique_ptr(T* ptr, resources::PoolType* pool, size_t n = 1) : base(ptr, pool, n) {}
+        gmp_unique_ptr(T* ptr, resources::PoolType* pool = &get_default_pool(), size_t n = 1) : base(ptr, pool, n) {}
         
         // Conversion constructor from base class
         gmp_unique_ptr(resources::pool_unique_ptr<T, resources::PoolType>&& other) 
