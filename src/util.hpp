@@ -4,6 +4,8 @@
 #include <sstream>
 #include <vector>
 #include <tuple>
+#include <fstream>
+
 #include "error.hpp"
 
 namespace gmp { namespace util {
@@ -202,4 +204,42 @@ namespace gmp { namespace util {
         }
     }
 
+    template<typename Container>
+    void debug_write_vector(const Container &container, const std::string & filename) {
+        // Open the file for writing, truncating it if it exists
+        std::ofstream outfile(filename, std::ios::app);
+        
+        // Check if the file was opened successfully
+        if (!outfile.is_open()) {
+            update_error(error_t::output_file_error);
+            return;
+        }
+        
+        // Write the vector data
+        for (auto it = container.begin(); it != container.end(); ++it) {
+            // Set precision and format (only affects numeric types)
+            if constexpr (std::is_floating_point<typename Container::value_type>::value) {
+                outfile << std::fixed << std::setprecision(16) << std::setw(12);
+            }
+            outfile << *it;
+            if (std::next(it) != container.end()) {
+                outfile << " ";
+            }
+        }
+        outfile << std::endl;
+        
+        // Close the file
+        outfile.close();
+    }
+
+    template<typename Container2D>
+    void debug_write_vector_2d(const Container2D &container2D, const std::string & filename) {
+        std::cout << "size of container2D: " << container2D.size() << "x" << container2D[0].size() << std::endl;
+
+        // Write the vector data
+        for (auto it = container2D.begin(); it != container2D.end(); ++it) {
+            debug_write_vector(*it, filename);
+            // outfile << std::endl;
+        }
+    }
 }}

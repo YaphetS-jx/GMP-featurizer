@@ -44,38 +44,6 @@ TEST(atom_system, atom_assignment) {
     EXPECT_DOUBLE_EQ(atom1.z(), 6.0);
 }
 
-// Test unit_cell_t class
-TEST(atom, system_constructors) {
-    auto& host_memory = gmp_resource::instance(64, 1<<20).get_host_memory();
-    // Default constructor
-    unit_cell_t system1;
-    EXPECT_TRUE(system1.get_atoms().empty());
-    EXPECT_FALSE(system1.get_lattice());
-    EXPECT_TRUE(system1.get_periodicity()[0]);
-    EXPECT_TRUE(system1.get_periodicity()[1]);
-    EXPECT_TRUE(system1.get_periodicity()[2]);
-
-    // Constructor with values
-    vec<atom_t> atoms;
-    atoms.push_back(atom_t(1.0, 2.0, 3.0));
-    atoms.push_back(atom_t(4.0, 5.0, 6.0));
-
-    matrix3d_flt64 mat;
-    mat[0] = array3d_flt64{1.0, 0.0, 0.0};
-    mat[1] = array3d_flt64{0.0, 1.0, 0.0};
-    mat[2] = array3d_flt64{0.0, 0.0, 1.0};
-    auto lattice = std::make_unique<lattice_t>(mat);
-    atom_type_map_t atom_type_map;
-    atom_type_map["H"] = 0;
-    atom_type_map["O"] = 1;
-
-    unit_cell_t system2(std::move(atoms), std::move(lattice), std::move(atom_type_map));
-    EXPECT_EQ(system2.get_atoms().size(), 2);
-    EXPECT_TRUE(system2.get_periodicity()[0]);
-    EXPECT_TRUE(system2.get_periodicity()[1]);
-    EXPECT_TRUE(system2.get_periodicity()[2]);
-}
-
 TEST(atom, system_mutators) {
     auto& host_memory = gmp_resource::instance(64, 1<<20).get_host_memory();
     unit_cell_t system;
@@ -122,7 +90,11 @@ TEST(atom, system_accessors) {
     atom_type_map["H"] = 0;
     atom_type_map["O"] = 1;
     
-    unit_cell_t system(std::move(atoms), std::move(lattice), std::move(atom_type_map));
+    unit_cell_t system;
+    system.set_atoms(std::move(atoms));
+    system.set_lattice(std::move(lattice));
+    system.set_atom_type_map(std::move(atom_type_map));
+    system.set_periodicity(array3d_bool{true, false, true});
 
     // Test get_atoms
     const auto& system_atoms = system.get_atoms();
@@ -134,7 +106,7 @@ TEST(atom, system_accessors) {
     // Test get_periodicity
     const auto& system_periodic = system.get_periodicity();
     EXPECT_TRUE(system_periodic[0]);
-    EXPECT_TRUE(system_periodic[1]);
+    EXPECT_FALSE(system_periodic[1]);
     EXPECT_TRUE(system_periodic[2]);
 
     // Test operator[]

@@ -102,39 +102,11 @@ namespace gmp { namespace input {
         // print config
         void print_config() const;
     };
-    
-    struct gaussian_t {
-        double B;
-        double beta;
-        gaussian_t(double B, double beta) : B(B), beta(beta) {}
-    };
-    
-    // psp config 
-    class psp_config_t {
-    public:
-        psp_config_t() : gaussian_table_() {}
-        psp_config_t(vec<vec<gaussian_t>>&& gaussian_table) : gaussian_table_(std::move(gaussian_table)) {}
-        ~psp_config_t() = default;
-
-        int get_num_gaussians_offset(vec<int>& offset) const;
-        int size() const { return gaussian_table_.size(); }
-        const vec<gaussian_t>& operator[](atom_type_id_t id) const { return gaussian_table_[id]; }
-
-        // iterators
-        auto begin() { return gaussian_table_.begin(); }
-        auto end() { return gaussian_table_.end(); }
-        auto begin() const { return gaussian_table_.begin(); }
-        auto end() const { return gaussian_table_.end(); }
-    
-    private: 
-        vec<vec<gaussian_t>> gaussian_table_;
-        void print_config() const;
-    };
 
     // input class
     class input_t {
     public:
-        input_t() : files(), descriptor_config() {}
+        input_t(int argc, char* argv[]);
         ~input_t() = default;
 
     public: 
@@ -146,6 +118,8 @@ namespace gmp { namespace input {
 
     public: 
         // functions
+        const descriptor_config_t* get_descriptor_config() const { return descriptor_config.get(); }
+
         void parse_arguments(int argc, char* argv[]);
 
         void print_config() const;
@@ -154,17 +128,4 @@ namespace gmp { namespace input {
         // helper for argument
         void print_help() const;
     };
-    
-    // read psp file
-    void read_psp_file(const std::string& psp_file, const atom_type_map_t& atom_type_map, vec<vec<gaussian_t>>& gaussian_table);
-
-    // read atom file
-    void read_atom_file(const std::string& atom_file, std::unique_ptr<lattice_t>& lattice, vec<atom_t>& atoms, atom_type_map_t& atom_type_map);
-
-    // reference configuration
-    struct reference_config_t {
-        std::vector<array3d_flt64> ref_positions;
-        double largest_cutoff = 0.0;
-    };
-
 }}

@@ -18,31 +18,22 @@ namespace gmp { namespace featurizer {
 
     class kernel_params_table_t {
     public:
-        kernel_params_table_t(const vec<int>&& gaussian_offset, const int num_gaussians, const int num_features) 
-            : gaussian_offset_(std::move(gaussian_offset)), num_gaussians_(num_gaussians), num_features_(num_features) {};
+        kernel_params_table_t(const descriptor_config_t* descriptor_config, const psp_config_t* psp_config);
         ~kernel_params_table_t() = default;
 
-        void set_kernel_params_table(const descriptor_config_t& descriptor_config, const psp_config_t& psp_config);
-
-        const kernel_params_t& operator()(const int feature_idx, const int atom_type_idx, const int gaussian_idx) const {
-            return table_[feature_idx * num_gaussians_ + get_gaussian(atom_type_idx, gaussian_idx)];
-        }
-
-        int get_gaussian(const int atom_type_idx, const int gaussian_idx) const {
-            return gaussian_offset_[atom_type_idx] + gaussian_idx;
+        const kernel_params_t& operator()(const int feature_idx, const int gaussian_idx) const {
+            return table_[feature_idx * num_gaussians_ + gaussian_idx];
         }
 
     private: 
         vec<kernel_params_t> table_;
-        vec<int> gaussian_offset_;
         int num_gaussians_;
         int num_features_;
     };
 
     class cutoff_table_t {
     public:
-        cutoff_table_t() 
-            : feature_mapping_(), gaussian_mapping_(), largest_cutoff_(0.0), feature_size_(0), gaussian_size_(0) {};
+        cutoff_table_t(const descriptor_config_t* descriptor_config, const psp_config_t* psp_config);
         ~cutoff_table_t() = default;
 
         int get_feature_idx(const int feature_idx) const {
@@ -54,11 +45,8 @@ namespace gmp { namespace featurizer {
         }
 
         double operator()(const int feature_idx, const int gaussian_idx) const {
-            return table_[get_feature_idx(feature_idx) * gaussian_size_ + get_gaussian_idx(gaussian_idx)];
+            return table_[get_feature_idx(feature_idx) * num_gaussians_ + get_gaussian_idx(gaussian_idx)];
         }
-
-        void set_cutoff_table(const gmp::input::descriptor_config_t& descriptor_config, const gmp::input::psp_config_t& psp_config);
-
 
         double get_largest_cutoff() const { return largest_cutoff_; }
 
@@ -72,25 +60,30 @@ namespace gmp { namespace featurizer {
         vec<int> feature_mapping_;  // outer index
         vec<int> gaussian_mapping_; // inner index
         double largest_cutoff_;
-        int feature_size_;
-        int gaussian_size_;
+        int num_features_;
+        int num_gaussians_;
     };
 
 
     // featurizer class
     class featurizer_t {
     public:
-        featurizer_t() : query_info_(), kernel_params_table_(), cutoff_table_() {};
+        // ctor
+        featurizer_t(const descriptor_config_t* descriptor_config, const unit_cell_t* unit_cell, const psp_config_t* psp_config)
+            : kernel_params_table_(std::make_unique<kernel_params_table_t>(descriptor_config, psp_config)), 
+            cutoff_table_(std::make_unique<cutoff_table_t>(descriptor_config, psp_config)),
+            query_info_(std::make_unique<query_info_t>(unit_cell, cutoff_table_->get_largest_cutoff())) 
+        {}
         ~featurizer_t() = default;
 
         // calculate features 
-        vec<vec<double>> operator()(const vec<point_flt64>& ref_positions, 
-            const descriptor_config_t& descriptor_config, const unit_cell_t& unit_cell, const psp_config_t& psp_config);
+        vec<vec<double>> compute(const vec<point_flt64>& ref_positions, 
+            const descriptor_config_t* descriptor_config, const unit_cell_t* unit_cell, const psp_config_t* psp_config);        
 
     private: 
-        std::unique_ptr<query_info_t> query_info_;
         std::unique_ptr<kernel_params_table_t> kernel_params_table_;
         std::unique_ptr<cutoff_table_t> cutoff_table_;
+        std::unique_ptr<query_info_t> query_info_;
     };
 
     // functions 

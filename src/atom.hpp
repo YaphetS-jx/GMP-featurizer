@@ -41,22 +41,8 @@ namespace gmp { namespace atom {
     
     class unit_cell_t {
     public:
-        // ctor 
-        unit_cell_t()
-            : atoms_(), lattice_(), atom_type_map_(), periodicity_{true, true, true} {}
-
-        unit_cell_t(vec<atom_t>&& atoms, std::unique_ptr<lattice_t>&& lattice, 
-            atom_type_map_t&& atom_type_map, const array3d_bool& periodicity = array3d_bool{true, true, true})
-            : atoms_{std::move(atoms)}, lattice_{std::move(lattice)}, 
-            atom_type_map_{std::move(atom_type_map)}, periodicity_{periodicity} {}
-
-        // move constructor and assignment are deleted
-        unit_cell_t(unit_cell_t&& other) = delete;
-        unit_cell_t& operator=(unit_cell_t&& other) = delete;        
-        unit_cell_t(const unit_cell_t&) = delete;
-        unit_cell_t& operator=(const unit_cell_t&) = delete;
-
-        // destructor
+        unit_cell_t() = default;
+        unit_cell_t(std::string atom_file);        
         ~unit_cell_t() = default;
 
         // accessors
@@ -79,4 +65,33 @@ namespace gmp { namespace atom {
         array3d_bool periodicity_;
     };
 
+    struct gaussian_t {
+        double B;
+        double beta;
+        gaussian_t(double B, double beta) : B(B), beta(beta) {}
+    };
+    
+    // psp config 
+    class psp_config_t {
+    public:
+        psp_config_t(std::string psp_file, const unit_cell_t* unit_cell);
+        ~psp_config_t() = default;
+
+        const vec<int>& get_offset() const { return offset_; }        
+        const gaussian_t& operator[](const int idx) const { return gaussian_table_[idx]; }
+
+    private:         
+        vec<gaussian_t> gaussian_table_;
+        vec<int> offset_;
+        void print_config() const;
+    };
+
+    // read psp file
+    void read_psp_file(const std::string& psp_file, const atom_type_map_t& atom_type_map, vec<gaussian_t>& gaussian_table, vec<int>& offset);
+
+    // read atom file
+    void read_atom_file(const std::string& atom_file, std::unique_ptr<lattice_t>& lattice, vec<atom_t>& atoms, atom_type_map_t& atom_type_map);
+
+    // set reference positions
+    vec<point_flt64> set_ref_positions(const unit_cell_t* unit_cell);
 }}

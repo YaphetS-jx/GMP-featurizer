@@ -113,40 +113,25 @@ TEST_F(InputTest, read_psp_file) {
     atom_type_map["O"] = 2;
     
     // Test reading a PSP file
-    vec<vec<gaussian_t>> gaussian_table;
-    
+    vec<gaussian_t> gaussian_table;
+    vec<int> offset;
+
     // Use absolute path to ensure the file can be found
     std::string psp_path = "/media/xx/LEAVE/coding/GMP-featurizer/example/QE-kjpaw.gpsp";
-    read_psp_file(psp_path, atom_type_map, gaussian_table);
+    read_psp_file(psp_path, atom_type_map, gaussian_table, offset);
     
     // Check if error occurred
     EXPECT_EQ(gmp::gmp_error, gmp::error_t::success);
     
     // Check gaussian_table size
-    EXPECT_EQ(gaussian_table.size(), 3); // K, Se, O
+    EXPECT_EQ(gaussian_table.size(), 17); // K, Se, O
     
     // Check if data was loaded for each atom type
-    EXPECT_EQ(gaussian_table[0].size(), 7); // K should have Gaussians
-    EXPECT_EQ(gaussian_table[1].size(), 6); // Se should have Gaussians
-    EXPECT_EQ(gaussian_table[2].size(), 4); // O should have Gaussians
-    
-    // Test PSP config
-    psp_config_t psp_config(std::move(gaussian_table));
-    EXPECT_EQ(psp_config.size(), 3);
-    
-    // Test num_gaussians_offset
-    vec<int> offset;
-    int total_gaussians = psp_config.get_num_gaussians_offset(offset);
-    EXPECT_EQ(offset.size(), 3);
-    EXPECT_EQ(offset[0], 0);
-    EXPECT_EQ(offset[1], 7);
-    EXPECT_EQ(offset[2], 13);
-    EXPECT_EQ(total_gaussians, 17);
+    EXPECT_EQ(offset.size(), 4);
 }
 
 TEST_F(InputTest, input_t_parse_arguments) {
     auto& pool = gmp_resource::instance(64, 1<<20).get_host_memory().get_pool();
-    input_t input;
     
     // Set up argc and argv for testing with absolute paths
     const char* argv[] = {
@@ -165,7 +150,7 @@ TEST_F(InputTest, input_t_parse_arguments) {
     int argc = sizeof(argv) / sizeof(argv[0]);
     
     // Parse arguments
-    input.parse_arguments(argc, const_cast<char**>(argv));
+    input_t input(argc, const_cast<char**>(argv));
     
     // Check if error occurred
     EXPECT_EQ(gmp::gmp_error, gmp::error_t::success);

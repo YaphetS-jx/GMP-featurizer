@@ -90,67 +90,6 @@ namespace gmp { namespace resources {
         });
     }
 
-    // Pool allocator     
-    template <typename T> struct pool_allocator {
-    private:
-        PoolType* pool_;
-        
-    public:
-        using value_type = T;
-        
-        // Default constructor (needed for std::vector)
-        pool_allocator() : pool_(nullptr) {}
-        
-        pool_allocator(PoolType& pool) : pool_(&pool) {
-            assert(pool_size() >= sizeof(T));
-        }
-        
-        template <typename U>
-        pool_allocator(pool_allocator<U> const& other) : pool_(other.get_pool()) {
-            assert(pool_ && pool_size() >= sizeof(T));
-        }
-        
-        // Get the pool pointer
-        PoolType* get_pool() const { return pool_; }
-        
-        // allocator
-        T *allocate(const size_t n) {
-            if (!pool_) {
-                GMP_EXIT(error_t::memory_bad_alloc);                
-            }
-            T* ret = static_cast<T*>(pool_->ordered_malloc(n));
-            if (!ret && n) {
-                GMP_EXIT(error_t::memory_bad_alloc);
-            }
-            return ret;
-        }
-        
-        // deallocator
-        void deallocate(T* ptr, const size_t n) {
-            if (pool_ && ptr && n) pool_->ordered_free(ptr, n);
-        }
-        
-        // pool size
-        size_t pool_size() const { 
-            return pool_ ? pool_->get_requested_size() : 0; 
-        }
-
-        // equality operators
-        bool operator==(const pool_allocator& other) const {
-            return pool_ == other.get_pool();
-        }
-        
-        bool operator!=(const pool_allocator& other) const {
-            return !(*this == other);
-        }
-
-        // Add propagate_on_container_move_assignment
-        using propagate_on_container_move_assignment = std::true_type;
-        using propagate_on_container_copy_assignment = std::true_type;
-        using propagate_on_container_swap = std::true_type;
-        using is_always_equal = std::false_type;
-    };
-
     // print memory info
     inline void print_boost_pool_memory_info(PoolType& pool) {
         auto format_size = [](uint64_t bytes) -> std::string {

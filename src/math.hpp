@@ -372,10 +372,10 @@ namespace gmp { namespace math {
             // Create vectors with push_back instead of initializer lists to avoid memory issues
             
             // Reserve space first to avoid reallocations
-            functions_.reserve(11);
+            functions_.reserve(10);
             
             // Add functions one by one
-            functions_.push_back(calculate_solid_mcsh_n1);
+            // functions_.push_back(calculate_solid_mcsh_n1);
             functions_.push_back(calculate_solid_mcsh_0);
             functions_.push_back(calculate_solid_mcsh_1);
             functions_.push_back(calculate_solid_mcsh_2);

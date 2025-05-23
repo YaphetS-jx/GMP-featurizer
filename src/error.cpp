@@ -30,6 +30,8 @@ namespace gmp {
             // math errors
             case error_t::matrix_singular: return "Matrix is singular";
             case error_t::invalid_mcsh_order: return "Invalid MCSH Order";
+            // output errors
+            case error_t::output_file_error: return "Output File Error";
             default: return "Unknown Error";
         }
     }

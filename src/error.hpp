@@ -20,7 +20,9 @@ namespace gmp {
         missing_atom_psp, 
         // math errors
         matrix_singular,
-        invalid_mcsh_order
+        invalid_mcsh_order,
+        // output errors
+        output_file_error
     };
 
     // Global error variable declaration

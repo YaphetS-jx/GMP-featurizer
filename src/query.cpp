@@ -3,13 +3,14 @@
 namespace gmp { namespace query {
 
 
-    void query_info_t::build_query_info(const unit_cell_t& unit_cell, const double cutoff) 
+    query_info_t::query_info_t(const unit_cell_t* unit_cell, const double cutoff) 
+        : num_bins_(), bin_atoms_(), bin_offset_(), bin_ranges_()
     {    
         // calculate the interplanar spacing
-        array3d_flt64 interplanar_spacing = unit_cell.get_lattice()->get_interplanar_spacing();
+        array3d_flt64 interplanar_spacing = unit_cell->get_lattice()->get_interplanar_spacing();
         
         // calculate the minimum number of bins
-        array3d_flt64 cell_lengths = unit_cell.get_lattice()->get_cell_lengths();
+        array3d_flt64 cell_lengths = unit_cell->get_lattice()->get_cell_lengths();
 
         // calculate the minimum number of bins
         array3d_int32 min_nbins = array3d_int32(
@@ -23,16 +24,27 @@ namespace gmp { namespace query {
             num_bins_[i] = static_cast<int> (std::ceil(interplanar_spacing[i] / cutoff)); // Initial guess.
             num_bins_[i] = std::max(num_bins_[i], min_nbins[i]); // Ensure it's at least min_nbins[i].
         }
-        
+
+        // std::cout << "cutoff: " << cutoff << std::endl;
+        // std::cout << "interplanar_spacing: " << interplanar_spacing[0] << " " << interplanar_spacing[1] << " " << interplanar_spacing[2] << std::endl;
+        // std::cout << "cell_lengths: " << cell_lengths[0] << " " << cell_lengths[1] << " " << cell_lengths[2] << std::endl;
+        // std::cout << "min_nbins: " << min_nbins[0] << " " << min_nbins[1] << " " << min_nbins[2] << std::endl;
+        // std::cout << "num_bins_: " << num_bins_[0] << " " << num_bins_[1] << " " << num_bins_[2] << std::endl;
+        // return;
+
         // total number of bins
         auto total_nbins = num_bins_.prod();
 
+        // std::cout << "total_nbins: " << total_nbins << std::endl;
+        
         // allocate the bin atoms and bin offset
         bin_atoms_ = vec<int>(total_nbins, 0);
         bin_offset_ = vec<int>(total_nbins + 1, 0);
 
+        // return;
+
         // count the number of atoms in each bin 
-        auto& atoms = unit_cell.get_atoms();
+        auto& atoms = unit_cell->get_atoms();
         for (auto& atom : atoms) {
             auto bin_index = get_bin_index_1d(atom.pos());
             bin_atoms_[bin_index]++;
@@ -83,7 +95,7 @@ namespace gmp { namespace query {
     }
 
 
-    vec<query_result_t> query_info_t::get_neighbor_list(const double cutoff, const point_flt64& position, const unit_cell_t& unit_cell) const
+    vec<query_result_t> query_info_t::get_neighbor_list(const double cutoff, const point_flt64& position, const unit_cell_t* unit_cell) const
     {
         const double cutoff2 = cutoff * cutoff;
 
@@ -106,7 +118,7 @@ namespace gmp { namespace query {
 
                     for (int dim = 0; dim < 3; ++dim) {
                         auto idx = (dim == 0) ? i : (dim == 1) ? j : k;
-                        if ((idx < 0 || idx >= num_bins_[dim]) && !unit_cell.get_periodicity()[dim]) {
+                        if ((idx < 0 || idx >= num_bins_[dim]) && !unit_cell->get_periodicity()[dim]) {
                             out_of_bounds = true;
                             break;
                         }
@@ -121,15 +133,15 @@ namespace gmp { namespace query {
 
                     for (auto i = start; i < end; i++) {
                         auto neighbor_index = bin_atoms_[i];
-                        auto neighbor_position = unit_cell.get_atoms()[neighbor_index].pos();
+                        auto neighbor_position = unit_cell->get_atoms()[neighbor_index].pos();
 
                         // calculate the distance between the reference atom and the neighbor
                         array3d_flt64 difference;
-                        auto distance_squared = unit_cell.get_lattice()->calculate_distance_squared(
+                        auto distance_squared = unit_cell->get_lattice()->calculate_distance_squared(
                             position, neighbor_position, cell_shift, difference);
 
                         // convert distance to cartesian coordinates
-                        array3d_flt64 difference_cartesian = unit_cell.get_lattice()->fractional_to_cartesian(difference);
+                        array3d_flt64 difference_cartesian = unit_cell->get_lattice()->fractional_to_cartesian(difference);
 
                         if (distance_squared < cutoff2) {
                             query_results.push_back(query_result_t(difference_cartesian, distance_squared, neighbor_index));

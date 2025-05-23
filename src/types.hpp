@@ -11,20 +11,28 @@ namespace gmp { namespace containers {
     
     using namespace gmp::resources;
 
-    inline PoolType& get_default_pool() {
-        return gmp_resource::instance().get_host_memory().get_pool();
-    }
-
     template <typename T>
     class vec : public std::vector<T, resources::pool_allocator<T>> {
-        using base = std::vector<T, resources::pool_allocator<T>>;
+        using base = std::vector<T, resources::pool_allocator<T>>;        
     public:
         // Default constructor uses the default pool
         vec() : base(resources::pool_allocator<T>(get_default_pool())) {}
+
+        template <typename size_type>
+        explicit vec(size_type size, const T& value) : base(size, value, resources::pool_allocator<T>(get_default_pool())) {}
         
         // Constructor with specific pool
         explicit vec(resources::PoolType& pool) : base(resources::pool_allocator<T>(pool)) {}
         
+        // copy constructor
+        vec(const vec& other) : base(other) {}
+
+        // move constructor
+        vec(vec&& other) noexcept : base(std::move(other)) {}
+
+        // copy assignment
+        vec& operator=(const vec& other) { base::operator=(other); return *this; }
+
         // Forward all other vector constructors
         using base::base;
         
