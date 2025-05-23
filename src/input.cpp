@@ -18,11 +18,11 @@ namespace gmp { namespace input {
         parse_arguments(argc, argv);
 
         // print config
-        print_config();
+        dump();
     }
 
     // file path config
-    void file_path_t::print_config() const 
+    void file_path_t::dump() const 
     {
         std::cout << "Atom file: " << atom_file_ << std::endl;
         std::cout << "PSP file: " << psp_file_ << std::endl;
@@ -35,12 +35,14 @@ namespace gmp { namespace input {
         feature_list_.clear();
 
         // parse feature list
+        bool negative_order = false;
         if (!feature_list.empty()) {
             for (auto &feature : feature_list) {
                 if (std::get<0>(feature) < -1 || std::get<0>(feature) > 9) {
                     update_error(gmp::error_t::invalid_order_sigma); return;
                 } else if (std::get<0>(feature) == -1) {
-                    feature_list_.push_back(feature_t(-1, 0.0));
+                    if (!negative_order) feature_list_.push_back(feature_t(-1, 0.0));
+                    negative_order = true;
                 } else {
                     feature_list_.push_back(feature_t(std::get<0>(feature), std::get<1>(feature)));
                 }
@@ -51,7 +53,8 @@ namespace gmp { namespace input {
                     if (order < -1 || order > 9) {
                         update_error(gmp::error_t::invalid_order_sigma); return;
                     } else if (order == -1) {
-                        feature_list_.push_back(feature_t(-1, 0.0));
+                        if (!negative_order) feature_list_.push_back(feature_t(-1, 0.0));
+                        negative_order = true;
                     } else {
                         feature_list_.push_back(feature_t(order, sigma));
                     }
@@ -68,7 +71,7 @@ namespace gmp { namespace input {
         std::sort(feature_list_.begin(), feature_list_.end());
     }
 
-    void descriptor_config_t::print_config() const 
+    void descriptor_config_t::dump() const 
     {
         std::cout << "Feature list: " << std::endl;
         for (const auto& feature : feature_list_) {
@@ -181,10 +184,10 @@ namespace gmp { namespace input {
         return;
     }
 
-    void input_t::print_config() const 
+    void input_t::dump() const 
     {
-        if (files) files->print_config();
-        if (descriptor_config) descriptor_config->print_config();
+        if (files) files->dump();
+        if (descriptor_config) descriptor_config->dump();
     }
 
 }}

@@ -5,6 +5,7 @@
 #include <vector>
 #include <tuple>
 #include <fstream>
+#include <iostream>
 
 #include "error.hpp"
 
@@ -207,7 +208,7 @@ namespace gmp { namespace util {
     template<typename Container>
     void debug_write_vector(const Container &container, const std::string & filename) {
         // Open the file for writing, truncating it if it exists
-        std::ofstream outfile(filename, std::ios::app);
+        std::ofstream outfile(filename, std::ios::trunc);
         
         // Check if the file was opened successfully
         if (!outfile.is_open()) {
@@ -223,7 +224,7 @@ namespace gmp { namespace util {
             }
             outfile << *it;
             if (std::next(it) != container.end()) {
-                outfile << " ";
+                outfile << "\n";
             }
         }
         outfile << std::endl;
@@ -234,12 +235,41 @@ namespace gmp { namespace util {
 
     template<typename Container2D>
     void debug_write_vector_2d(const Container2D &container2D, const std::string & filename) {
-        std::cout << "size of container2D: " << container2D.size() << "x" << container2D[0].size() << std::endl;
-
+        // Open the file for writing, truncating it if it exists
+        std::ofstream outfile(filename, std::ios::trunc);
+        
+        // Check if the file was opened successfully
+        if (!outfile.is_open()) {
+            update_error(error_t::output_file_error);
+            return;
+        }
+        
         // Write the vector data
         for (auto it = container2D.begin(); it != container2D.end(); ++it) {
-            debug_write_vector(*it, filename);
-            // outfile << std::endl;
+            for (auto it2 = it->begin(); it2 != it->end(); ++it2) {
+                // Set precision and format (only affects numeric types)
+                if constexpr (std::is_floating_point<typename Container2D::value_type::value_type>::value) {
+                    outfile << std::fixed << std::setprecision(16) << std::setw(12);
+                }
+                outfile << *it2;
+                if (std::next(it2) != it->end()) {
+                    outfile << ", ";
+                }
+            }
+            outfile << "\n";
         }
+        outfile << std::endl;
+        
+        // Close the file
+        outfile.close();
+    }
+
+    template<typename Container>
+    void print_vector(const Container& data, const std::string& name) {
+        std::cout << name << ": ";
+        for (auto it = data.begin(); it != data.end(); ++it) {
+            std::cout << *it << ", ";
+        }
+        std::cout << std::endl;
     }
 }}

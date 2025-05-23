@@ -54,7 +54,7 @@ namespace gmp { namespace input {
         void set_output_file(const std::string& output_file) { this->output_file_ = output_file; }
 
         // print config
-        void print_config() const;
+        void dump() const;
     };
 
     // descriptor configuration
@@ -100,7 +100,7 @@ namespace gmp { namespace input {
         void set_square(const bool square) { square_ = square; }
 
         // print config
-        void print_config() const;
+        void dump() const;
     };
 
     // input class
@@ -122,7 +122,7 @@ namespace gmp { namespace input {
 
         void parse_arguments(int argc, char* argv[]);
 
-        void print_config() const;
+        void dump() const;
     
     private: 
         // helper for argument

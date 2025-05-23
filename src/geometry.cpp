@@ -55,4 +55,14 @@ namespace gmp { namespace geometry {
         // Multiply abc and T to obtain final cell matrix        
         return std::make_unique<lattice_t>(abc * T);
     }
+
+    void lattice_t::dump() const {
+        std::cout << "lattice_vectors_: " << std::endl;
+        std::cout << lattice_vectors_[0][0] << " " << lattice_vectors_[0][1] << " " << lattice_vectors_[0][2] << std::endl;
+        std::cout << lattice_vectors_[1][0] << " " << lattice_vectors_[1][1] << " " << lattice_vectors_[1][2] << std::endl;
+        std::cout << lattice_vectors_[2][0] << " " << lattice_vectors_[2][1] << " " << lattice_vectors_[2][2] << std::endl;
+        std::cout << "metric_: " << std::endl;
+        std::cout << metric_[0] << " " << metric_[1] << " " << metric_[2] << std::endl;
+        std::cout << metric_[3] << " " << metric_[4] << " " << metric_[5] << std::endl;
+    }
 }}

@@ -14,6 +14,13 @@ namespace gmp { namespace geometry {
         T x, y, z;
     };
 
+    // Stream insertion operator for point3d_t
+    template <typename T>
+    std::ostream& operator<<(std::ostream& os, const point3d_t<T>& p) {
+        os << "(" << p.x << ", " << p.y << ", " << p.z << ")";
+        return os;
+    }
+
     // type aliases
     using point_int32 = point3d_t<int32_t>;
     using point_flt64 = point3d_t<double>;
@@ -84,8 +91,10 @@ namespace gmp { namespace geometry {
         }
 
         array3d_flt64 fractional_to_cartesian(const array3d_flt64& fractional) const {
-            return lattice_vectors_ * fractional;
+            return lattice_vectors_.transpose_mult(fractional);
         }
+
+        void dump() const;
 
     private:
         matrix3d_flt64 lattice_vectors_;

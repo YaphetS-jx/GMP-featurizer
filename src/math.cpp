@@ -2,6 +2,32 @@
 #include "error.hpp"
 namespace gmp { namespace math {
 
+    void mcsh_function_registry_t::register_functions() {
+        functions_.reserve(10);        
+        functions_.push_back(calculate_solid_mcsh_0);
+        functions_.push_back(calculate_solid_mcsh_1);
+        functions_.push_back(calculate_solid_mcsh_2);
+        functions_.push_back(calculate_solid_mcsh_3);
+        functions_.push_back(calculate_solid_mcsh_4);
+        functions_.push_back(calculate_solid_mcsh_5);
+        functions_.push_back(calculate_solid_mcsh_6);
+        functions_.push_back(calculate_solid_mcsh_7);
+        functions_.push_back(calculate_solid_mcsh_8);
+        functions_.push_back(calculate_solid_mcsh_9);
+        
+        num_values_.reserve(10);
+        num_values_.push_back(1);  // for order 0
+        num_values_.push_back(3);  // for order 1
+        num_values_.push_back(6);  // for order 2
+        num_values_.push_back(10); // for order 3
+        num_values_.push_back(15); // for order 4
+        num_values_.push_back(21); // for order 5
+        num_values_.push_back(28); // for order 6
+        num_values_.push_back(36); // for order 7
+        num_values_.push_back(45); // for order 8
+        num_values_.push_back(55); // for order 9
+    }
+
     /**********************************************************/
     /***************** math kernel functions ******************/
     /**********************************************************/

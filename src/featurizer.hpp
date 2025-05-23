@@ -25,6 +25,8 @@ namespace gmp { namespace featurizer {
             return table_[feature_idx * num_gaussians_ + gaussian_idx];
         }
 
+        void dump() const;
+
     private: 
         vec<kernel_params_t> table_;
         int num_gaussians_;
@@ -51,8 +53,10 @@ namespace gmp { namespace featurizer {
         double get_largest_cutoff() const { return largest_cutoff_; }
 
         double get_cufoff_table_2(const int feature_idx, const int element_idx) const {
-            return table2_[get_feature_idx(feature_idx) * gaussian_mapping_.size() + element_idx];
+            return table2_[get_feature_idx(feature_idx) * num_atom_types_ + element_idx];
         }
+
+        void dump() const;
 
     private: 
         vec<double> table_;
@@ -62,6 +66,7 @@ namespace gmp { namespace featurizer {
         double largest_cutoff_;
         int num_features_;
         int num_gaussians_;
+        int num_atom_types_;
     };
 
 
@@ -73,7 +78,11 @@ namespace gmp { namespace featurizer {
             : kernel_params_table_(std::make_unique<kernel_params_table_t>(descriptor_config, psp_config)), 
             cutoff_table_(std::make_unique<cutoff_table_t>(descriptor_config, psp_config)),
             query_info_(std::make_unique<query_info_t>(unit_cell, cutoff_table_->get_largest_cutoff())) 
-        {}
+        {
+            // kernel_params_table_->dump();
+            // cutoff_table_->dump();
+            // query_info_->dump();            
+        }
         ~featurizer_t() = default;
 
         // calculate features 

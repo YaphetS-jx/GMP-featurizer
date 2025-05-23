@@ -1,4 +1,5 @@
 #include "query.hpp"
+#include "util.hpp"
 
 namespace gmp { namespace query {
 
@@ -25,38 +26,29 @@ namespace gmp { namespace query {
             num_bins_[i] = std::max(num_bins_[i], min_nbins[i]); // Ensure it's at least min_nbins[i].
         }
 
-        // std::cout << "cutoff: " << cutoff << std::endl;
-        // std::cout << "interplanar_spacing: " << interplanar_spacing[0] << " " << interplanar_spacing[1] << " " << interplanar_spacing[2] << std::endl;
-        // std::cout << "cell_lengths: " << cell_lengths[0] << " " << cell_lengths[1] << " " << cell_lengths[2] << std::endl;
-        // std::cout << "min_nbins: " << min_nbins[0] << " " << min_nbins[1] << " " << min_nbins[2] << std::endl;
-        // std::cout << "num_bins_: " << num_bins_[0] << " " << num_bins_[1] << " " << num_bins_[2] << std::endl;
-        // return;
-
         // total number of bins
         auto total_nbins = num_bins_.prod();
-
-        // std::cout << "total_nbins: " << total_nbins << std::endl;
         
         // allocate the bin atoms and bin offset
-        bin_atoms_ = vec<int>(total_nbins, 0);
+        vec<int> bin_num_atoms(total_nbins, 0);
         bin_offset_ = vec<int>(total_nbins + 1, 0);
-
-        // return;
 
         // count the number of atoms in each bin 
         auto& atoms = unit_cell->get_atoms();
         for (auto& atom : atoms) {
             auto bin_index = get_bin_index_1d(atom.pos());
-            bin_atoms_[bin_index]++;
+            bin_num_atoms[bin_index]++;
         }
         
         // exclusive prefix scan to calculate bin offsets
         bin_offset_[0] = 0;
         for (auto i = 1; i <= total_nbins; i++) {
-            bin_offset_[i] = bin_offset_[i - 1] + bin_atoms_[i - 1];
+            bin_offset_[i] = bin_offset_[i - 1] + bin_num_atoms[i - 1];
         }
+        assert(bin_offset_.back() == atoms.size());
 
         // scan for the exact atom index 
+        bin_atoms_.resize(atoms.size());
         vec<int> bin_next_write(bin_offset_);
         for (auto i = 0; i < atoms.size(); i++) {
             auto bin_index = get_bin_index_1d(atoms[i].pos());
@@ -66,7 +58,7 @@ namespace gmp { namespace query {
 
         // calculate bin ranges         
         for (auto i = 0; i < 3; i++) {
-            bin_ranges_[i] = static_cast<int8_t> (std::ceil(cutoff * num_bins_[i] / interplanar_spacing[i]));
+            bin_ranges_[i] = static_cast<int32_t> (std::ceil(cutoff * num_bins_[i] / interplanar_spacing[i]));
         }
 
     }
@@ -97,7 +89,7 @@ namespace gmp { namespace query {
 
     vec<query_result_t> query_info_t::get_neighbor_list(const double cutoff, const point_flt64& position, const unit_cell_t* unit_cell) const
     {
-        const double cutoff2 = cutoff * cutoff;
+        const double cutoff2 = cutoff * cutoff;        
 
         // calculate bin index for reference atom
         const array3d_int32 refBinIndex = get_bin_index_3d(position);
@@ -108,16 +100,17 @@ namespace gmp { namespace query {
 
         vec<query_result_t> query_results;
         // search for neighbors in the bin range
-        array3d_int32 neighbor_bin_index;
-        array3d_flt64 cell_shift;
-        for (auto i = lowBoundary[0]; i <= upBoundary[0]; i++) {
-            for (auto j = lowBoundary[1]; j <= upBoundary[1]; j++) {
-                for (auto k = lowBoundary[2]; k <= upBoundary[2]; k++) {
+        for (auto bin_x = lowBoundary[0]; bin_x <= upBoundary[0]; bin_x++) {
+            for (auto bin_y = lowBoundary[1]; bin_y <= upBoundary[1]; bin_y++) {
+                for (auto bin_z = lowBoundary[2]; bin_z <= upBoundary[2]; bin_z++) {
 
+                    // check if the bin is out of bounds
                     bool out_of_bounds = false;
+                    array3d_int32 neighbor_bin_index;
+                    array3d_flt64 cell_shift;
 
                     for (int dim = 0; dim < 3; ++dim) {
-                        auto idx = (dim == 0) ? i : (dim == 1) ? j : k;
+                        auto idx = (dim == 0) ? bin_x : (dim == 1) ? bin_y : bin_z;
                         if ((idx < 0 || idx >= num_bins_[dim]) && !unit_cell->get_periodicity()[dim]) {
                             out_of_bounds = true;
                             break;
@@ -127,18 +120,21 @@ namespace gmp { namespace query {
                     }
                     if (out_of_bounds) continue;
 
+                    // get the bin index
                     auto bin_index = get_bin_index_1d(neighbor_bin_index);
+
+                    // get the start and end of the bin
                     auto start = bin_offset_[bin_index];
                     auto end = bin_offset_[bin_index + 1];
 
-                    for (auto i = start; i < end; i++) {
-                        auto neighbor_index = bin_atoms_[i];
+                    for (auto atom_idx = start; atom_idx < end; atom_idx++) {
+                        auto neighbor_index = bin_atoms_[atom_idx];
                         auto neighbor_position = unit_cell->get_atoms()[neighbor_index].pos();
 
                         // calculate the distance between the reference atom and the neighbor
                         array3d_flt64 difference;
                         auto distance_squared = unit_cell->get_lattice()->calculate_distance_squared(
-                            position, neighbor_position, cell_shift, difference);
+                            neighbor_position, position, cell_shift, difference);
 
                         // convert distance to cartesian coordinates
                         array3d_flt64 difference_cartesian = unit_cell->get_lattice()->fractional_to_cartesian(difference);
@@ -146,10 +142,18 @@ namespace gmp { namespace query {
                         if (distance_squared < cutoff2) {
                             query_results.push_back(query_result_t(difference_cartesian, distance_squared, neighbor_index));
                         }
-                    }
+                    }                    
                 }
             }
         }
         return query_results;
     }  
+
+    void query_info_t::dump() const
+    {
+        std::cout << "num_bins_: " << num_bins_[0] << " " << num_bins_[1] << " " << num_bins_[2] << std::endl;
+        util::print_vector(bin_atoms_, "bin_atoms_");
+        util::print_vector(bin_offset_, "bin_offset_");
+        std::cout << "bin_ranges_: " << bin_ranges_[0] << " " << bin_ranges_[1] << " " << bin_ranges_[2] << std::endl;
+    }
 }}

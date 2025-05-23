@@ -20,6 +20,22 @@ namespace gmp { namespace atom {
 
         // set periodicity
         periodicity_ = array3d_bool{true, true, true};
+
+        // dump
+        lattice_->dump();
+    }
+
+    void unit_cell_t::dump() const {
+        std::cout << "Lattice: " << std::endl;
+        lattice_->dump();
+        std::cout << "Atom type map: " << std::endl;
+        for (const auto& [type, id] : atom_type_map_) {
+            std::cout << "Type: " << type << ", ID: " << static_cast<int>(id) << std::endl;
+        }
+        std::cout << "Atoms: " << std::endl;
+        for (const auto& atom : atoms_) {
+            std::cout << "Atom: " << static_cast<int>(atom.id()) << ", Position: " << atom.pos() << ", Occupancy: " << atom.occ() << std::endl;            
+        }        
     }
 
     // read cif file 
@@ -189,7 +205,7 @@ namespace gmp { namespace atom {
     }
 
 
-    void psp_config_t::print_config() const 
+    void psp_config_t::dump() const 
     {
         std::cout << "Gaussian table: " << std::endl;
         for (auto i = 0; i < offset_.size() - 1; ++i) {
@@ -198,6 +214,11 @@ namespace gmp { namespace atom {
                 std::cout << "Gaussian: " << gaussian_table_[j].B << ", Beta: " << gaussian_table_[j].beta << std::endl;
             }
         }
+        std::cout << "Offset: " << std::endl;
+        for (auto i = 0; i < offset_.size(); ++i) {
+            std::cout << offset_[i] << ", ";
+        }
+        std::cout << std::endl;
     }
 
     vec<point_flt64> set_ref_positions(const unit_cell_t* unit_cell)

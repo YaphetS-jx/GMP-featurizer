@@ -32,10 +32,12 @@ namespace gmp { namespace query {
 
         vec<query_result_t> get_neighbor_list(const double cutoff, const point_flt64& position, const unit_cell_t* unit_cell) const;
         
+        void dump() const;
+        
     private:
         array3d_int32 num_bins_;
         vec<int> bin_atoms_;
         vec<int> bin_offset_;
-        array3d_int8 bin_ranges_;
+        array3d_int32 bin_ranges_;
     };
 }}

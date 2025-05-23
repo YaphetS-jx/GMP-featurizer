@@ -5,6 +5,7 @@
 #include "math.hpp"
 #include "input.hpp"
 #include "types.hpp"
+#include "util.hpp"
 
 namespace gmp { namespace featurizer {
 
@@ -48,6 +49,18 @@ namespace gmp { namespace featurizer {
         }
     }
 
+    void kernel_params_table_t::dump() const {
+        for (auto i = 0; i < num_features_; ++i) {
+            for (auto j = 0; j < num_gaussians_; ++j) {
+                std::cout << "kernel_params[" << i << "][" << j << "]: " 
+                    << table_[i * num_gaussians_ + j].lambda << ", " 
+                    << table_[i * num_gaussians_ + j].gamma << ", " 
+                    << table_[i * num_gaussians_ + j].C1 << ", " 
+                    << table_[i * num_gaussians_ + j].C2 << std::endl;
+            }
+        }
+    }
+
     // cutoff_table_t ctor
     cutoff_table_t::cutoff_table_t(const descriptor_config_t* descriptor_config, const psp_config_t* psp_config)
         : table_(), table2_(), feature_mapping_(), gaussian_mapping_(), largest_cutoff_(0.0), 
@@ -58,14 +71,14 @@ namespace gmp { namespace featurizer {
         gaussian_mapping_.clear();
         auto cutoff_method = descriptor_config->get_cutoff_method();
         bool sigma_only = cutoff_method == cutoff_method_t::cutoff_sigma || cutoff_method == cutoff_method_t::cutoff_sigma_elemental;
-        const auto &guassian_offset = psp_config->get_offset();
-        auto num_atom_types = guassian_offset.size() - 1;
+        const auto &gaussian_offset = psp_config->get_offset();
+        num_atom_types_ = gaussian_offset.size() - 1;
 
         // create gaussian mapping 
         int count = 0;
-        for (auto atom_type_idx = 0; atom_type_idx < num_atom_types; ++atom_type_idx) {
-            auto start = guassian_offset[atom_type_idx];
-            auto end = guassian_offset[atom_type_idx + 1];
+        for (auto atom_type_idx = 0; atom_type_idx < num_atom_types_; ++atom_type_idx) {
+            auto start = gaussian_offset[atom_type_idx];
+            auto end = gaussian_offset[atom_type_idx + 1];
             for (auto gaussian_idx = start; gaussian_idx < end; ++gaussian_idx) {
                 switch (cutoff_method) {
                     case cutoff_method_t::cutoff_sigma:
@@ -81,14 +94,15 @@ namespace gmp { namespace featurizer {
                 }
             }
         }
+
         // set gaussian size
         switch (cutoff_method) {
             case cutoff_method_t::cutoff_sigma:
                 num_gaussians_ = 1; break;
             case cutoff_method_t::cutoff_sigma_elemental:
-                num_gaussians_ = num_atom_types; break;
+                num_gaussians_ = num_atom_types_; break;
             case cutoff_method_t::cutoff_feature_elemental:
-                num_gaussians_ = num_atom_types; break;
+                num_gaussians_ = num_atom_types_; break;
             case cutoff_method_t::cutoff_feature_gaussian:
                 num_gaussians_ = count; break;
             default:
@@ -114,9 +128,9 @@ namespace gmp { namespace featurizer {
                 descriptor_config->get_overlap_threshold() : 
                 descriptor_config->get_overlap_threshold() * factors[feature.order + 1];
 
-            for (auto atom_type_idx = 0; atom_type_idx < num_atom_types; ++atom_type_idx) {
-                auto start = guassian_offset[atom_type_idx];
-                auto end = guassian_offset[atom_type_idx + 1];
+            for (auto atom_type_idx = 0; atom_type_idx < num_atom_types_; ++atom_type_idx) {
+                auto start = gaussian_offset[atom_type_idx];
+                auto end = gaussian_offset[atom_type_idx + 1];
                 for (auto gaussian_idx = start; gaussian_idx < end; ++gaussian_idx) {
                     const auto& gaussian = (*psp_config)[gaussian_idx];
                     cutoff_all.push_back(get_cutoff_gaussian(feature.sigma, gaussian, threshold));
@@ -130,13 +144,13 @@ namespace gmp { namespace featurizer {
         vec<double> cutoff_elemental;
         for (auto feature_idx = 0; feature_idx < num_features_; ++feature_idx) {
             auto shift = feature_idx * gaussian_mapping_.size();
-            for (auto atom_type_idx = 0; atom_type_idx < num_atom_types; ++atom_type_idx) {
-                auto start = atom_type_idx == 0 ? 0 : guassian_offset[atom_type_idx - 1];
-                auto end = guassian_offset[atom_type_idx];
+            for (auto atom_type_idx = 0; atom_type_idx < num_atom_types_; ++atom_type_idx) {
+                auto start = gaussian_offset[atom_type_idx];
+                auto end = gaussian_offset[atom_type_idx + 1];
                 cutoff_elemental.push_back(*(std::max_element(cutoff_all.begin() + shift + start, cutoff_all.begin() + shift + end)));
             }
         }
-        assert(cutoff_elemental.size() == num_features_ * num_atom_types);
+        assert(cutoff_elemental.size() == num_features_ * num_atom_types_);
 
         if (cutoff_method == cutoff_method_t::cutoff_feature_gaussian) {
             table_ = std::move(cutoff_all);
@@ -154,12 +168,44 @@ namespace gmp { namespace featurizer {
 
         // get the max cutoff for each feature
         for (auto feature_idx = 0; feature_idx < num_features_; ++feature_idx) {
-            auto start = feature_idx * num_atom_types;
-            auto end = start + num_atom_types;
+            auto start = feature_idx * num_atom_types_;
+            auto end = start + num_atom_types_;
             table_.push_back(*(std::max_element(cutoff_elemental.begin() + start, cutoff_elemental.begin() + end)));
         }
         largest_cutoff_ = *std::max_element(table_.begin(), table_.end());
         return;
+    }
+
+    void cutoff_table_t::dump() const {
+        std::cout << "feature mapping: ";
+        for (auto i = 0; i < feature_mapping_.size(); ++i) {
+            std::cout << feature_mapping_[i] << ", ";
+        }
+        std::cout << std::endl;
+
+        std::cout << "gaussian mapping: ";
+        for (auto i = 0; i < gaussian_mapping_.size(); ++i) {
+            std::cout << gaussian_mapping_[i] << ", ";
+        }
+        std::cout << std::endl;
+
+        std::cout << "sigma gaussian table: " << std::endl;
+        for (auto feature_idx = 0; feature_idx < num_features_; ++feature_idx) {
+            std::cout << "feature[" << feature_idx << "]: ";
+            for (auto gaussian_idx = 0; gaussian_idx < num_gaussians_; ++gaussian_idx) {
+                std::cout << table_[feature_idx * num_gaussians_ + gaussian_idx] << ", ";
+            }
+            std::cout << std::endl;
+        }
+        
+        std::cout << "elemental table: " << std::endl;
+        for (auto feature_idx = 0; feature_idx < num_features_; ++feature_idx) {
+            std::cout << "feature[" << feature_idx << "]: ";
+            for (auto gaussian_idx = 0; gaussian_idx < num_atom_types_; ++gaussian_idx) {
+                std::cout << table2_[feature_idx * num_atom_types_ + gaussian_idx] << ", ";
+            }
+            std::cout << std::endl;
+        }
     }
 
     // functions 
@@ -242,7 +288,7 @@ namespace gmp { namespace featurizer {
         }
     }
 
-    void get_c1_c2(double A, double B, double alpha, double beta, double& C1, double& C2) 
+    void get_c1_c2(const double A, const double B, const double alpha, const double beta, double& C1, double& C2) 
     {
         if (gmp::math::isZero(alpha)) {
             C1 = B;
@@ -267,7 +313,7 @@ namespace gmp { namespace featurizer {
         
         double C1, C2;
         get_c1_c2(A, gaussian.B, alpha, gaussian.beta, C1, C2);
-        C1 = fabs(C1);
+        C1 = std::abs(C1);
         double dist = std::sqrt((logThreshold - C1) / C2);
         return dist;
     }
@@ -283,8 +329,7 @@ namespace gmp { namespace featurizer {
         vec<vec<double>> feature_collection;
         for (auto const & ref_position : ref_positions) {
             // find neighbors
-            auto query_results = query_info->get_neighbor_list(cutoff_table_->get_largest_cutoff(), ref_position, unit_cell);
-            std::cout << "Number of neighbors: " << query_results.size() << std::endl;
+            auto query_results = query_info->get_neighbor_list(cutoff_table_->get_largest_cutoff(), ref_position, unit_cell);            
 
             // calculate GMP features
             vec<double> feature;            
@@ -323,6 +368,7 @@ namespace gmp { namespace featurizer {
 
                         const auto temp = C1 * std::exp(C2 * distance2) * occ;
                         const auto shift = query_results[neighbor_idx].difference;
+
                         mcsh_func(shift, distance2, temp, lambda, gamma, desc_values);
                     }
                 }
@@ -330,9 +376,9 @@ namespace gmp { namespace featurizer {
                 // weighted square sum of the values
                 double squareSum = weighted_square_sum(order, desc_values);
                 if (descriptor_config->get_square()) {
-                    feature.push_back(std::sqrt(squareSum));
-                } else {
                     feature.push_back(squareSum);
+                } else {
+                    feature.push_back(std::sqrt(squareSum));
                 }
             }
             feature_collection.push_back(feature);

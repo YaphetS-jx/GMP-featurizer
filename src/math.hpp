@@ -207,6 +207,15 @@ namespace gmp { namespace math {
             return result;
         }
 
+        // transpose matrix vector multiplication
+        array3d_t<T> transpose_mult(const array3d_t<T>& other) const {
+            array3d_t<T> result;
+            for (int i = 0; i < 3; i++) {
+                result[i] = data_[0][i] * other[0] + data_[1][i] * other[1] + data_[2][i] * other[2];
+            }
+            return result;
+        }
+
         // matrix transpose
         matrix3d_t<T> transpose() const {
             matrix3d_t<T> result;
@@ -368,40 +377,7 @@ namespace gmp { namespace math {
             return order < 0 ? num_values_[0] : num_values_[order];
         }
 
-        void register_functions() {
-            // Create vectors with push_back instead of initializer lists to avoid memory issues
-            
-            // Reserve space first to avoid reallocations
-            functions_.reserve(10);
-            
-            // Add functions one by one
-            // functions_.push_back(calculate_solid_mcsh_n1);
-            functions_.push_back(calculate_solid_mcsh_0);
-            functions_.push_back(calculate_solid_mcsh_1);
-            functions_.push_back(calculate_solid_mcsh_2);
-            functions_.push_back(calculate_solid_mcsh_3);
-            functions_.push_back(calculate_solid_mcsh_4);
-            functions_.push_back(calculate_solid_mcsh_5);
-            functions_.push_back(calculate_solid_mcsh_6);
-            functions_.push_back(calculate_solid_mcsh_7);
-            functions_.push_back(calculate_solid_mcsh_8);
-            functions_.push_back(calculate_solid_mcsh_9);
-            
-            // Reserve space for values
-            num_values_.reserve(10);
-            
-            // Add values one by one            
-            num_values_.push_back(1);  // for order 0
-            num_values_.push_back(3);  // for order 1
-            num_values_.push_back(6);  // for order 2
-            num_values_.push_back(10); // for order 3
-            num_values_.push_back(15); // for order 4
-            num_values_.push_back(21); // for order 5
-            num_values_.push_back(28); // for order 6
-            num_values_.push_back(36); // for order 7
-            num_values_.push_back(45); // for order 8
-            num_values_.push_back(55); // for order 9
-        }
+        void register_functions();
         
     private: 
         std::vector<solid_gmp_function_t> functions_;

@@ -42,7 +42,7 @@ namespace gmp { namespace atom {
     class unit_cell_t {
     public:
         unit_cell_t() = default;
-        unit_cell_t(std::string atom_file);        
+        unit_cell_t(std::string atom_file);
         ~unit_cell_t() = default;
 
         // accessors
@@ -57,6 +57,8 @@ namespace gmp { namespace atom {
         void set_atoms(vec<atom_t>&& atoms) { atoms_ = std::move(atoms); }
         void set_atom_type_map(atom_type_map_t&& atom_type_map) { atom_type_map_ = std::move(atom_type_map); }
         void set_periodicity(const array3d_bool& periodicity) { periodicity_ = periodicity; }
+
+        void dump() const;
 
     private:
         std::unique_ptr<lattice_t> lattice_;
@@ -79,11 +81,11 @@ namespace gmp { namespace atom {
 
         const vec<int>& get_offset() const { return offset_; }        
         const gaussian_t& operator[](const int idx) const { return gaussian_table_[idx]; }
+        void dump() const;
 
     private:         
         vec<gaussian_t> gaussian_table_;
         vec<int> offset_;
-        void print_config() const;
     };
 
     // read psp file
