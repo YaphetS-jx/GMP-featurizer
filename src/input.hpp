@@ -106,7 +106,7 @@ namespace gmp { namespace input {
     // input class
     class input_t {
     public:
-        input_t(int argc, char* argv[]);
+        input_t(const std::string& json_file);
         ~input_t() = default;
 
     public: 
@@ -120,7 +120,7 @@ namespace gmp { namespace input {
         // functions
         const descriptor_config_t* get_descriptor_config() const { return descriptor_config.get(); }
 
-        void parse_arguments(int argc, char* argv[]);
+        void parse_json(const std::string& json_file);
 
         void dump() const;
     

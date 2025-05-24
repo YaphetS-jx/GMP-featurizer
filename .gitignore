@@ -1,3 +1,5 @@
 .vscode/
 build/
 gmp-*-test
+Testing/
+_deps/

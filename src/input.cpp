@@ -2,6 +2,8 @@
 #include <vector>
 #include <tuple>
 #include <fstream>
+#include <nlohmann/json.hpp>
+
 #include "input.hpp"
 #include "error.hpp"
 #include "util.hpp"
@@ -10,12 +12,17 @@ namespace gmp { namespace input {
 
     using namespace gmp;
 
-    input_t::input_t(int argc, char* argv[]) : 
+    input_t::input_t(const std::string& json_file) : 
         files(std::make_unique<file_path_t>()),
         descriptor_config(std::make_unique<descriptor_config_t>()) 
     {
-        // parse arguments
-        parse_arguments(argc, argv);
+        if (json_file == "-h") {
+            print_help();
+            exit(0);
+        }
+
+        // parse JSON file
+        parse_json(json_file);
 
         // print config
         dump();
@@ -83,104 +90,66 @@ namespace gmp { namespace input {
         std::cout << "Scaling mode: " << gmp_to_string(scaling_mode_) << std::endl;
     }
 
-    // parse arguments 
-    void input_t::parse_arguments(int argc, char* argv[]) 
+    // parse JSON  
+    void input_t::parse_json(const std::string& json_file) 
     {
-        if (argc == 2 && std::string(argv[1]) == "-h") {
-            print_help();
+        std::ifstream inFile(json_file);
+        if (!inFile.is_open()) {
+            update_error(gmp::error_t::invalid_json_file);
             return;
         }
-        if (argc % 2 == 0) {
-            std::cerr << "Error in command line." << std::endl;
-            gmp_error = error_t::invalid_argument;
-            return;
-        }
+
+        nlohmann::json config;
+        inFile >> config;
         
         std::vector<int> orders;
         std::vector<double> sigmas;
         std::vector<std::tuple<int, double>> feature_list;
-        
-        for (int idx = 1; idx < argc; idx += 2) {
-            const std::string &key = argv[idx];
-            const std::string &val = argv[idx+1];
-            if (key == "orders") {
-                orders = util::parse_line_pattern<int>(val);
-            } else if (key == "sigmas") {
-                sigmas = util::parse_line_pattern<double>(val);
-            } else if (key == "featureList") {
-                feature_list = util::parse_line_pattern<int, double>(val);
-            } else if (key == "systemPath") {
-                this->files->set_atom_file(val);
-            } else if (key == "pspPath") {
-                this->files->set_psp_file(val);
-            } else if (key == "square") {
-                this->descriptor_config->set_square(std::stoi(val));
-            } else if (key == "cutoffMethod") {
-                switch (std::stoi(val))
-                {
-                case 0:
-                    this->descriptor_config->set_cutoff_method(cutoff_method_t::custom_cutoff);
-                    break;
-                case 1:
-                    this->descriptor_config->set_cutoff_method(cutoff_method_t::cutoff_sigma);
-                    break;
-                case 2:
-                    this->descriptor_config->set_cutoff_method(cutoff_method_t::cutoff_sigma_elemental);
-                    break;
-                case 3:
-                    this->descriptor_config->set_cutoff_method(cutoff_method_t::cutoff_feature_elemental);
-                    break;
-                case 4:
-                    this->descriptor_config->set_cutoff_method(cutoff_method_t::cutoff_feature_gaussian);
-                    break;
-                default:                    
-                    update_error(gmp::error_t::invalid_cutoff_method);
-                    return;
-                }
-            } else if (key == "cutoff") {
-                this->descriptor_config->set_cutoff(std::stod(val));
-            } else if (key == "overlapThreshold") {
-                this->descriptor_config->set_overlap_threshold(std::stod(val));
-            } else if (key == "scalingMode") {
-                switch (std::stoi(val))
-                {
-                case 0:
-                    this->descriptor_config->set_scaling_mode(scaling_mode_t::radial);
-                    break;
-                case 1:
-                    this->descriptor_config->set_scaling_mode(scaling_mode_t::both);
-                    break;
-                default:
-                    update_error(gmp::error_t::invalid_scaling_mode);
-                    return;
-                }
-            } else if (key == "outputPath") {
-                this->files->set_output_file(val);
-            } else {
-                update_error(gmp::error_t::invalid_argument);
-                return;
+
+        // Required entries
+        this->files->set_atom_file(config.value("system file path", ""));
+        this->files->set_psp_file(config.value("psp file path", ""));
+        this->files->set_output_file(config.value("output file path", "./gmpFeatures.dat"));
+        this->descriptor_config->set_square(config.value("square", 0));
+        this->descriptor_config->set_cutoff(config.value("cutoff", 0.0));
+        this->descriptor_config->set_overlap_threshold(config.value("overlap threshold", 1e-11));
+        this->descriptor_config->set_cutoff_method(static_cast<cutoff_method_t>(config.value("cutoff method", 4)));
+        this->descriptor_config->set_scaling_mode(static_cast<scaling_mode_t>(config.value("scaling mode", 0)));
+
+        // Optional entries
+        if (config.contains("orders")) {
+            for (auto &val : config["orders"]) orders.push_back(val);
+        }
+        if (config.contains("sigmas")) {
+            for (auto &val : config["sigmas"]) sigmas.push_back(val);
+        }
+        if (config.contains("feature lists")) {
+            for (auto &pair : config["feature lists"]) {
+                feature_list.emplace_back(pair[0].get<int>(), pair[1].get<double>());
             }
         }
+        
         this->descriptor_config->set_feature_list(orders, sigmas, feature_list);        
         return;
     }
 
     void input_t::print_help() const 
-    {
-        std::cout << "Usage: gmp_featurizer [options]" << std::endl;
+    {   
+        std::cout << "Please provide the path to the JSON file." << std::endl;
+        std::cout << "Usage: gmp_featurizer [options] in JSON File. " << std::endl;
         std::cout << "Options:" << std::endl;
-        std::cout << "  systemPath <path>          Path to the system file (CIF format)" << std::endl;
-        std::cout << "  pspPath <path>             Path to the pseudopotential file" << std::endl;
-        std::cout << "  orders <list>              List of orders (e.g., -1,0,1,2)" << std::endl;
-        std::cout << "  sigmas <list>              List of sigmas (e.g., 0.1,0.2,0.3)" << std::endl;
-        std::cout << "  featureList <list>         List of feature pairs (e.g., (1,0.1),(2,0.2))" << std::endl;
-        std::cout << "  square <int>               Square option (0 or 1)" << std::endl;
-        std::cout << "  cutoffMethod <int>         Cutoff method (0 to 4)" << std::endl;
-        std::cout << "  cutoff <double>            Cutoff value" << std::endl;
-        std::cout << "  overlapThreshold <double>  Overlap threshold" << std::endl;
-        std::cout << "  scalingMode <int>          Scaling mode (0 for radial, 1 for both)" << std::endl;
-        std::cout << "  outputPath <path>          Path to the output file" << std::endl;
-        std::cout << "  -h                         Print this help message" << std::endl;
+        std::cout << "  system file path <path>          Path to the system file (CIF format)" << std::endl;
+        std::cout << "  psp file path <path>             Path to the pseudopotential file" << std::endl;
+        std::cout << "  orders <list>                    List of orders (e.g., -1,0,1,2)" << std::endl;
+        std::cout << "  sigmas <list>                    List of sigmas (e.g., 0.1,0.2,0.3)" << std::endl;
+        std::cout << "  feature lists <list>             List of feature pairs (e.g., (1,0.1),(2,0.2))" << std::endl;
+        std::cout << "  square <int>                     Square option (0 or 1)" << std::endl;
+        std::cout << "  cutoff method <int>              Cutoff method (0 to 4)" << std::endl;
+        std::cout << "  cutoff <double>                  Cutoff value" << std::endl;
+        std::cout << "  overlap threshold <double>       Overlap threshold" << std::endl;
+        std::cout << "  scaling mode <int>               Scaling mode (0 for radial, 1 for both)" << std::endl;
+        std::cout << "  output file path <path>          Path to the output file" << std::endl;
+        std::cout << "  -h                               Print this help message" << std::endl;
         return;
     }
 

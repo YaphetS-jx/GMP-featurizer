@@ -5,11 +5,17 @@ project(gmp-featurizer LANGUAGES CXX)
 set(CMAKE_BUILD_TYPE Debug)
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g -O0")
 
+# Define project root path
+set(PROJECT_ROOT ${CMAKE_SOURCE_DIR})
+
 # Set the output directory for executables
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
-# Set Boost pool include path
-set(BOOST_POOL_INCLUDE_DIR "/media/xx/LEAVE/coding/boost/libs/pool/include")
+# Replace hardcoded absolute paths with configurable CMake options
+# set(BOOST_POOL_INCLUDE_DIR "/media/xx/LEAVE/coding/boost/libs/pool/include")
+# set(NLOHMANN_JSON_INCLUDE_DIR "/media/xx/LEAVE/coding/json/include")
+set(BOOST_POOL_INCLUDE_DIR "" CACHE PATH "Path to Boost pool include directory")
+set(NLOHMANN_JSON_INCLUDE_DIR "" CACHE PATH "Path to nlohmann/json include directory")
 
 # Option to build tests
 option(BUILD_TESTS "Build the tests" OFF)
@@ -43,6 +49,7 @@ target_include_directories(gmp-featurizer-lib
     PUBLIC
     ${CMAKE_SOURCE_DIR}/src
     ${BOOST_POOL_INCLUDE_DIR}
+    ${NLOHMANN_JSON_INCLUDE_DIR}
 )
 
 if(BUILD_TESTS)
@@ -91,6 +98,15 @@ if(BUILD_TESTS)
     add_executable(gmp-query-test
         test/query.cpp
     )
+
+    # Add project root definition to all test executables
+    target_compile_definitions(gmp-resources-test PRIVATE PROJECT_ROOT="${PROJECT_ROOT}")
+    target_compile_definitions(gmp-math-test PRIVATE PROJECT_ROOT="${PROJECT_ROOT}")
+    target_compile_definitions(gmp-geometry-test PRIVATE PROJECT_ROOT="${PROJECT_ROOT}")
+    target_compile_definitions(gmp-atom-test PRIVATE PROJECT_ROOT="${PROJECT_ROOT}")
+    target_compile_definitions(gmp-util-test PRIVATE PROJECT_ROOT="${PROJECT_ROOT}")
+    target_compile_definitions(gmp-input-test PRIVATE PROJECT_ROOT="${PROJECT_ROOT}")
+    target_compile_definitions(gmp-query-test PRIVATE PROJECT_ROOT="${PROJECT_ROOT}")
 
     # Link against Google Test and the library
     target_link_libraries(gmp-resources-test

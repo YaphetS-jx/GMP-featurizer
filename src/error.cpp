@@ -17,6 +17,7 @@ namespace gmp {
             // memory errors
             case error_t::memory_bad_alloc: return "Memory Allocation Failed";
             // input errors
+            case error_t::invalid_json_file: return "Invalid JSON File";
             case error_t::invalid_argument: return "Invalid Argument";
             case error_t::invalid_cutoff_method: return "Invalid Cutoff Method";
             case error_t::invalid_scaling_mode: return "Invalid Scaling Mode";

@@ -9,6 +9,7 @@ namespace gmp {
         memory_bad_alloc,
         // input errors 
         invalid_argument,
+        invalid_json_file,
         invalid_cutoff_method,
         invalid_scaling_mode,
         invalid_feature_list,

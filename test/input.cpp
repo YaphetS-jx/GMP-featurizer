@@ -2,12 +2,23 @@
 #include "input.hpp"
 #include <iostream>
 #include <iomanip>
+#include <filesystem>
+
+// Define PROJECT_ROOT if not already defined by CMake
+#ifndef PROJECT_ROOT
+#define PROJECT_ROOT "."
+#endif
 
 using namespace gmp::input;
 using namespace gmp::math;
 using namespace gmp::atom;
 using namespace gmp::geometry;
 // Removed using namespace gmp to avoid ambiguity with error_t
+
+// Helper function to construct paths relative to project root
+std::string get_project_path(const std::string& relative_path) {
+    return std::filesystem::path(PROJECT_ROOT) / relative_path;
+}
 
 // Reset error state before each test
 class InputTest : public ::testing::Test {
@@ -22,13 +33,13 @@ TEST_F(InputTest, file_path_t) {
     file_path_t file_paths;
     
     // Test setters
-    file_paths.set_atom_file("example/test.cif");
-    file_paths.set_psp_file("example/QE-kjpaw.gpsp");
+    file_paths.set_atom_file("test/test.cif");
+    file_paths.set_psp_file("test/test.gpsp");
     file_paths.set_output_file("output.dat");
     
     // Test getters
-    EXPECT_EQ(file_paths.get_atom_file(), "example/test.cif");
-    EXPECT_EQ(file_paths.get_psp_file(), "example/QE-kjpaw.gpsp");
+    EXPECT_EQ(file_paths.get_atom_file(), "test/test.cif");
+    EXPECT_EQ(file_paths.get_psp_file(), "test/test.gpsp");
     EXPECT_EQ(file_paths.get_output_file(), "output.dat");
 }
 
@@ -75,8 +86,8 @@ TEST_F(InputTest, read_atom_file) {
     vec<atom_t> atoms;
     atom_type_map_t atom_type_map;
     
-    // Use absolute path to ensure the file can be found
-    std::string cif_path = "/media/xx/LEAVE/coding/GMP-featurizer/example/test.cif";
+    // Use path relative to project root
+    std::string cif_path = get_project_path("test/test.cif");
     read_atom_file(cif_path, lattice, atoms, atom_type_map);
     
     // Check if error occurred
@@ -116,8 +127,8 @@ TEST_F(InputTest, read_psp_file) {
     vec<gaussian_t> gaussian_table;
     vec<int> offset;
 
-    // Use absolute path to ensure the file can be found
-    std::string psp_path = "/media/xx/LEAVE/coding/GMP-featurizer/example/QE-kjpaw.gpsp";
+    // Use path relative to project root
+    std::string psp_path = get_project_path("test/test.gpsp");
     read_psp_file(psp_path, atom_type_map, gaussian_table, offset);
     
     // Check if error occurred
@@ -133,31 +144,15 @@ TEST_F(InputTest, read_psp_file) {
 TEST_F(InputTest, input_t_parse_arguments) {
     auto& pool = gmp_resource::instance(64, 1<<20).get_host_memory().get_pool();
     
-    // Set up argc and argv for testing with absolute paths
-    const char* argv[] = {
-        "gmp_featurizer",
-        "systemPath", "/media/xx/LEAVE/coding/GMP-featurizer/example/test.cif",
-        "pspPath", "/media/xx/LEAVE/coding/GMP-featurizer/example/QE-kjpaw.gpsp",
-        "orders", "0,1",
-        "sigmas", "0.1,0.2",
-        "cutoffMethod", "1",
-        "cutoff", "5.0",
-        "overlapThreshold", "1e-10",
-        "scalingMode", "0",
-        "square", "1",
-        "outputPath", "output.dat"
-    };
-    int argc = sizeof(argv) / sizeof(argv[0]);
-    
-    // Parse arguments
-    input_t input(argc, const_cast<char**>(argv));
+    // Create input object with path relative to project root
+    input_t input(get_project_path("test/input_test.json"));
     
     // Check if error occurred
     EXPECT_EQ(gmp::gmp_error, gmp::error_t::success);
     
     // Check parsed values
-    EXPECT_EQ(input.files->get_atom_file(), "/media/xx/LEAVE/coding/GMP-featurizer/example/test.cif");
-    EXPECT_EQ(input.files->get_psp_file(), "/media/xx/LEAVE/coding/GMP-featurizer/example/QE-kjpaw.gpsp");
+    EXPECT_EQ(input.files->get_atom_file(), "test/test.cif");
+    EXPECT_EQ(input.files->get_psp_file(), "test/test.gpsp");
     EXPECT_EQ(input.files->get_output_file(), "output.dat");
     
     // Each order is combined with each sigma: 2 orders * 2 sigmas = 4 features

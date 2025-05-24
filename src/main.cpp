@@ -12,8 +12,13 @@ int main(int argc, char* argv[]) {
     using namespace gmp;
     using namespace gmp::containers;
 
+    if (argc != 2) {
+        std::cout << "ERROR: Please provide the path to the JSON file." << std::endl;
+        return 1;
+    }
+
     // parse arguments
-    std::unique_ptr<input::input_t> input = std::make_unique<input::input_t>(argc, argv);    
+    std::unique_ptr<input::input_t> input = std::make_unique<input::input_t>(argv[1]);
     GMP_CHECK(get_last_error());    
 
     // create unit cell

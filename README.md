@@ -6,7 +6,8 @@ A C++ project using the foonathan memory library for efficient memory management
 
 - CMake (version 3.14 or higher)
 - C++ compiler with C++11 support
-- foonathan_memory library (version 0.7 or higher)
+- boost/pool memory management from https://github.com/boostorg/pool
+- nlohmann json parser from https://github.com/nlohmann/json
 
 ## Building the Project
 
@@ -20,11 +21,13 @@ To build the project:
 
     `./build.sh`
 
-3. Run the `gmp-featurizer`:
+3. Run the `gmp-featurizer` with a json configuration file:
 
-    `./build/gmp-featurizer`
+    `./build/gmp-featurizer  path/to/json`
 
+4. Run all tests with command in build/ folder 
 
+    `make test`
 
 
 
