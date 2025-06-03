@@ -23,7 +23,9 @@ namespace gmp {
         matrix_singular,
         invalid_mcsh_order,
         // output errors
-        output_file_error
+        output_file_error,
+        // tree errors
+        tree_invalid_morton_code,
     };
 
     // Global error variable declaration

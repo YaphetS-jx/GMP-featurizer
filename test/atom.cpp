@@ -7,6 +7,8 @@ using namespace gmp::atom;
 using namespace gmp::geometry;
 using namespace gmp::containers;
 
+auto& pool = gmp_resource::instance(64, 1<<20).get_host_memory().get_pool();
+
 // Test atom_t class
 TEST(atom_system, atom_constructors) {
     // Default constructor with values
@@ -45,7 +47,6 @@ TEST(atom_system, atom_assignment) {
 }
 
 TEST(atom, system_mutators) {
-    auto& host_memory = gmp_resource::instance(64, 1<<20).get_host_memory();
     unit_cell_t system;
 
     // Test set_atoms
@@ -73,8 +74,6 @@ TEST(atom, system_mutators) {
 }
 
 TEST(atom, system_accessors) {
-    auto& host_memory = gmp_resource::instance(64, 1<<20).get_host_memory();
-    
     // Create system with some atoms
     vec<atom_t> atoms;
     atoms.push_back(atom_t(1.0, 2.0, 3.0));

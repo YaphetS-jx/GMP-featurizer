@@ -15,6 +15,8 @@ using namespace gmp::atom;
 using namespace gmp::geometry;
 // Removed using namespace gmp to avoid ambiguity with error_t
 
+auto& pool = gmp_resource::instance(64, 1<<20).get_host_memory().get_pool();
+
 // Helper function to construct paths relative to project root
 std::string get_project_path(const std::string& relative_path) {
     return std::filesystem::path(PROJECT_ROOT) / relative_path;
@@ -33,13 +35,13 @@ TEST_F(InputTest, file_path_t) {
     file_path_t file_paths;
     
     // Test setters
-    file_paths.set_atom_file("test/test.cif");
-    file_paths.set_psp_file("test/test.gpsp");
+    file_paths.set_atom_file("test/test_files/test.cif");
+    file_paths.set_psp_file("test/test_files/test.gpsp");
     file_paths.set_output_file("output.dat");
     
     // Test getters
-    EXPECT_EQ(file_paths.get_atom_file(), "test/test.cif");
-    EXPECT_EQ(file_paths.get_psp_file(), "test/test.gpsp");
+    EXPECT_EQ(file_paths.get_atom_file(), "test/test_files/test.cif");
+    EXPECT_EQ(file_paths.get_psp_file(), "test/test_files/test.gpsp");
     EXPECT_EQ(file_paths.get_output_file(), "output.dat");
 }
 
@@ -80,14 +82,13 @@ TEST_F(InputTest, descriptor_config_t) {
 }
 
 TEST_F(InputTest, read_atom_file) {
-    auto& pool = gmp_resource::instance(64, 1<<20).get_host_memory().get_pool();
     // Test reading a CIF file
     std::unique_ptr<lattice_t> lattice;
     vec<atom_t> atoms;
     atom_type_map_t atom_type_map;
     
     // Use path relative to project root
-    std::string cif_path = get_project_path("test/test.cif");
+    std::string cif_path = get_project_path("test/test_files/test.cif");
     read_atom_file(cif_path, lattice, atoms, atom_type_map);
     
     // Check if error occurred
@@ -116,7 +117,6 @@ TEST_F(InputTest, read_atom_file) {
 }
 
 TEST_F(InputTest, read_psp_file) {
-    auto& pool = gmp_resource::instance(64, 1<<20).get_host_memory().get_pool();
     // First set up atom type map
     atom_type_map_t atom_type_map;
     atom_type_map["K"] = 0;
@@ -128,7 +128,7 @@ TEST_F(InputTest, read_psp_file) {
     vec<int> offset;
 
     // Use path relative to project root
-    std::string psp_path = get_project_path("test/test.gpsp");
+    std::string psp_path = get_project_path("test/test_files/test.gpsp");
     read_psp_file(psp_path, atom_type_map, gaussian_table, offset);
     
     // Check if error occurred
@@ -142,17 +142,15 @@ TEST_F(InputTest, read_psp_file) {
 }
 
 TEST_F(InputTest, input_t_parse_arguments) {
-    auto& pool = gmp_resource::instance(64, 1<<20).get_host_memory().get_pool();
-    
     // Create input object with path relative to project root
-    input_t input(get_project_path("test/input_test.json"));
+    input_t input(get_project_path("test/test_files/input_test.json"));
     
     // Check if error occurred
     EXPECT_EQ(gmp::gmp_error, gmp::error_t::success);
     
     // Check parsed values
-    EXPECT_EQ(input.files->get_atom_file(), "test/test.cif");
-    EXPECT_EQ(input.files->get_psp_file(), "test/test.gpsp");
+    EXPECT_EQ(input.files->get_atom_file(), "test/test_files/test.cif");
+    EXPECT_EQ(input.files->get_psp_file(), "test/test_files/test.gpsp");
     EXPECT_EQ(input.files->get_output_file(), "output.dat");
     
     // Each order is combined with each sigma: 2 orders * 2 sigmas = 4 features

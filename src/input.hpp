@@ -71,13 +71,14 @@ namespace gmp { namespace input {
     class descriptor_config_t {
     public: 
         descriptor_config_t() : feature_list_(), cutoff_method_(cutoff_method_t::cutoff_feature_gaussian), 
-            scaling_mode_(scaling_mode_t::radial), cutoff_(0.0), overlap_threshold_(1e-11), square_(false) {}
+            scaling_mode_(scaling_mode_t::radial), tree_min_bounds_(4.0, 4.0, 4.0), cutoff_(0.0), overlap_threshold_(1e-11), square_(false) {}
         ~descriptor_config_t() = default;
 
     private:
         std::vector<feature_t> feature_list_;
         cutoff_method_t cutoff_method_;
         scaling_mode_t scaling_mode_;
+        array3d_flt64 tree_min_bounds_;
         double cutoff_;
         double overlap_threshold_;
         bool square_;
@@ -87,6 +88,7 @@ namespace gmp { namespace input {
         const std::vector<feature_t>& get_feature_list() const { return feature_list_; }
         cutoff_method_t get_cutoff_method() const { return cutoff_method_; }
         scaling_mode_t get_scaling_mode() const { return scaling_mode_; }
+        const array3d_flt64& get_tree_min_bounds() const { return tree_min_bounds_; }
         double get_cutoff() const { return cutoff_; }
         double get_overlap_threshold() const { return overlap_threshold_; }
         bool get_square() const { return square_; }
@@ -98,6 +100,7 @@ namespace gmp { namespace input {
         void set_cutoff(const double cutoff) { cutoff_ = cutoff; }
         void set_overlap_threshold(const double overlap_threshold) { overlap_threshold_ = overlap_threshold; }
         void set_square(const bool square) { square_ = square; }
+        void set_tree_min_bounds(const array3d_flt64& tree_min_bounds) { tree_min_bounds_ = tree_min_bounds; }
 
         // print config
         void dump() const;

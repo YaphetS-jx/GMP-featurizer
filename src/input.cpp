@@ -88,6 +88,7 @@ namespace gmp { namespace input {
         std::cout << "Cutoff: " << cutoff_ << std::endl;
         std::cout << "Overlap threshold: " << overlap_threshold_ << std::endl;
         std::cout << "Scaling mode: " << gmp_to_string(scaling_mode_) << std::endl;
+        std::cout << "Tree min bounds: " << tree_min_bounds_[0] << ", " << tree_min_bounds_[1] << ", " << tree_min_bounds_[2] << std::endl;
     }
 
     // parse JSON  
@@ -115,6 +116,14 @@ namespace gmp { namespace input {
         this->descriptor_config->set_overlap_threshold(config.value("overlap threshold", 1e-11));
         this->descriptor_config->set_cutoff_method(static_cast<cutoff_method_t>(config.value("cutoff method", 4)));
         this->descriptor_config->set_scaling_mode(static_cast<scaling_mode_t>(config.value("scaling mode", 0)));
+        
+        if (config.contains("tree min bounds")) {
+            auto bounds = config["tree min bounds"];
+            if (bounds.size() == 3) {
+                array3d_flt64 tree_bounds(bounds[0].get<double>(), bounds[1].get<double>(), bounds[2].get<double>());
+                this->descriptor_config->set_tree_min_bounds(tree_bounds);
+            }
+        }
 
         // Optional entries
         if (config.contains("orders")) {
