@@ -19,6 +19,27 @@ namespace gmp { namespace tree {
             : left(left), right(right), lower_bound(lower_bound), upper_bound(upper_bound) {}
     };
 
+    template <typename MortonCodeType = std::uint32_t>
+    struct check_intersect_box_t {
+        MortonCodeType query_lower_bound, query_upper_bound;
+
+        explicit check_intersect_box_t(MortonCodeType query_lower_bound, MortonCodeType query_upper_bound)
+            : query_lower_bound(query_lower_bound), query_upper_bound(query_upper_bound) {}
+
+        bool operator()(const MortonCodeType& lower_bound, const MortonCodeType& upper_bound, 
+            MortonCodeType x_mask, MortonCodeType y_mask, MortonCodeType z_mask) const 
+        {
+            return mc_is_less_than_or_equal(query_lower_bound, upper_bound, x_mask, y_mask, z_mask) && 
+                   mc_is_less_than_or_equal(lower_bound, query_upper_bound, x_mask, y_mask, z_mask);
+        }
+
+        bool operator()(const MortonCodeType& morton_code, 
+            MortonCodeType x_mask, MortonCodeType y_mask, MortonCodeType z_mask) const 
+        {
+            return operator()(morton_code, morton_code, x_mask, y_mask, z_mask);
+        }
+    };
+
     template <
         typename MortonCodeType = std::uint32_t, 
         typename IndexType = std::int32_t,
@@ -50,6 +71,13 @@ namespace gmp { namespace tree {
         }
 
     public: 
+        binary_radix_tree_t() {};
+
+        binary_radix_tree_t(const morton_container_t& morton_codes, const IndexType num_bits = 30) 
+        {
+            build_tree(morton_codes, num_bits);
+        }
+
         const node_container_t& get_internal_nodes() const 
         {
             return internal_nodes;
@@ -59,6 +87,10 @@ namespace gmp { namespace tree {
         {
             return leaf_nodes;
         }
+
+        MortonCodeType get_x_mask() const { return x_mask; }
+        MortonCodeType get_y_mask() const { return y_mask; }
+        MortonCodeType get_z_mask() const { return z_mask; }
         
         IndexType delta(const morton_container_t& morton_codes, IndexType i, IndexType j, IndexType num_bits = 30) const 
         {
@@ -76,11 +108,11 @@ namespace gmp { namespace tree {
             IndexType delta_prev = delta(morton_codes, i, i - 1, num_bits);
             IndexType delta_next = delta(morton_codes, i, i + 1, num_bits);
             IndexType d = (delta_next > delta_prev) ? 1 : -1;
-            IndexType delta_min = delta(morton_codes, i, i - d, num_bits);
+            IndexType delta_min = delta(morton_codes, i, i - d, num_bits);            
 
             // Exponential search to find other end
             IndexType lmax = 2;
-            while (delta(morton_codes, i, i + lmax * d, num_bits) > delta_min) {            
+            while (delta(morton_codes, i, i + lmax * d, num_bits) > delta_min) {
                 lmax *= 2;
             }
 
@@ -131,6 +163,7 @@ namespace gmp { namespace tree {
         
         void build_tree(const morton_container_t& morton_codes, const IndexType num_bits = 30) 
         {
+            assert(num_bits % 3 == 0);
             auto n = static_cast<IndexType>(morton_codes.size());
             internal_nodes.reserve(n - 1);
 
@@ -154,19 +187,8 @@ namespace gmp { namespace tree {
             create_masks();
         }
 
-        bool check_intersect(const MortonCodeType& lower_bound, const MortonCodeType& upper_bound, 
-            const MortonCodeType& query_lower_bound, const MortonCodeType& query_upper_bound) const 
-        {
-            return mc_is_less_than_or_equal(query_lower_bound, upper_bound, x_mask, y_mask, z_mask) && 
-                   mc_is_less_than_or_equal(lower_bound, query_upper_bound, x_mask, y_mask, z_mask);
-        }
-
-        bool check_inside(const MortonCodeType& morton_code, const MortonCodeType& query_lower_bound, const MortonCodeType& query_upper_bound) const 
-        {
-            return check_intersect(morton_code, morton_code, query_lower_bound, query_upper_bound);
-        }
-
-        result_t traverse(const MortonCodeType& query_lower_bound, const MortonCodeType& query_upper_bound) const 
+        template <typename OpType> 
+        result_t traverse(OpType &check_intersect) const 
         {
             result_t result;
             stack<IndexType> s;
@@ -178,12 +200,14 @@ namespace gmp { namespace tree {
                 
                 if (node_index < n) // leaf node 
                 {
-                    if (check_inside(leaf_nodes[node_index], query_lower_bound, query_upper_bound)) {
+                    if (check_intersect(leaf_nodes[node_index], x_mask, y_mask, z_mask)) {
                         result.push_back(node_index);
                     }
                 } else { // internal node
                     node_index -= n;
-                    if (check_intersect(internal_nodes[node_index].lower_bound, internal_nodes[node_index].upper_bound, query_lower_bound, query_upper_bound)) {
+                    if (check_intersect(internal_nodes[node_index].lower_bound, internal_nodes[node_index].upper_bound, 
+                        x_mask, y_mask, z_mask)) 
+                    {
                         s.push(internal_nodes[node_index].left);
                         s.push(internal_nodes[node_index].right);
                     }
