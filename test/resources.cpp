@@ -91,6 +91,115 @@ TEST(gmp_resources, smart_pointers) {
     // dtor should be called here
 }
 
+TEST(gmp_resources, custom_containers) {
+    std::cout << "--------------------------------" << std::endl;
+    std::cout << "GMPResourcesTest, CustomContainers" << std::endl;
+    std::cout << "--------------------------------" << std::endl;
+
+    auto& pool = gmp_resource::instance(64, 1<<20).get_host_memory().get_pool();
+
+    // Test vec with custom pool
+    {
+        vec<int> v(pool);
+        v.push_back(1);
+        v.push_back(2);
+        v.push_back(3);
+        EXPECT_EQ(v.size(), 3);
+        EXPECT_EQ(v[0], 1);
+        EXPECT_EQ(v[1], 2);
+        EXPECT_EQ(v[2], 3);
+    }
+
+    // Test deque with default pool
+    {
+        deque<int> d;
+        d.push_back(1);
+        d.push_front(2);
+        d.push_back(3);
+        EXPECT_EQ(d.size(), 3);
+        EXPECT_EQ(d[0], 2);
+        EXPECT_EQ(d[1], 1);
+        EXPECT_EQ(d[2], 3);
+    }
+
+    // Test deque with custom pool
+    {
+        deque<int> d(pool);
+        d.push_back(1);
+        d.push_front(2);
+        d.push_back(3);
+        EXPECT_EQ(d.size(), 3);
+        EXPECT_EQ(d[0], 2);
+        EXPECT_EQ(d[1], 1);
+        EXPECT_EQ(d[2], 3);
+    }
+
+    // Test stack with default pool
+    {
+        stack<int> s;
+        s.push(1);
+        s.push(2);
+        s.push(3);
+        EXPECT_EQ(s.size(), 3);
+        EXPECT_EQ(s.top(), 3);
+        s.pop();
+        EXPECT_EQ(s.top(), 2);
+        s.pop();
+        EXPECT_EQ(s.top(), 1);
+        s.pop();
+        EXPECT_TRUE(s.empty());
+    }
+
+    // Test stack with custom pool
+    {
+        stack<int> s;
+        s.push(1);
+        s.push(2);
+        s.push(3);
+        EXPECT_EQ(s.size(), 3);
+        EXPECT_EQ(s.top(), 3);
+        s.pop();
+        EXPECT_EQ(s.top(), 2);
+        s.pop();
+        EXPECT_EQ(s.top(), 1);
+        s.pop();
+        EXPECT_TRUE(s.empty());
+    }
+
+    // Test queue with default pool
+    {
+        queue<int> q;
+        q.push(1);
+        q.push(2);
+        q.push(3);
+        EXPECT_EQ(q.size(), 3);
+        EXPECT_EQ(q.front(), 1);
+        q.pop();
+        EXPECT_EQ(q.front(), 2);
+        q.pop();
+        EXPECT_EQ(q.front(), 3);
+        q.pop();
+        EXPECT_TRUE(q.empty());
+    }
+
+    // Test queue with custom pool
+    {
+        queue<int> q;
+        q.push(1);
+        q.push(2);
+        q.push(3);
+        EXPECT_EQ(q.size(), 3);
+        EXPECT_EQ(q.front(), 1);
+        q.pop();
+        EXPECT_EQ(q.front(), 2);
+        q.pop();
+        EXPECT_EQ(q.front(), 3);
+        q.pop();
+        EXPECT_TRUE(q.empty());
+    }
+}
+
+
 TEST(gmp_resources, class_sizes) {
     std::cout << "--------------------------------" << std::endl;
     std::cout << "GMPResourcesTest, ClassSizes" << std::endl;

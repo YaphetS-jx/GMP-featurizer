@@ -1,6 +1,9 @@
 #include <gtest/gtest.h>
 #include "tree.hpp"
 #include "types.hpp"
+#include <random>
+#include <set>
+#include <tuple>
 
 using namespace gmp::tree;
 using namespace gmp::containers;
@@ -8,50 +11,46 @@ using namespace gmp::containers;
 auto& pool = gmp_resource::instance(64, 1<<20).get_host_memory().get_pool();
 
 // Helper function to compare two internal nodes
-bool compare_nodes(const internal_node_t<int32_t>& a, const internal_node_t<int32_t>& b) {
-    return a.index == b.index &&
-           a.first == b.first &&
-           a.last == b.last &&
-           a.split == b.split &&
-           a.left == b.left &&
-           a.right == b.right;
+bool compare_nodes(const internal_node_t<uint32_t, int32_t>& a, const internal_node_t<uint32_t, int32_t>& b) {
+    return a.left == b.left &&
+           a.right == b.right &&
+           a.lower_bound == b.lower_bound &&
+           a.upper_bound == b.upper_bound;
 }
 
 // Helper function to print node details for debugging
-std::string node_to_string(const internal_node_t<int32_t>& node) {
+std::string node_to_string(const internal_node_t<uint32_t, int32_t>& node) {
     std::stringstream ss;
-    ss << "Node{index=" << node.index 
-       << ", first=" << node.first 
-       << ", last=" << node.last 
-       << ", split=" << node.split 
-       << ", left=" << node.left 
-       << ", right=" << node.right << "}";
+    ss << "Node {" 
+       << "left=" << node.left 
+       << ", right=" << node.right 
+       << ", lower_bound=" << node.lower_bound 
+       << ", upper_bound=" << node.upper_bound 
+       << "}";
     return ss.str();
 }
 
 TEST(BinaryRadixTreeTest, BasicConstruction) {
     // Test morton codes
-    vec<uint32_t> morton_codes = {1, 2, 4, 5, 19, 24, 25, 30};
-    
+    vec<uint32_t> morton_codes = {0, 0b100, 0b001000000, 0b001000001, 0b111111111};
+    auto num_bits = 9;
+
     // Create and build the tree
     binary_radix_tree_t<uint32_t, int32_t> tree;
-    tree.build_tree(morton_codes);
+    tree.build_tree(morton_codes, num_bits);
     
     // verify all the internal nodes 
-    EXPECT_EQ(tree.internal_nodes.size(), 7);
+    EXPECT_EQ(tree.get_internal_nodes().size(), 4);
 
-    internal_node_t<int32_t> benchmark[7] = {
-        {8, 0, 7, 3, 11, 12},
-        {9, 0, 1, 0, 0, 1},
-        {10, 2, 3, 2, 2, 3},
-        {11, 0, 3, 1, 9, 10},
-        {12, 4, 7, 4, 4, 13},
-        {13, 5, 7, 6, 14, 7},
-        {14, 5, 6, 5, 5, 6}
-    };
+    std::array<internal_node_t<uint32_t, int32_t>, 4> benchmark = {{
+        {8, 4, 0, 511},
+        {0, 1, 0, 7},
+        {2, 3, 64, 65},
+        {6, 7, 0, 127}
+    }};
 
-    for (int i = 0; i < 7; i++) {
-        EXPECT_TRUE(compare_nodes(tree.internal_nodes[i], benchmark[i])) << "Node " << i << " mismatch: " << node_to_string(tree.internal_nodes[i]);
+    for (int i = 0; i < 4; i++) {
+        EXPECT_TRUE(compare_nodes(tree.get_internal_nodes()[i], benchmark[i])) << "Node " << i << " mismatch: " << node_to_string(tree.get_internal_nodes()[i]);
     }
 }
 
@@ -59,12 +58,101 @@ TEST(BinaryRadixTreeTest, DeltaFunction) {
     vec<uint32_t> morton_codes = {1, 2, 4, 5, 19, 24, 25, 30};
     binary_radix_tree_t<uint32_t, int32_t> tree;
     
-    // Test delta between adjacent codes
-    EXPECT_EQ(tree.delta(morton_codes, 0, 1), 30); // 1 and 2 differ in last bit
-    EXPECT_EQ(tree.delta(morton_codes, 1, 2), 29); // 2 and 4 differ in second to last bit
-    EXPECT_EQ(tree.delta(morton_codes, 2, 3), 31); // 4 and 5 differ in last bit
-    
-    // Test delta between non-adjacent codes
-    EXPECT_EQ(tree.delta(morton_codes, 0, 4), 27); // 1 and 19 differ in 4th bit from end
-    EXPECT_EQ(tree.delta(morton_codes, 4, 7), 28); // 19 and 30 differ in 3rd bit from end
+    EXPECT_EQ(tree.delta(morton_codes, 0, -1), -1); // out of bounds
+    EXPECT_EQ(tree.delta(morton_codes, 0, -1, 10), -1); // out of bounds
+
+    EXPECT_EQ(tree.delta(morton_codes, 3, 5, 32), 27); // 5 and 24 differ 5 bits
+    EXPECT_EQ(tree.delta(morton_codes, 3, 5, 10), 5); // 5 and 24 differ 5 bits
 }
+
+TEST(BinaryRadixTreeTest, Traverse) {
+    vec<uint32_t> morton_codes = {0, 0b100, 0b001000000, 0b001000001, 0b111111111};
+    auto num_bits = 3;
+
+    // Create and build the tree
+    binary_radix_tree_t<uint32_t, int32_t> tree;
+    tree.build_tree(morton_codes, num_bits*3);
+
+    uint32_t query_lower_bound = interleave_bits(0, 0, 0, num_bits);
+    uint32_t query_upper_bound = interleave_bits(0b100, 0b100, 0b100, num_bits);
+
+    auto result = tree.traverse(query_lower_bound, query_upper_bound);
+    EXPECT_EQ(result.size(), 3);
+    EXPECT_EQ(result[0], 0);
+    EXPECT_EQ(result[1], 1);
+    EXPECT_EQ(result[2], 2);    
+}
+
+TEST(BinaryRadixTreeTest, Traverse_general_case) {
+    // Set up random number generation
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<> dis(0, 15); // 2^4 - 1 = 15
+
+    // Generate random points
+    const int num_bits = 4;
+    const int max_coord = (1 << num_bits) - 1;
+    const int num_points = 5000;
+
+    // Generate points and morton codes
+    std::set<std::tuple<int, int, int>> unique_points;
+    vec<uint32_t> morton_codes;
+    morton_codes.reserve(num_points);
+
+    for (int i = 0; i < num_points; ++i) {
+        int x = dis(gen);
+        int y = dis(gen);
+        int z = dis(gen);
+        unique_points.insert({x, y, z});
+    }
+
+    // Convert to morton codes
+    for (const auto& point : unique_points) {
+        int x, y, z;
+        std::tie(x, y, z) = point;
+        morton_codes.push_back(interleave_bits(x, y, z, num_bits));
+    }
+    std::cout << "num of unique points: " << unique_points.size() << std::endl;
+
+    // Sort morton codes
+    std::sort(morton_codes.begin(), morton_codes.end());
+
+    // Build tree
+    binary_radix_tree_t<uint32_t, int32_t> tree;
+    tree.build_tree(morton_codes, num_bits * 3);
+
+    // Generate random query window
+    int x1 = dis(gen), x2 = dis(gen);
+    int y1 = dis(gen), y2 = dis(gen);
+    int z1 = dis(gen), z2 = dis(gen);
+    
+    if (x1 > x2) std::swap(x1, x2);
+    if (y1 > y2) std::swap(y1, y2);
+    if (z1 > z2) std::swap(z1, z2);
+
+    uint32_t query_min = interleave_bits(x1, y1, z1, num_bits);
+    uint32_t query_max = interleave_bits(x2, y2, z2, num_bits);
+
+    // Get results from tree traversal
+    auto result = tree.traverse(query_min, query_max);
+
+    // Brute force check
+    std::vector<int32_t> bench_result;
+    for (size_t i = 0; i < morton_codes.size(); ++i) {
+        if (tree.check_inside(morton_codes[i], query_min, query_max)) {
+            bench_result.push_back(i);
+        }
+    }
+
+    // Sort both results
+    std::sort(result.begin(), result.end());
+    std::sort(bench_result.begin(), bench_result.end());
+
+    std::cout << "query counts: " << result.size() << std::endl;
+
+    // Compare results
+    EXPECT_EQ(result.size(), bench_result.size()) << "Result sizes don't match!";
+    EXPECT_TRUE(std::equal(result.begin(), result.end(), bench_result.begin())) 
+        << "Results don't match!";
+}
+

@@ -10,7 +10,7 @@ namespace gmp { namespace tree { namespace morton_codes {
     {
         std::bitset<sizeof(T) * 8> bits(num);
         for (size_t i = 0; i < num_bits; ++i) {
-            std::cout << bits[i];
+            std::cout << bits[num_bits - 1 - i];
         }
         std::cout << std::endl;
     }
@@ -90,5 +90,17 @@ namespace gmp { namespace tree { namespace morton_codes {
         return binary_to_fractional<CodeType, BitSizeType, FractionalType>(morton_code, num_bits - 1);
     }
 
-
+    // compare 2 morton codes in 3 different dimensions
+    template <typename BinaryType>
+    bool mc_is_less_than_or_equal(const BinaryType morton_code1, const BinaryType morton_code2, 
+        const BinaryType x_mask, const BinaryType y_mask, const BinaryType z_mask) 
+    {
+        BinaryType x1 = morton_code1 & x_mask;
+        BinaryType y1 = morton_code1 & y_mask;
+        BinaryType z1 = morton_code1 & z_mask;
+        BinaryType x2 = morton_code2 & x_mask;
+        BinaryType y2 = morton_code2 & y_mask;
+        BinaryType z2 = morton_code2 & z_mask;
+        return x1 <= x2 && y1 <= y2 && z1 <= z2;
+    }
 }}}

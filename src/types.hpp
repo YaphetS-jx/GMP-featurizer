@@ -2,6 +2,8 @@
 #include "boost_pool.hpp"
 #include "resources.hpp"
 #include <vector>
+#include <queue>
+#include <stack>
 
 namespace gmp { namespace containers {
 
@@ -54,5 +56,38 @@ namespace gmp { namespace containers {
     gmp_unique_ptr<T> make_gmp_unique_with_pool(resources::PoolType& pool, Args&&... args) {
         return gmp_unique_ptr<T>(resources::make_pool_unique<T>(pool, std::forward<Args>(args)...));
     }
-    
+
+    template <typename T>
+    class deque : public std::deque<T, resources::pool_allocator<T>> {
+        using base = std::deque<T, resources::pool_allocator<T>>;
+    public:
+        // Default constructor uses the default pool
+        deque() : base(resources::pool_allocator<T>(get_default_pool())) {}
+        
+        // Constructor with specific pool
+        explicit deque(resources::PoolType& pool) : base(resources::pool_allocator<T>(pool)) {}
+        
+        // copy constructor
+        deque(const deque& other) : base(other) {}
+
+        // move constructor
+        deque(deque&& other) noexcept : base(std::move(other)) {}
+
+        // copy assignment
+        deque& operator=(const deque& other) { base::operator=(other); return *this; }
+
+        // Forward all other deque constructors
+        using base::base;
+        
+        // Inherit all deque operations
+        using base::operator=;
+    };
+
+    // Queue implementation using custom allocator
+    template <typename T>
+    using queue = std::queue<T, deque<T>>;
+
+    // Stack implementation using custom allocator
+    template <typename T>
+    using stack = std::stack<T, deque<T>>;
 }}

@@ -24,7 +24,7 @@ TEST(MortonCodesTest, PrintBits) {
     testing::internal::CaptureStdout();
     print_bits(num, 4);
     std::string output = testing::internal::GetCapturedStdout();
-    EXPECT_EQ(output, "0101\n");  // Note: bits are printed from least significant to most significant
+    EXPECT_EQ(output, "1010\n");  // Note: bits are printed from least significant to most significant
 }
 
 // Test interleave_bits function
@@ -34,6 +34,10 @@ TEST(MortonCodesTest, InterleaveBits) {
     uint32_t z = 0b111;  // 7
     uint32_t num_bits = 3;
 
+    print_bits(x, 3);
+    print_bits(y, 3);
+    print_bits(z, 3);
+    
     uint32_t result = interleave_bits(x, y, z, num_bits);
     // Expected: 111 110 101 (binary) = 0x1F5
     EXPECT_EQ(result, 0x1F5);
