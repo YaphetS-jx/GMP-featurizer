@@ -20,23 +20,36 @@ namespace gmp { namespace tree {
     };
 
     template <typename MortonCodeType = std::uint32_t>
-    struct check_intersect_box_t {
+    class compare_op_t {
+    public: 
+        virtual bool operator()(MortonCodeType query_lower_bound, MortonCodeType query_upper_bound) const = 0;
+        virtual bool operator()(MortonCodeType morton_code) const = 0;
+    };
+
+    template <typename MortonCodeType = std::uint32_t>
+    struct check_intersect_box_t : public compare_op_t<MortonCodeType> {
         MortonCodeType query_lower_bound, query_upper_bound;
+        MortonCodeType x_mask, y_mask, z_mask;
 
         explicit check_intersect_box_t(MortonCodeType query_lower_bound, MortonCodeType query_upper_bound)
-            : query_lower_bound(query_lower_bound), query_upper_bound(query_upper_bound) {}
+            : query_lower_bound(query_lower_bound), query_upper_bound(query_upper_bound) 
+        {
+            for (auto i = 0; i < sizeof(MortonCodeType) * 8; i += 3) {
+                x_mask |= static_cast<MortonCodeType>(1) << i;
+                y_mask |= static_cast<MortonCodeType>(1) << (i + 1);
+                z_mask |= static_cast<MortonCodeType>(1) << (i + 2);
+            }
+        }
 
-        bool operator()(const MortonCodeType& lower_bound, const MortonCodeType& upper_bound, 
-            MortonCodeType x_mask, MortonCodeType y_mask, MortonCodeType z_mask) const 
+        bool operator()(MortonCodeType lower_bound, MortonCodeType upper_bound) const override
         {
             return mc_is_less_than_or_equal(query_lower_bound, upper_bound, x_mask, y_mask, z_mask) && 
                    mc_is_less_than_or_equal(lower_bound, query_upper_bound, x_mask, y_mask, z_mask);
         }
 
-        bool operator()(const MortonCodeType& morton_code, 
-            MortonCodeType x_mask, MortonCodeType y_mask, MortonCodeType z_mask) const 
+        bool operator()(MortonCodeType morton_code) const override 
         {
-            return operator()(morton_code, morton_code, x_mask, y_mask, z_mask);
+            return operator()(morton_code, morton_code);
         }
     };
 
@@ -53,21 +66,11 @@ namespace gmp { namespace tree {
     
     private: 
         node_container_t internal_nodes;
-        morton_container_t leaf_nodes;
-        MortonCodeType x_mask, y_mask, z_mask;
+        morton_container_t leaf_nodes;        
         
         IndexType count_leading_zeros(MortonCodeType x, IndexType num_bits = 30) const 
         {        
             return num_bits - (sizeof(MortonCodeType) * 8 - __builtin_clz(x));
-        }
-
-        void create_masks() 
-        {
-            for (int i = 0; i < sizeof(MortonCodeType) * 8; i += 3) {
-                x_mask |= static_cast<MortonCodeType>(1) << i;
-                y_mask |= static_cast<MortonCodeType>(1) << (i + 1);
-                z_mask |= static_cast<MortonCodeType>(1) << (i + 2);
-            }
         }
 
     public: 
@@ -87,10 +90,6 @@ namespace gmp { namespace tree {
         {
             return leaf_nodes;
         }
-
-        MortonCodeType get_x_mask() const { return x_mask; }
-        MortonCodeType get_y_mask() const { return y_mask; }
-        MortonCodeType get_z_mask() const { return z_mask; }
         
         IndexType delta(const morton_container_t& morton_codes, IndexType i, IndexType j, IndexType num_bits = 30) const 
         {
@@ -183,12 +182,9 @@ namespace gmp { namespace tree {
             }            
             // save leaf nodes
             leaf_nodes = std::move(morton_codes);
-            // create masks 
-            create_masks();
         }
-
-        template <typename OpType> 
-        result_t traverse(OpType &check_intersect) const 
+        
+        result_t traverse(const compare_op_t<MortonCodeType> &check_intersect) const 
         {
             result_t result;
             stack<IndexType> s;
@@ -200,14 +196,12 @@ namespace gmp { namespace tree {
                 
                 if (node_index < n) // leaf node 
                 {
-                    if (check_intersect(leaf_nodes[node_index], x_mask, y_mask, z_mask)) {
+                    if (check_intersect(leaf_nodes[node_index])) {
                         result.push_back(node_index);
                     }
                 } else { // internal node
                     node_index -= n;
-                    if (check_intersect(internal_nodes[node_index].lower_bound, internal_nodes[node_index].upper_bound, 
-                        x_mask, y_mask, z_mask)) 
-                    {
+                    if (check_intersect(internal_nodes[node_index].lower_bound, internal_nodes[node_index].upper_bound)) {
                         s.push(internal_nodes[node_index].left);
                         s.push(internal_nodes[node_index].right);
                     }

@@ -76,7 +76,7 @@ TEST(BinaryRadixTreeTest, Traverse) {
     uint32_t query_lower_bound = interleave_bits(0, 0, 0, num_bits);
     uint32_t query_upper_bound = interleave_bits(0b100, 0b100, 0b100, num_bits);
 
-    check_intersect_box_t op(query_lower_bound, query_upper_bound);
+    check_intersect_box_t<uint32_t> op(query_lower_bound, query_upper_bound);
     auto result = tree.traverse(op);
     EXPECT_EQ(result.size(), 3);
     EXPECT_EQ(result[0], 0);
@@ -133,7 +133,7 @@ TEST(BinaryRadixTreeTest, Traverse_general_case) {
 
     uint32_t query_min = interleave_bits(x1, y1, z1, num_bits);
     uint32_t query_max = interleave_bits(x2, y2, z2, num_bits);
-    check_intersect_box_t op(query_min, query_max);
+    check_intersect_box_t<uint32_t> op(query_min, query_max);
 
     // Get results from tree traversal
     auto result = tree.traverse(op);
@@ -141,7 +141,7 @@ TEST(BinaryRadixTreeTest, Traverse_general_case) {
     // Brute force check
     std::vector<int32_t> bench_result;
     for (size_t i = 0; i < morton_codes.size(); ++i) {
-        if (op(morton_codes[i], tree.get_x_mask(), tree.get_y_mask(), tree.get_z_mask())) {
+        if (op(morton_codes[i])) {
             bench_result.push_back(i);
         }
     }
