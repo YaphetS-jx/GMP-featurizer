@@ -19,14 +19,14 @@ namespace gmp { namespace tree {
             : left(left), right(right), lower_bound(lower_bound), upper_bound(upper_bound) {}
     };
 
-    template <typename MortonCodeType = std::uint32_t>
+    template <typename MortonCodeType>
     class compare_op_t {
     public: 
         virtual bool operator()(MortonCodeType query_lower_bound, MortonCodeType query_upper_bound) const = 0;
         virtual bool operator()(MortonCodeType morton_code) const = 0;
     };
 
-    template <typename MortonCodeType = std::uint32_t>
+    template <typename MortonCodeType>
     struct check_intersect_box_t : public compare_op_t<MortonCodeType> {
         MortonCodeType query_lower_bound, query_upper_bound;
         MortonCodeType x_mask, y_mask, z_mask;
@@ -34,15 +34,11 @@ namespace gmp { namespace tree {
         explicit check_intersect_box_t(MortonCodeType query_lower_bound, MortonCodeType query_upper_bound)
             : query_lower_bound(query_lower_bound), query_upper_bound(query_upper_bound) 
         {
-            for (auto i = 0; i < sizeof(MortonCodeType) * 8; i += 3) {
-                x_mask |= static_cast<MortonCodeType>(1) << i;
-                y_mask |= static_cast<MortonCodeType>(1) << (i + 1);
-                z_mask |= static_cast<MortonCodeType>(1) << (i + 2);
-            }
+            create_masks(x_mask, y_mask, z_mask);
         }
 
         bool operator()(MortonCodeType lower_bound, MortonCodeType upper_bound) const override
-        {
+        {            
             return mc_is_less_than_or_equal(query_lower_bound, upper_bound, x_mask, y_mask, z_mask) && 
                    mc_is_less_than_or_equal(lower_bound, query_upper_bound, x_mask, y_mask, z_mask);
         }
@@ -195,7 +191,7 @@ namespace gmp { namespace tree {
                 s.pop();
                 
                 if (node_index < n) // leaf node 
-                {
+                {                    
                     if (check_intersect(leaf_nodes[node_index])) {
                         result.push_back(node_index);
                     }
