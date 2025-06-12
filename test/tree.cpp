@@ -65,7 +65,37 @@ TEST(BinaryRadixTreeTest, DeltaFunction) {
     EXPECT_EQ(tree.delta(morton_codes, 3, 5, 10), 5); // 5 and 24 differ 5 bits
 }
 
-TEST(BinaryRadixTreeTest, Traverse) {
+template <typename MortonCodeType, typename VecType = vec<array3d_int32>>
+class check_intersect_box_t : public compare_op_t<MortonCodeType, VecType> {
+public:
+    MortonCodeType query_lower_bound, query_upper_bound;
+    MortonCodeType x_mask, y_mask, z_mask;
+
+    explicit check_intersect_box_t(MortonCodeType query_lower_bound, MortonCodeType query_upper_bound)
+        : query_lower_bound(query_lower_bound), query_upper_bound(query_upper_bound) 
+    {
+        create_masks(x_mask, y_mask, z_mask);
+    }
+
+    bool operator()(MortonCodeType lower_bound, MortonCodeType upper_bound) const override
+    {            
+        return mc_is_less_than_or_equal(query_lower_bound, upper_bound, x_mask, y_mask, z_mask) && 
+                mc_is_less_than_or_equal(lower_bound, query_upper_bound, x_mask, y_mask, z_mask);
+    }
+
+    VecType operator()(MortonCodeType morton_code) const override 
+    {
+        VecType result;
+        if (mc_is_less_than_or_equal(query_lower_bound, morton_code, x_mask, y_mask, z_mask) && 
+            mc_is_less_than_or_equal(morton_code, query_upper_bound, x_mask, y_mask, z_mask)) 
+        {
+            result.push_back(array3d_int32{0, 0, 0});
+        }
+        return result;
+    }
+};
+
+TEST(BinaryRadixTreeTest, Traverse_for_test) {
     vec<uint32_t> morton_codes = {0, 0b100, 0b001000000, 0b001000001, 0b111111111};
     auto num_bits = 3;
 
@@ -76,13 +106,20 @@ TEST(BinaryRadixTreeTest, Traverse) {
     uint32_t query_lower_bound = interleave_bits(0, 0, 0, num_bits);
     uint32_t query_upper_bound = interleave_bits(0b100, 0b100, 0b100, num_bits);
 
-    check_intersect_box_t<uint32_t> op(query_lower_bound, query_upper_bound);
+    check_intersect_box_t<uint32_t, vec<array3d_int32>> op(query_lower_bound, query_upper_bound);
     auto result = tree.traverse(op);
     EXPECT_EQ(result.size(), 3);
-    EXPECT_EQ(result[0], 0);
-    EXPECT_EQ(result[1], 1);
-    EXPECT_EQ(result[2], 2);    
+    EXPECT_TRUE(result.find(0) != result.end());
+    EXPECT_TRUE(result.find(1) != result.end());
+    EXPECT_TRUE(result.find(2) != result.end());
+    EXPECT_EQ(result[0].size(), 1);
+    EXPECT_EQ(result[1].size(), 1);
+    EXPECT_EQ(result[2].size(), 1);
+    EXPECT_EQ(result[0][0], (array3d_int32{0, 0, 0}));
+    EXPECT_EQ(result[1][0], (array3d_int32{0, 0, 0}));
+    EXPECT_EQ(result[2][0], (array3d_int32{0, 0, 0}));
 }
+
 
 TEST(BinaryRadixTreeTest, Traverse_general_case) {
     // Set up random number generation
@@ -133,28 +170,37 @@ TEST(BinaryRadixTreeTest, Traverse_general_case) {
 
     uint32_t query_min = interleave_bits(x1, y1, z1, num_bits);
     uint32_t query_max = interleave_bits(x2, y2, z2, num_bits);
-    check_intersect_box_t<uint32_t> op(query_min, query_max);
+    // check_intersect_box_t<uint32_t> op(query_min, query_max);
+    check_intersect_box_t<uint32_t, vec<array3d_int32>> op(query_min, query_max);
 
     // Get results from tree traversal
     auto result = tree.traverse(op);
 
+    // get result vec
+    vec<int32_t> result_vec;
+    for (const auto& [index, shifts] : result) {
+        for (const auto& shift : shifts) {
+            result_vec.push_back(index);
+        }
+    }
+
     // Brute force check
     std::vector<int32_t> bench_result;
     for (size_t i = 0; i < morton_codes.size(); ++i) {
-        if (op(morton_codes[i])) {
+        if (op(morton_codes[i], morton_codes[i])) {
             bench_result.push_back(i);
         }
     }
 
     // Sort both results
-    std::sort(result.begin(), result.end());
+    std::sort(result_vec.begin(), result_vec.end());
     std::sort(bench_result.begin(), bench_result.end());
 
-    std::cout << "query counts: " << result.size() << std::endl;
+    std::cout << "query counts: " << result_vec.size() << std::endl;
 
     // Compare results
     EXPECT_EQ(result.size(), bench_result.size()) << "Result sizes don't match!";
-    EXPECT_TRUE(std::equal(result.begin(), result.end(), bench_result.begin())) 
+    EXPECT_TRUE(std::equal(result_vec.begin(), result_vec.end(), bench_result.begin())) 
         << "Results don't match!";
 }
 

@@ -43,13 +43,13 @@ TEST(MortonCodesTest, InterleaveBits) {
     EXPECT_EQ(result, 0x1F5);
 }
 
-// Test bit_deinterleave_bits function
+// Test deinterleave_bits function
 TEST(MortonCodesTest, BitDeinterleaveBits) {
     uint32_t morton_code = 0x1F5;  // 111 110 101
     uint32_t num_bits_per_dim = 3;
     uint32_t x, y, z;
 
-    bit_deinterleave_bits(morton_code, num_bits_per_dim, x, y, z);
+    deinterleave_bits(morton_code, num_bits_per_dim, x, y, z);
     EXPECT_EQ(x, 0b101);  // 5
     EXPECT_EQ(y, 0b110);  // 6
     EXPECT_EQ(z, 0b111);  // 7

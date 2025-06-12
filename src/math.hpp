@@ -33,6 +33,35 @@ namespace gmp { namespace math {
     }
 
     template <typename T>
+    class array_2d_t {
+    private: 
+        T data_[2];
+    public: 
+        array_2d_t() : data_{0, 0} {}
+        array_2d_t(T x, T y) : data_{x, y} {}
+        array_2d_t(const array_2d_t<T>& other) : data_{other.data_[0], other.data_[1]} {}
+        array_2d_t(array_2d_t<T>&& other) noexcept : data_{other.data_[0], other.data_[1]} {}
+
+        // assignment operator
+        array_2d_t<T>& operator=(const array_2d_t<T>& other) {
+            data_[0] = other.data_[0];
+            data_[1] = other.data_[1];
+            return *this;
+        }
+        array_2d_t<T>& operator=(array_2d_t<T>&& other) noexcept {
+            if (this != &other) {
+                data_[0] = other.data_[0];
+                data_[1] = other.data_[1];
+            }
+            return *this;
+        }
+
+        // Array access
+        T& operator[](size_t i) { assert(i < 2); return data_[i]; }
+        const T& operator[](size_t i) const { assert(i < 2); return data_[i]; }
+    };
+
+    template <typename T>
     class array3d_t {
     public: 
         // constructor
@@ -135,8 +164,14 @@ namespace gmp { namespace math {
         T data_[3];
     };
 
+    template <typename T>
+    array3d_t<T> operator/(const T scalar, const array3d_t<T>& arr) {
+        return {scalar / arr[0], scalar / arr[1], scalar / arr[2]};
+    }
+
     // type aliases
     using array3d_flt64 = array3d_t<double>;
+    using array3d_uint32 = array3d_t<uint32_t>;
     using array3d_int32 = array3d_t<int32_t>;
     using array3d_int8 = array3d_t<int8_t>;
     using array3d_bool = array3d_t<bool>;
@@ -175,7 +210,7 @@ namespace gmp { namespace math {
         array3d_t<T>& operator[](size_t i) { return data_[i]; }
         const array3d_t<T>& operator[](size_t i) const { return data_[i]; }
 
-        // comparsion operator
+        // comparison operator
         bool operator==(const matrix3d_t<T>& other) const {
             return data_[0] == other.data_[0] && data_[1] == other.data_[1] && data_[2] == other.data_[2];
         }

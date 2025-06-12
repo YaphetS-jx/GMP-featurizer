@@ -47,7 +47,7 @@ namespace gmp { namespace atom {
 
         // accessors
         const vec<atom_t>& get_atoms() const { return atoms_; }
-        const std::unique_ptr<lattice_t>& get_lattice() const { return lattice_; }
+        const lattice_t* get_lattice() const { return lattice_.get(); }
         const array3d_bool& get_periodicity() const { return periodicity_; }
         const atom_t& operator[](size_t i) const { return atoms_[i]; }
         const atom_type_map_t& get_atom_type_map() const { return atom_type_map_; }

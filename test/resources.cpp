@@ -197,6 +197,58 @@ TEST(gmp_resources, custom_containers) {
         q.pop();
         EXPECT_TRUE(q.empty());
     }
+
+    // Test unordered_map with default pool
+    {
+        unordered_map<std::string, int> m;
+        m["one"] = 1;
+        m["two"] = 2;
+        m["three"] = 3;
+        EXPECT_EQ(m.size(), 3);
+        EXPECT_EQ(m["one"], 1);
+        EXPECT_EQ(m["two"], 2);
+        EXPECT_EQ(m["three"], 3);
+        
+        // Test find
+        auto it = m.find("two");
+        EXPECT_NE(it, m.end());
+        EXPECT_EQ(it->second, 2);
+        
+        // Test erase
+        m.erase("two");
+        EXPECT_EQ(m.size(), 2);
+        EXPECT_EQ(m.find("two"), m.end());
+        
+        // Test clear
+        m.clear();
+        EXPECT_TRUE(m.empty());
+    }
+
+    // Test unordered_map with custom pool
+    {
+        unordered_map<std::string, int> m(pool);
+        m["one"] = 1;
+        m["two"] = 2;
+        m["three"] = 3;
+        EXPECT_EQ(m.size(), 3);
+        EXPECT_EQ(m["one"], 1);
+        EXPECT_EQ(m["two"], 2);
+        EXPECT_EQ(m["three"], 3);
+        
+        // Test find
+        auto it = m.find("two");
+        EXPECT_NE(it, m.end());
+        EXPECT_EQ(it->second, 2);
+        
+        // Test erase
+        m.erase("two");
+        EXPECT_EQ(m.size(), 2);
+        EXPECT_EQ(m.find("two"), m.end());
+        
+        // Test clear
+        m.clear();
+        EXPECT_TRUE(m.empty());
+    }
 }
 
 

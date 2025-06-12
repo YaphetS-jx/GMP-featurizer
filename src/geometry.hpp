@@ -86,6 +86,10 @@ namespace gmp { namespace geometry {
             return difference.dot(metric_ * difference);
         }
 
+        double calculate_distance_squared(const array3d_flt64& difference) const {
+            return difference.dot(metric_ * difference);
+        }
+
         double calculate_distance(const point_flt64& p1, const point_flt64& p2, const array3d_flt64& cell_shift, array3d_flt64& difference) const {
             return std::sqrt(calculate_distance_squared(p1, p2, cell_shift, difference));
         }

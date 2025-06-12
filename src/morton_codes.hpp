@@ -30,7 +30,7 @@ namespace gmp { namespace tree { namespace morton_codes {
     }
 
     template <typename BinaryType, typename BitSizeType>
-    void bit_deinterleave_bits(BinaryType morton_code, BitSizeType num_bits_per_dim, BinaryType& x, BinaryType& y, BinaryType& z) 
+    void deinterleave_bits(BinaryType morton_code, BitSizeType num_bits_per_dim, BinaryType& x, BinaryType& y, BinaryType& z) 
     {
         assert(num_bits_per_dim >= 1 && num_bits_per_dim <= sizeof(BinaryType) * 8);
 

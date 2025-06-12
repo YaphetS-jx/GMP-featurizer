@@ -6,6 +6,8 @@
 #include <tuple>
 #include <fstream>
 #include <iostream>
+#include <numeric>      
+#include <algorithm>    
 
 #include "error.hpp"
 
@@ -271,5 +273,18 @@ namespace gmp { namespace util {
             std::cout << *it << ", ";
         }
         std::cout << std::endl;
+    }
+
+    template<typename DataType, typename IndexType, template<typename, typename...> class Container>
+    Container<IndexType> sort_indexes(const Container<DataType>& data) 
+    {
+        Container<IndexType> idx(data.size());
+        std::iota(idx.begin(), idx.end(), 0);
+        // sort indexes based on comparing values in data using std::stable_sort 
+        // instead of std::sort to avoid unnecessary index re-orderings when data 
+        //contains elements of equal values 
+        std::stable_sort(idx.begin(), idx.end(),
+            [&data](size_t i1, size_t i2) {return data[i1] < data[i2];});
+        return idx;
     }
 }}

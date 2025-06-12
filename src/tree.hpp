@@ -5,11 +5,13 @@
 #include <bit>
 #include "morton_codes.hpp"
 #include "types.hpp"
+#include "math.hpp"
 
 namespace gmp { namespace tree {
     
     using namespace morton_codes;
     using namespace gmp::containers;
+    using namespace gmp::math;
 
     template <typename MortonCodeType = std::uint32_t, typename IndexType = std::int32_t>
     struct internal_node_t {
@@ -19,46 +21,23 @@ namespace gmp { namespace tree {
             : left(left), right(right), lower_bound(lower_bound), upper_bound(upper_bound) {}
     };
 
-    template <typename MortonCodeType>
+    template <typename MortonCodeType, typename VecType = vec<array3d_int32>>
     class compare_op_t {
     public: 
         virtual bool operator()(MortonCodeType query_lower_bound, MortonCodeType query_upper_bound) const = 0;
-        virtual bool operator()(MortonCodeType morton_code) const = 0;
-    };
-
-    template <typename MortonCodeType>
-    struct check_intersect_box_t : public compare_op_t<MortonCodeType> {
-        MortonCodeType query_lower_bound, query_upper_bound;
-        MortonCodeType x_mask, y_mask, z_mask;
-
-        explicit check_intersect_box_t(MortonCodeType query_lower_bound, MortonCodeType query_upper_bound)
-            : query_lower_bound(query_lower_bound), query_upper_bound(query_upper_bound) 
-        {
-            create_masks(x_mask, y_mask, z_mask);
-        }
-
-        bool operator()(MortonCodeType lower_bound, MortonCodeType upper_bound) const override
-        {            
-            return mc_is_less_than_or_equal(query_lower_bound, upper_bound, x_mask, y_mask, z_mask) && 
-                   mc_is_less_than_or_equal(lower_bound, query_upper_bound, x_mask, y_mask, z_mask);
-        }
-
-        bool operator()(MortonCodeType morton_code) const override 
-        {
-            return operator()(morton_code, morton_code);
-        }
+        virtual VecType operator()(MortonCodeType morton_code) const = 0;
     };
 
     template <
         typename MortonCodeType = std::uint32_t, 
         typename IndexType = std::int32_t,
-        template<typename, typename...> class Container = vec
+        template<typename, typename...> class Container = vec, 
+        typename map_t = unordered_map<IndexType, vec<array3d_int32>>
     >
     class binary_radix_tree_t {
         using inode_t = internal_node_t<MortonCodeType, IndexType>;
         using morton_container_t = Container<MortonCodeType>;
         using node_container_t = Container<inode_t>;
-        using result_t = Container<IndexType>;
     
     private: 
         node_container_t internal_nodes;
@@ -175,14 +154,14 @@ namespace gmp { namespace tree {
                 IndexType right = (split + 1 == last) ? split + 1 : split + 1 + n;
 
                 internal_nodes.emplace_back(left, right, lower_bound, upper_bound);
-            }            
+            }
             // save leaf nodes
             leaf_nodes = std::move(morton_codes);
         }
-        
-        result_t traverse(const compare_op_t<MortonCodeType> &check_intersect) const 
+
+        map_t traverse(const compare_op_t<MortonCodeType> &check_method) const 
         {
-            result_t result;
+            map_t result;
             stack<IndexType> s;
             auto n = leaf_nodes.size();
             s.push(n);
@@ -190,23 +169,21 @@ namespace gmp { namespace tree {
                 IndexType node_index = s.top();
                 s.pop();
                 
-                if (node_index < n) // leaf node 
-                {                    
-                    if (check_intersect(leaf_nodes[node_index])) {
-                        result.push_back(node_index);
+                if (node_index < n) {
+                    auto temp = check_method(leaf_nodes[node_index]);
+                    if (!temp.empty()) {
+                        result[node_index] = std::move(temp);
                     }
-                } else { // internal node
-                    node_index -= n;
-                    if (check_intersect(internal_nodes[node_index].lower_bound, internal_nodes[node_index].upper_bound)) {
-                        s.push(internal_nodes[node_index].left);
-                        s.push(internal_nodes[node_index].right);
+                } else {
+                    const auto& node = internal_nodes[node_index - n];
+                    if (check_method(node.lower_bound, node.upper_bound)) {
+                        s.push(node.left);
+                        s.push(node.right);
                     }
                 }
             }
-            std::sort(result.begin(), result.end());
             return result;
         }
-
     };
 
 }}

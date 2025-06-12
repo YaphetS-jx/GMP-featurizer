@@ -32,7 +32,7 @@ target_sources(gmp-featurizer-lib
     src/input.cpp
     src/featurizer.cpp
     src/query.cpp
-    src/math.cpp
+    src/math.cpp    
 )
 
 # Create the main executable
@@ -107,6 +107,10 @@ if(BUILD_TESTS)
         test/tree.cpp
     )
 
+    add_executable(gmp-region-query-test
+        test/region_query.cpp
+    )
+
     # Add project root definition to all test executables
     target_compile_definitions(gmp-resources-test PRIVATE PROJECT_ROOT="${PROJECT_ROOT}")
     target_compile_definitions(gmp-math-test PRIVATE PROJECT_ROOT="${PROJECT_ROOT}")
@@ -117,6 +121,7 @@ if(BUILD_TESTS)
     target_compile_definitions(gmp-query-test PRIVATE PROJECT_ROOT="${PROJECT_ROOT}")
     target_compile_definitions(gmp-morton-test PRIVATE PROJECT_ROOT="${PROJECT_ROOT}")
     target_compile_definitions(gmp-tree-test PRIVATE PROJECT_ROOT="${PROJECT_ROOT}")
+    target_compile_definitions(gmp-region-query-test PRIVATE PROJECT_ROOT="${PROJECT_ROOT}")
 
     # Link against Google Test and the library
     target_link_libraries(gmp-resources-test
@@ -182,6 +187,13 @@ if(BUILD_TESTS)
         gmp-featurizer-lib
     )
 
+    target_link_libraries(gmp-region-query-test
+        PRIVATE
+        GTest::gtest_main
+        GTest::gmock_main
+        gmp-featurizer-lib
+    )
+
     # Include directories for tests
     target_include_directories(gmp-resources-test
         PRIVATE
@@ -228,6 +240,11 @@ if(BUILD_TESTS)
         ${CMAKE_SOURCE_DIR}/src
     )
 
+    target_include_directories(gmp-region-query-test
+        PRIVATE
+        ${CMAKE_SOURCE_DIR}/src
+    )
+
     # Set the output directory for the test executables
     set_target_properties(gmp-resources-test PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY ${TEST_RUNTIME_OUTPUT_DIRECTORY}
@@ -265,6 +282,10 @@ if(BUILD_TESTS)
         RUNTIME_OUTPUT_DIRECTORY ${TEST_RUNTIME_OUTPUT_DIRECTORY}
     )
 
+    set_target_properties(gmp-region-query-test PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY ${TEST_RUNTIME_OUTPUT_DIRECTORY}
+    )
+
     # Register tests
     include(GoogleTest)
     gtest_discover_tests(gmp-resources-test)
@@ -276,11 +297,12 @@ if(BUILD_TESTS)
     gtest_discover_tests(gmp-query-test)
     gtest_discover_tests(gmp-morton-test)
     gtest_discover_tests(gmp-tree-test)
+    gtest_discover_tests(gmp-region-query-test)
 
     # Add a custom target to build and run all tests
     add_custom_target(run_all_tests
         COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
-        DEPENDS gmp-resources-test gmp-math-test gmp-geometry-test gmp-atom-test gmp-util-test gmp-input-test gmp-query-test gmp-morton-test gmp-tree-test
+        DEPENDS gmp-resources-test gmp-math-test gmp-geometry-test gmp-atom-test gmp-util-test gmp-input-test gmp-query-test gmp-morton-test gmp-tree-test gmp-region-query-test
         WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
         COMMENT "Running all tests..."
     )

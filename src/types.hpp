@@ -90,4 +90,33 @@ namespace gmp { namespace containers {
     // Stack implementation using custom allocator
     template <typename T>
     using stack = std::stack<T, deque<T>>;
+
+    template <typename Key, typename Value>
+    class unordered_map : public std::unordered_map<Key, Value, std::hash<Key>, std::equal_to<Key>, 
+        resources::pool_allocator<std::pair<const Key, Value>>> {
+        using base = std::unordered_map<Key, Value, std::hash<Key>, std::equal_to<Key>, 
+            resources::pool_allocator<std::pair<const Key, Value>>>;
+    public:
+        // Default constructor uses the default pool
+        unordered_map() : base(resources::pool_allocator<std::pair<const Key, Value>>(get_default_pool())) {}
+        
+        // Constructor with specific pool
+        explicit unordered_map(resources::PoolType& pool) 
+            : base(resources::pool_allocator<std::pair<const Key, Value>>(pool)) {}
+        
+        // copy constructor
+        unordered_map(const unordered_map& other) : base(other) {}
+
+        // move constructor
+        unordered_map(unordered_map&& other) noexcept : base(std::move(other)) {}
+
+        // copy assignment
+        unordered_map& operator=(const unordered_map& other) { base::operator=(other); return *this; }
+
+        // Forward all other unordered_map constructors
+        using base::base;
+        
+        // Inherit all unordered_map operations
+        using base::operator=;
+    };
 }}
