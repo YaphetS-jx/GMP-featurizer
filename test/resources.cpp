@@ -271,8 +271,8 @@ TEST(gmp_resources, class_sizes) {
     std::cout << "Size of kernel_params_t: " << sizeof(kernel_params_t) << " bytes" << std::endl;
     EXPECT_TRUE(sizeof(kernel_params_t) <= pool.get_requested_size());
 
-    std::cout << "Size of query_result_t: " << sizeof(query_result_t) << " bytes" << std::endl;
-    EXPECT_TRUE(sizeof(query_result_t) <= pool.get_requested_size());
+    std::cout << "Size of query_result_t<double>: " << sizeof(query_result_t<double>) << " bytes" << std::endl;
+    EXPECT_TRUE(sizeof(query_result_t<double>) <= pool.get_requested_size());
 }
 
 int main(int argc, char **argv) {

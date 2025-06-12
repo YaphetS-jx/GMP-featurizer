@@ -73,9 +73,6 @@ namespace gmp { namespace region_query {
             cell_shift_end[1] = std::floor(position.y + frac_radius[1]);
             cell_shift_start[2] = std::floor(position.z - frac_radius[2]);
             cell_shift_end[2] = std::floor(position.z + frac_radius[2]);
-
-            // std::cout << "cell_shift_start: " << cell_shift_start[0] << ", " << cell_shift_start[1] << ", " << cell_shift_start[2] << std::endl;
-            // std::cout << "cell_shift_end: " << cell_shift_end[0] << ", " << cell_shift_end[1] << ", " << cell_shift_end[2] << std::endl;
         }
 
         array3d_t<IndexType> get_cell_shift_start() const { return cell_shift_start; }
@@ -120,8 +117,7 @@ namespace gmp { namespace region_query {
                             get_difference(y_min_shift, y_max_shift, point_y),
                             get_difference(z_min_shift, z_max_shift, point_z)
                         };
-                        auto distance_squared = lattice->calculate_distance_squared(difference);
-                        // std::cout << "distance_squared: " << distance_squared << "true? " << (distance_squared <= radius2) << ", shift: " << shift_x << ", " << shift_y << ", " << shift_z << std::endl;
+                        auto distance_squared = lattice->calculate_distance_squared(difference);                        
                         if (distance_squared <= radius2) {
                             return true;
                         }
@@ -169,8 +165,6 @@ namespace gmp { namespace region_query {
                             get_difference(z_min_shift, z_max_shift, point_z)
                         };
                         auto distance_squared = lattice->calculate_distance_squared(difference);
-                        // std::cout << "distance_squared: " << distance_squared << "true? " << (distance_squared <= radius2) << ", shift: " << shift_x << ", " << shift_y << ", " << shift_z << std::endl;
-
                         if (distance_squared <= radius2) {
                             result.emplace_back(shift_x, shift_y, shift_z);
                         }
@@ -219,10 +213,6 @@ namespace gmp { namespace region_query {
             // index mapping from morton codes to atoms
             sorted_indexes = util::sort_indexes<MortonCodeType, IndexType, vec>(morton_codes);
             std::sort(morton_codes.begin(), morton_codes.end());
-            // std::cout << "num of morton codes: " << morton_codes.size() << std::endl;
-            // for (auto i = 0; i < morton_codes.size(); i++) {
-            //     std::cout << "morton code " << i << ": " << morton_codes[i] << std::endl;
-            // }
 
             // compact
             unique_morton_codes.clear();
@@ -241,7 +231,6 @@ namespace gmp { namespace region_query {
                     unique_morton_codes.push_back(morton_codes[i]);
                 }
             }
-            // std::cout << "num of unique morton codes: " << unique_morton_codes.size() << std::endl;
 
             // get offsets
             offsets.clear();
@@ -261,17 +250,12 @@ namespace gmp { namespace region_query {
         const check_sphere_t<MortonCodeType, FloatType, IndexType, VecType>& get_compare_op() const { return compare_op; }
         using result_t = vec<query_result_t<FloatType>>;
 
-        result_t query(const point3d_t<FloatType>& position, const FloatType cutoff, const unit_cell_t* unit_cell, const lattice_t* lattice)
+        result_t query(const point3d_t<FloatType>& position, const FloatType cutoff, const unit_cell_t* unit_cell)
         {
             compare_op.update_point_radius(position, cutoff);
             auto cutoff_squared = cutoff * cutoff;
             auto query_mc = brt->traverse(compare_op);
-            // std::cout << "size of query_mc: " << query_mc.size() << std::endl;
-            // for (const auto& [index, shifts] : query_mc) {
-            //     for (const auto& shift : shifts) {
-            //         std::cout << "index: " << index << ", shift: " << shift[0] << ", " << shift[1] << ", " << shift[2] << std::endl;
-            //     }
-            // }
+
             result_t result;
             for (const auto& [index, shifts] : query_mc) {
                 for (const auto& shift : shifts) {
@@ -279,11 +263,12 @@ namespace gmp { namespace region_query {
                         auto atom_index = sorted_indexes[idx];
                         auto atom_position = unit_cell->get_atoms()[atom_index].pos();
                         array3d_t<FloatType> difference;
-                        auto distance2 = lattice->calculate_distance_squared(
+                        auto distance2 = unit_cell->get_lattice()->calculate_distance_squared(
                             atom_position, position, array3d_t<FloatType>{static_cast<FloatType>(shift[0]), 
                             static_cast<FloatType>(shift[1]), static_cast<FloatType>(shift[2])}, difference);
-                        if (distance2 <= cutoff_squared) {
-                            result.emplace_back(difference, distance2, atom_index);
+                        if (distance2 < cutoff_squared) {
+                            array3d_flt64 difference_cartesian = unit_cell->get_lattice()->fractional_to_cartesian(difference);
+                            result.emplace_back(difference_cartesian, distance2, atom_index);
                         }
                     }
                 }

@@ -1,14 +1,14 @@
 #pragma once
 #include "types.hpp"
 #include "input.hpp"
-#include "query.hpp"
+#include "region_query.hpp"
 
 namespace gmp { namespace featurizer {
     
     using namespace gmp::containers;
-    using namespace gmp::input;
-    using namespace gmp::query;
+    using namespace gmp::input;    
     using namespace gmp::math;
+    using namespace gmp::region_query;
 
     // basic structures
     struct kernel_params_t {
@@ -73,26 +73,23 @@ namespace gmp { namespace featurizer {
     // featurizer class
     class featurizer_t {
     public:
+        using query_t = region_query_t<uint32_t, int32_t, double, vec<array3d_int32>>;
         // ctor
         featurizer_t(const descriptor_config_t* descriptor_config, const unit_cell_t* unit_cell, const psp_config_t* psp_config)
             : kernel_params_table_(std::make_unique<kernel_params_table_t>(descriptor_config, psp_config)), 
-            cutoff_table_(std::make_unique<cutoff_table_t>(descriptor_config, psp_config)),
-            query_info_(std::make_unique<query_info_t>(unit_cell, cutoff_table_->get_largest_cutoff())) 
-        {
-            // kernel_params_table_->dump();
-            // cutoff_table_->dump();
-            // query_info_->dump();            
-        }
+            cutoff_table_(std::make_unique<cutoff_table_t>(descriptor_config, psp_config)),            
+            region_query_(std::make_unique<query_t>(unit_cell, 4))
+        {}
         ~featurizer_t() = default;
 
         // calculate features 
         vec<vec<double>> compute(const vec<point_flt64>& ref_positions, 
-            const descriptor_config_t* descriptor_config, const unit_cell_t* unit_cell, const psp_config_t* psp_config);        
+            const descriptor_config_t* descriptor_config, const unit_cell_t* unit_cell, const psp_config_t* psp_config);
 
     private: 
         std::unique_ptr<kernel_params_table_t> kernel_params_table_;
-        std::unique_ptr<cutoff_table_t> cutoff_table_;
-        std::unique_ptr<query_info_t> query_info_;
+        std::unique_ptr<cutoff_table_t> cutoff_table_;        
+        std::unique_ptr<query_t> region_query_;
     };
 
     // functions 

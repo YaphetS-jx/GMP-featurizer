@@ -3,7 +3,6 @@
 #include "atom.hpp"
 #include "geometry.hpp"
 #include "types.hpp"
-#include "query.hpp"
 #include "featurizer.hpp"
 #include "util.hpp"
 

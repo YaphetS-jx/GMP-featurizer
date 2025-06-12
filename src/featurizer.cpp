@@ -6,6 +6,7 @@
 #include "input.hpp"
 #include "types.hpp"
 #include "util.hpp"
+#include "region_query.hpp"
 
 namespace gmp { namespace featurizer {
 
@@ -323,13 +324,13 @@ namespace gmp { namespace featurizer {
     {
         // Get the singleton instance first
         const auto& registry = mcsh_function_registry_t::get_instance();
-        const auto& query_info = query_info_;
+        const auto& region_query = region_query_;
         const auto& feature_list = descriptor_config->get_feature_list();
 
         vec<vec<double>> feature_collection;
         for (auto const & ref_position : ref_positions) {
             // find neighbors
-            auto query_results = query_info->get_neighbor_list(cutoff_table_->get_largest_cutoff(), ref_position, unit_cell);            
+            auto query_results = region_query->query(ref_position, cutoff_table_->get_largest_cutoff(), unit_cell);            
 
             // calculate GMP features
             vec<double> feature;            

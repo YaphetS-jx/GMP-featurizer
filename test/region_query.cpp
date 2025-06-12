@@ -53,7 +53,7 @@ TEST(RegionQueryTest, basic_query) {
     std::cout << "query point: " << query_point << std::endl;
     std::cout << "cutoff: " << cutoff << std::endl;
 
-    auto results = region_query.query(query_point, cutoff, &unit_cell, unit_cell.get_lattice());
+    auto results = region_query.query(query_point, cutoff, &unit_cell);
     std::sort(results.begin(), results.end());
     std::cout << "query results size: " << results.size() << std::endl;
 
@@ -69,8 +69,9 @@ TEST(RegionQueryTest, basic_query) {
                     array3d_flt64 cell_shift{static_cast<double>(shift_x), static_cast<double>(shift_y), static_cast<double>(shift_z)};
                     array3d_flt64 difference;
                     double distance2 = unit_cell.get_lattice()->calculate_distance_squared(atoms[i].pos(), query_point, cell_shift, difference);
-                    if (distance2 <= cutoff * cutoff) {
-                        results_benchmark.emplace_back(difference, distance2, i);
+                    if (distance2 < cutoff * cutoff) {
+                        array3d_flt64 difference_cartesian = unit_cell.get_lattice()->fractional_to_cartesian(difference);
+                        results_benchmark.emplace_back(difference_cartesian, distance2, i);
                     }
                 }
             }
