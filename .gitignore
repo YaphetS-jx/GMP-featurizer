@@ -4,3 +4,4 @@ gmp-*-test
 Testing/
 _deps/
 profile/
+gmon.out

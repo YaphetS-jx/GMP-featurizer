@@ -122,6 +122,18 @@ namespace gmp { namespace resources {
         void deallocate(T* ptr, const size_t n) {
             if (pool_ && ptr && n) pool_->ordered_free(ptr, n);
         }
+
+        // construct element
+        template<typename U, typename... Args>
+        void construct(U* p, Args&&... args) {
+            ::new((void*)p) U(std::forward<Args>(args)...);
+        }
+
+        // destroy element
+        template<typename U>
+        void destroy(U* p) {
+            p->~U();
+        }
         
         // pool size
         size_t pool_size() const { 

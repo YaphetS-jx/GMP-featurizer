@@ -3,8 +3,8 @@
 # Input arguments with default values
 USE_GDB=${1:-false}
 USE_GPROF=${2:-false}
-FEATURIZER_PATH=${3:-../../build/gmp-featurizer}
-GMON_PATH=${4:-../../example/gmon.out}
+FEATURIZER_PATH=${3:-../build/gmp-featurizer}
+GMON_PATH=${4:-../example/gmon.out}
 
 if [ "$USE_GDB" == "true" ]; then
     echo "running GMP Featurizer in $FEATURIZER_PATH with gdb"

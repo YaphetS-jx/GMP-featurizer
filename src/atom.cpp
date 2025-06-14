@@ -193,13 +193,15 @@ namespace gmp { namespace atom {
                 ref_positions.emplace_back(atom.pos());
             }
         } else {
+            ref_positions.reserve(ref_grid[0] * ref_grid[1] * ref_grid[2]);
             for (auto k = 0; k < ref_grid[2]; ++k) {
                 for (auto j = 0; j < ref_grid[1]; ++j) {
                     for (auto i = 0; i < ref_grid[0]; ++i) {
                         ref_positions.push_back(point_flt64{
                             static_cast<double>(i) / static_cast<double>(ref_grid[0]), 
                             static_cast<double>(j) / static_cast<double>(ref_grid[1]), 
-                            static_cast<double>(k) / static_cast<double>(ref_grid[2])});
+                            static_cast<double>(k) / static_cast<double>(ref_grid[2])
+                        });
                     }
                 }
             }
