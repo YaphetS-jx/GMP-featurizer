@@ -9,16 +9,13 @@ cd build
 # then run the following command
 
 
+# change here if you want to replace the external libraries
 # cmake -DBUILD_TESTS=ON \
 #   -DBOOST_POOL_INCLUDE_DIR=/path/to/boost \
 #   -DNLOHMANN_JSON_INCLUDE_DIR=/path/to/json \
 #   -DGEMMI_INCLUDE_DIR=/path/to/gemmi ..
 
-cmake -DCMAKE_CXX_FLAGS="-O0 -pg -g" -DBUILD_TESTS=ON \
-    -DBOOST_POOL_INCLUDE_DIR=/media/xx/LEAVE/coding/boost/libs/pool/include \
-    -DNLOHMANN_JSON_INCLUDE_DIR=/media/xx/LEAVE/coding/json/include \
-    -DGEMMI_INCLUDE_DIR=/media/xx/LEAVE/coding/gemmi/include \
-    ..
+cmake ..
 
 # Build the project
 make

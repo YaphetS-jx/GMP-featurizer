@@ -18,9 +18,9 @@ set(PROJECT_ROOT ${CMAKE_SOURCE_DIR})
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
 # Replace hardcoded absolute paths with configurable CMake options
-set(BOOST_POOL_INCLUDE_DIR "" CACHE PATH "Path to Boost pool include directory")
-set(NLOHMANN_JSON_INCLUDE_DIR "" CACHE PATH "Path to nlohmann/json include directory")
-set(GEMMI_INCLUDE_DIR "" CACHE PATH "Path to Gemmi include directory")
+set(BOOST_POOL_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/external/boost_pool/include" CACHE PATH "Path to Boost pool include directory")
+set(NLOHMANN_JSON_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/external/nlohmann_json/include" CACHE PATH "Path to nlohmann/json include directory")
+set(GEMMI_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/external/gemmi/include" CACHE PATH "Path to Gemmi include directory")
 
 
 # Option to build tests

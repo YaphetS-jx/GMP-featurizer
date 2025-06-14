@@ -8,7 +8,7 @@
 #include "math.hpp"
 #include "geometry.hpp"
 #include "util.hpp"
-#include "gemmi/cif.hpp"
+#include <gemmi/cif.hpp>
 
 namespace gmp { namespace atom {
 
