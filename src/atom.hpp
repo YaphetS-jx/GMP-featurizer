@@ -95,5 +95,5 @@ namespace gmp { namespace atom {
     void read_atom_file(const std::string& atom_file, std::unique_ptr<lattice_t>& lattice, vec<atom_t>& atoms, atom_type_map_t& atom_type_map);
 
     // set reference positions
-    vec<point_flt64> set_ref_positions(const unit_cell_t* unit_cell);
+    vec<point_flt64> set_ref_positions(const array3d_int32& ref_grid, const vec<atom_t>& atoms);
 }}

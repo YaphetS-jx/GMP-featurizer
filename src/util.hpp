@@ -236,7 +236,7 @@ namespace gmp { namespace util {
     }
 
     template<typename Container2D>
-    void debug_write_vector_2d(const Container2D &container2D, const std::string & filename) {
+    void write_vector_2d(const Container2D &container2D, const std::string & filename) {
         // Open the file for writing, truncating it if it exists
         std::ofstream outfile(filename, std::ios::trunc);
         

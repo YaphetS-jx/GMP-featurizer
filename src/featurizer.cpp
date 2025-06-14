@@ -14,7 +14,7 @@ namespace gmp { namespace featurizer {
     kernel_params_table_t::kernel_params_table_t(const descriptor_config_t* descriptor_config, const psp_config_t* psp_config) 
         : table_(), num_gaussians_(psp_config->get_offset().back()), num_features_(descriptor_config->get_feature_list().size()) 
     {
-        table_.clear();
+        table_.reserve(num_features_ * num_gaussians_);
         
         auto feature_list = descriptor_config->get_feature_list();
         auto scaling_mode = descriptor_config->get_scaling_mode();
@@ -328,6 +328,7 @@ namespace gmp { namespace featurizer {
         const auto& feature_list = descriptor_config->get_feature_list();
 
         vec<vec<double>> feature_collection;
+        feature_collection.reserve(ref_positions.size());
         for (auto const & ref_position : ref_positions) {
             // find neighbors
             auto query_results = region_query->query(ref_position, cutoff_table_->get_largest_cutoff(), unit_cell);            

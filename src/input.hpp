@@ -71,14 +71,16 @@ namespace gmp { namespace input {
     class descriptor_config_t {
     public: 
         descriptor_config_t() : feature_list_(), cutoff_method_(cutoff_method_t::cutoff_feature_gaussian), 
-            scaling_mode_(scaling_mode_t::radial), tree_min_bounds_(4.0, 4.0, 4.0), cutoff_(0.0), overlap_threshold_(1e-11), square_(false) {}
+            scaling_mode_(scaling_mode_t::radial), 
+            ref_grid_(0, 0, 0), cutoff_(0.0), 
+            overlap_threshold_(1e-11), square_(false) {}
         ~descriptor_config_t() = default;
 
     private:
         std::vector<feature_t> feature_list_;
         cutoff_method_t cutoff_method_;
         scaling_mode_t scaling_mode_;
-        array3d_flt64 tree_min_bounds_;
+        array3d_int32 ref_grid_;
         double cutoff_;
         double overlap_threshold_;
         bool square_;
@@ -87,11 +89,11 @@ namespace gmp { namespace input {
         // accessor
         const std::vector<feature_t>& get_feature_list() const { return feature_list_; }
         cutoff_method_t get_cutoff_method() const { return cutoff_method_; }
-        scaling_mode_t get_scaling_mode() const { return scaling_mode_; }
-        const array3d_flt64& get_tree_min_bounds() const { return tree_min_bounds_; }
+        scaling_mode_t get_scaling_mode() const { return scaling_mode_; }        
         double get_cutoff() const { return cutoff_; }
         double get_overlap_threshold() const { return overlap_threshold_; }
         bool get_square() const { return square_; }
+        const array3d_int32& get_ref_grid() const { return ref_grid_; }
 
         // setter
         void set_feature_list(const std::vector<int> orders, const std::vector<double> sigmas, const std::vector<std::tuple<int, double>> feature_list);
@@ -100,7 +102,7 @@ namespace gmp { namespace input {
         void set_cutoff(const double cutoff) { cutoff_ = cutoff; }
         void set_overlap_threshold(const double overlap_threshold) { overlap_threshold_ = overlap_threshold; }
         void set_square(const bool square) { square_ = square; }
-        void set_tree_min_bounds(const array3d_flt64& tree_min_bounds) { tree_min_bounds_ = tree_min_bounds; }
+        void set_ref_grid(const array3d_int32& ref_grid) { ref_grid_ = ref_grid; }
 
         // print config
         void dump() const;

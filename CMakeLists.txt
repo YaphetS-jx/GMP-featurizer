@@ -1,9 +1,15 @@
 cmake_minimum_required(VERSION 3.14)
 project(gmp-featurizer LANGUAGES CXX)
 
-# Set debug mode
-set(CMAKE_BUILD_TYPE Debug)
-set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g -O0")
+# Set C++ standard
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# Set release mode and flags
+set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
+set(CMAKE_CXX_FLAGS_RELEASE "-O3" CACHE STRING "Release flags" FORCE)
+# set(CMAKE_BUILD_TYPE Debug CACHE STRING "Build type" FORCE)
+# set(CMAKE_CXX_FLAGS_DEBUG "-O0 -pg" CACHE STRING "Release flags" FORCE)
 
 # Define project root path
 set(PROJECT_ROOT ${CMAKE_SOURCE_DIR})
@@ -12,10 +18,10 @@ set(PROJECT_ROOT ${CMAKE_SOURCE_DIR})
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
 # Replace hardcoded absolute paths with configurable CMake options
-# set(BOOST_POOL_INCLUDE_DIR "/media/xx/LEAVE/coding/boost/libs/pool/include")
-# set(NLOHMANN_JSON_INCLUDE_DIR "/media/xx/LEAVE/coding/json/include")
 set(BOOST_POOL_INCLUDE_DIR "" CACHE PATH "Path to Boost pool include directory")
 set(NLOHMANN_JSON_INCLUDE_DIR "" CACHE PATH "Path to nlohmann/json include directory")
+set(GEMMI_INCLUDE_DIR "" CACHE PATH "Path to Gemmi include directory")
+
 
 # Option to build tests
 option(BUILD_TESTS "Build the tests" OFF)
@@ -49,6 +55,7 @@ target_include_directories(gmp-featurizer-lib
     ${CMAKE_SOURCE_DIR}/src
     ${BOOST_POOL_INCLUDE_DIR}
     ${NLOHMANN_JSON_INCLUDE_DIR}
+    ${GEMMI_INCLUDE_DIR}
 )
 
 if(BUILD_TESTS)
@@ -106,6 +113,10 @@ if(BUILD_TESTS)
         test/region_query.cpp
     )
 
+    add_executable(gmp-cif-test
+        test/cif_test.cpp
+    )
+
     # Add project root definition to all test executables
     target_compile_definitions(gmp-resources-test PRIVATE PROJECT_ROOT="${PROJECT_ROOT}")
     target_compile_definitions(gmp-math-test PRIVATE PROJECT_ROOT="${PROJECT_ROOT}")
@@ -116,6 +127,7 @@ if(BUILD_TESTS)
     target_compile_definitions(gmp-morton-test PRIVATE PROJECT_ROOT="${PROJECT_ROOT}")
     target_compile_definitions(gmp-tree-test PRIVATE PROJECT_ROOT="${PROJECT_ROOT}")
     target_compile_definitions(gmp-region-query-test PRIVATE PROJECT_ROOT="${PROJECT_ROOT}")
+    target_compile_definitions(gmp-cif-test PRIVATE PROJECT_ROOT="${PROJECT_ROOT}")
 
     # Link against Google Test and the library
     target_link_libraries(gmp-resources-test
@@ -181,6 +193,13 @@ if(BUILD_TESTS)
         gmp-featurizer-lib
     )
 
+    target_link_libraries(gmp-cif-test
+        PRIVATE
+        GTest::gtest_main
+        GTest::gmock_main
+        gmp-featurizer-lib
+    )
+
     # Include directories for tests
     target_include_directories(gmp-resources-test
         PRIVATE
@@ -227,6 +246,11 @@ if(BUILD_TESTS)
         ${CMAKE_SOURCE_DIR}/src
     )
 
+    target_include_directories(gmp-cif-test
+        PRIVATE
+        ${CMAKE_SOURCE_DIR}/src
+    )
+
     # Set the output directory for the test executables
     set_target_properties(gmp-resources-test PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY ${TEST_RUNTIME_OUTPUT_DIRECTORY}
@@ -264,6 +288,10 @@ if(BUILD_TESTS)
         RUNTIME_OUTPUT_DIRECTORY ${TEST_RUNTIME_OUTPUT_DIRECTORY}
     )
 
+    set_target_properties(gmp-cif-test PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY ${TEST_RUNTIME_OUTPUT_DIRECTORY}
+    )
+
     # Register tests
     include(GoogleTest)
     gtest_discover_tests(gmp-resources-test)
@@ -275,11 +303,12 @@ if(BUILD_TESTS)
     gtest_discover_tests(gmp-morton-test)
     gtest_discover_tests(gmp-tree-test)
     gtest_discover_tests(gmp-region-query-test)
+    gtest_discover_tests(gmp-cif-test)
 
     # Add a custom target to build and run all tests
     add_custom_target(run_all_tests
         COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
-        DEPENDS gmp-resources-test gmp-math-test gmp-geometry-test gmp-atom-test gmp-util-test gmp-input-test gmp-morton-test gmp-tree-test gmp-region-query-test
+        DEPENDS gmp-resources-test gmp-math-test gmp-geometry-test gmp-atom-test gmp-util-test gmp-input-test gmp-morton-test gmp-tree-test gmp-region-query-test gmp-cif-test
         WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
         COMMENT "Running all tests..."
     )

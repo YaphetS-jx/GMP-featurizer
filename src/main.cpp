@@ -5,9 +5,9 @@
 #include "types.hpp"
 #include "featurizer.hpp"
 #include "util.hpp"
+#include <chrono>
 
 int main(int argc, char* argv[]) {
-    
     using namespace gmp;
     using namespace gmp::containers;
 
@@ -16,6 +16,7 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
+    auto start_time = std::chrono::high_resolution_clock::now();
     // parse arguments
     std::unique_ptr<input::input_t> input = std::make_unique<input::input_t>(argv[1]);
     GMP_CHECK(get_last_error());    
@@ -36,12 +37,16 @@ int main(int argc, char* argv[]) {
     GMP_CHECK(get_last_error());
 
     // create reference positions
-    auto ref_positions = atom::set_ref_positions(unit_cell.get());
+    auto ref_positions = atom::set_ref_positions(input->descriptor_config->get_ref_grid(), unit_cell->get_atoms());
     auto result = featurizer->compute(ref_positions, input->descriptor_config.get(), unit_cell.get(), psp_config.get());
     GMP_CHECK(get_last_error());
 
     // print result 
-    util::debug_write_vector_2d(result, input->files->get_output_file());
+    util::write_vector_2d(result, input->files->get_output_file());
+
+    auto end_time = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
+    std::cout << "Time taken: " << static_cast<double>(duration.count()) / 1000.0 << " seconds" << std::endl;
 
     return 0;
 }

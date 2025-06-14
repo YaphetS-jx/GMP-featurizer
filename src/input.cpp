@@ -88,7 +88,7 @@ namespace gmp { namespace input {
         std::cout << "Cutoff: " << cutoff_ << std::endl;
         std::cout << "Overlap threshold: " << overlap_threshold_ << std::endl;
         std::cout << "Scaling mode: " << gmp_to_string(scaling_mode_) << std::endl;
-        std::cout << "Tree min bounds: " << tree_min_bounds_[0] << ", " << tree_min_bounds_[1] << ", " << tree_min_bounds_[2] << std::endl;
+        std::cout << "Ref grid: " << ref_grid_[0] << ", " << ref_grid_[1] << ", " << ref_grid_[2] << std::endl;
     }
 
     // parse JSON  
@@ -117,11 +117,15 @@ namespace gmp { namespace input {
         this->descriptor_config->set_cutoff_method(static_cast<cutoff_method_t>(config.value("cutoff method", 4)));
         this->descriptor_config->set_scaling_mode(static_cast<scaling_mode_t>(config.value("scaling mode", 0)));
         
-        if (config.contains("tree min bounds")) {
-            auto bounds = config["tree min bounds"];
-            if (bounds.size() == 3) {
-                array3d_flt64 tree_bounds(bounds[0].get<double>(), bounds[1].get<double>(), bounds[2].get<double>());
-                this->descriptor_config->set_tree_min_bounds(tree_bounds);
+        if (config.contains("ref_grid")) {
+            auto ref_grid_json = config["ref_grid"];
+            if (ref_grid_json.size() == 3) {
+                array3d_int32 ref_grid_array(
+                    ref_grid_json[0].get<int>(),
+                    ref_grid_json[1].get<int>(),
+                    ref_grid_json[2].get<int>()
+                );
+                this->descriptor_config->set_ref_grid(ref_grid_array);
             }
         }
 
@@ -158,6 +162,7 @@ namespace gmp { namespace input {
         std::cout << "  overlap threshold <double>       Overlap threshold" << std::endl;
         std::cout << "  scaling mode <int>               Scaling mode (0 for radial, 1 for both)" << std::endl;
         std::cout << "  output file path <path>          Path to the output file" << std::endl;
+        std::cout << "  ref_grid <list>                  Reference grid (e.g., 10,10,10)" << std::endl;
         std::cout << "  -h                               Print this help message" << std::endl;
         return;
     }

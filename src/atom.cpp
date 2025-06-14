@@ -8,7 +8,7 @@
 #include "math.hpp"
 #include "geometry.hpp"
 #include "util.hpp"
-
+#include "gemmi/cif.hpp"
 
 namespace gmp { namespace atom {
 
@@ -41,88 +41,51 @@ namespace gmp { namespace atom {
     // read cif file 
     void read_atom_file(const std::string& atom_file, std::unique_ptr<lattice_t>& lattice, vec<atom_t>& atoms, atom_type_map_t& atom_type_map) 
     {
-        std::ifstream file(atom_file);
-        if (!file.is_open()) {
+        gemmi::cif::Document doc;
+        try {
+            doc = gemmi::cif::read_file(atom_file);
+        } catch (const std::exception& e) {
             update_error(gmp::error_t::invalid_atom_file);
             return;
         }
 
+        gemmi::cif::Block block = doc.blocks[0];
+        assert(doc.blocks.size() == 1);
+        
+        std::vector<std::string> tags = {"_cell_length_a", "_cell_length_b", "_cell_length_c"};
+        gemmi::cif::Table cell_table = block.find(tags);
+        array3d_flt64 cell = {
+            std::stod(cell_table[0][0]), std::stod(cell_table[0][1]), std::stod(cell_table[0][2])
+        };
+
+        tags = {"_cell_angle_alpha", "_cell_angle_beta", "_cell_angle_gamma"};
+        gemmi::cif::Table angle_table = block.find(tags);
+        array3d_flt64 angle = {
+            std::stod(angle_table[0][0]), std::stod(angle_table[0][1]), std::stod(angle_table[0][2])
+        };
+
+        // create lattice from cell and angle
+        lattice = gmp::geometry::cell_info_to_lattice(cell, angle);
+
+        // get atom information
         atoms.clear();
         atom_type_map.clear();
 
-        std::string line;
-        bool read_atoms = false;
-        std::vector<std::string> atom_columns;
-        array3d_flt64 cell;
-        array3d_flt64 angle;
+        std::vector<std::string> atom_tags = {"type_symbol", "fract_x", "fract_y", "fract_z", "occupancy"};
+        gemmi::cif::Table atom_table = block.find_any("_atom_site_", atom_tags);
 
-        while (getline(file, line)) {
-            if (line.empty() || line[0] == '#') continue;
-
-            // Part 1: Read geometry information
-            if (line.find("_cell_length_a") != std::string::npos)
-                cell[0] = stod(line.substr(line.find_last_of(" ") + 1));
-            else if (line.find("_cell_length_b") != std::string::npos)
-                cell[1] = stod(line.substr(line.find_last_of(" ") + 1));
-            else if (line.find("_cell_length_c") != std::string::npos)
-                cell[2] = stod(line.substr(line.find_last_of(" ") + 1));
-            else if (line.find("_cell_angle_alpha") != std::string::npos)
-                angle[0] = stod(line.substr(line.find_last_of(" ") + 1));
-            else if (line.find("_cell_angle_beta") != std::string::npos)
-                angle[1] = stod(line.substr(line.find_last_of(" ") + 1));
-            else if (line.find("_cell_angle_gamma") != std::string::npos)
-                angle[2] = stod(line.substr(line.find_last_of(" ") + 1));
-
-            // Part 2: Read atom positions
-            else if (line.find("loop_") != std::string::npos) {
-                // if already finished reading atoms, break
-                if (atom_columns.size())  break;
-                // Start of a data loop, reset atom_columns
-                atom_columns.clear();
-                read_atoms = true;
-            } else if (read_atoms && !line.empty()) {
-                if (line.compare(0, 11, "_atom_site_") == 0) {
-                    gmp::util::trim(line);
-                    atom_columns.push_back(line);
-                    continue;
-                } 
-                // if no information provided yet, skip the line
-                if (!atom_columns.size()) continue;
-
-                std::istringstream data_line(line);
-                std::string value;
-                point_flt64 position;
-                double occupancy = 1.0;
-                std::string type;
-                for (size_t i = 0; i < atom_columns.size(); ++i) {
-                    data_line >> value;
-                    if (atom_columns[i] == "_atom_site_label") {
-                        type = value.substr(0, value.find_first_of("0123456789")); // remove index 
-                    } else if (atom_columns[i] == "_atom_site_fract_x") {
-                        position.x = std::stod(value);
-                    } else if (atom_columns[i] == "_atom_site_fract_y") {
-                        position.y = std::stod(value);
-                    } else if (atom_columns[i] == "_atom_site_fract_z") {
-                        position.z = std::stod(value);
-                    } else if (atom_columns[i] == "_atom_site_occupancy") {
-                        occupancy = std::stod(value);
-                    }
-                }
-                if (atom_type_map.find(type) == atom_type_map.end()) {
-                    atom_type_map[type] = static_cast<atom_type_id_t>(atom_type_map.size());
-                }
-                // round between 0 and 1
-                position.x = gmp::math::round_to_0_1(position.x);
-                position.y = gmp::math::round_to_0_1(position.y);
-                position.z = gmp::math::round_to_0_1(position.z);
-                // make sure it is fractional coordinates
-                atoms.emplace_back(position, occupancy, atom_type_map[type]);
+        for (const auto& row : atom_table) {
+            std::string type_symbol = row[0];
+            double fract_x = std::stod(row[1]);
+            double fract_y = std::stod(row[2]);
+            double fract_z = std::stod(row[3]);
+            double occupancy = std::stod(row[4]);
+            if (atom_type_map.find(type_symbol) == atom_type_map.end()) {
+                atom_type_map[type_symbol] = static_cast<atom_type_id_t>(atom_type_map.size());
             }
+            atoms.emplace_back(point_flt64{fract_x, fract_y, fract_z}, occupancy, atom_type_map[type_symbol]);
         }
 
-        file.close();
-        // set lattice 
-        lattice = gmp::geometry::cell_info_to_lattice(cell, angle);
         return;
     }
 
@@ -171,6 +134,7 @@ namespace gmp { namespace atom {
                     // Read the matrix data for the atom
                     for (int i = 0; i < num_rows; ++i) {
                         getline(file, line);
+                        iss.clear();  // Clear any error flags
                         iss.str(line);
                         double B, beta;
                         iss >> B >> beta;
@@ -221,11 +185,24 @@ namespace gmp { namespace atom {
         std::cout << std::endl;
     }
 
-    vec<point_flt64> set_ref_positions(const unit_cell_t* unit_cell)
+    vec<point_flt64> set_ref_positions(const array3d_int32& ref_grid, const vec<atom_t>& atoms)
     {
         vec<point_flt64> ref_positions;
-        for (const auto& atom : unit_cell->get_atoms()) {
-            ref_positions.emplace_back(atom.pos());
+        if (ref_grid[0] <= 0 || ref_grid[1] <= 0 || ref_grid[2] <= 0) {
+            for (const auto& atom : atoms) {
+                ref_positions.emplace_back(atom.pos());
+            }
+        } else {
+            for (auto k = 0; k < ref_grid[2]; ++k) {
+                for (auto j = 0; j < ref_grid[1]; ++j) {
+                    for (auto i = 0; i < ref_grid[0]; ++i) {
+                        ref_positions.push_back(point_flt64{
+                            static_cast<double>(i) / static_cast<double>(ref_grid[0]), 
+                            static_cast<double>(j) / static_cast<double>(ref_grid[1]), 
+                            static_cast<double>(k) / static_cast<double>(ref_grid[2])});
+                    }
+                }
+            }
         }
         return ref_positions;
     }

@@ -9,8 +9,16 @@ cd build
 # then run the following command
 
 
-# cmake -DBUILD_TESTS=ON -DBOOST_POOL_INCLUDE_DIR=/path/to/boost -DNLOHMANN_JSON_INCLUDE_DIR=/path/to/json ..
-cmake -DBUILD_TESTS=ON -DBOOST_POOL_INCLUDE_DIR=/media/xx/LEAVE/coding/boost/libs/pool/include -DNLOHMANN_JSON_INCLUDE_DIR=/media/xx/LEAVE/coding/json/include ..
+# cmake -DBUILD_TESTS=ON \
+#   -DBOOST_POOL_INCLUDE_DIR=/path/to/boost \
+#   -DNLOHMANN_JSON_INCLUDE_DIR=/path/to/json \
+#   -DGEMMI_INCLUDE_DIR=/path/to/gemmi ..
+
+cmake -DCMAKE_CXX_FLAGS="-O0 -pg -g" -DBUILD_TESTS=ON \
+    -DBOOST_POOL_INCLUDE_DIR=/media/xx/LEAVE/coding/boost/libs/pool/include \
+    -DNLOHMANN_JSON_INCLUDE_DIR=/media/xx/LEAVE/coding/json/include \
+    -DGEMMI_INCLUDE_DIR=/media/xx/LEAVE/coding/gemmi/include \
+    ..
 
 # Build the project
 make
