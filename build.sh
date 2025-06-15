@@ -3,19 +3,16 @@ mkdir -p build
 cd build
 
 # Configure the project with CMake
-# change the path to the boost and json include directories
-# download boost and json from https://github.com/boostorg/pool and https://github.com/nlohmann/json
-# then set the path to the boost and json include directories
+# install boost by apt-get install libboost-all-dev
+# change the path to the json and gemmi include directories
 # then run the following command
-
 
 # change here if you want to replace the external libraries
 # cmake -DBUILD_TESTS=ON \
-#   -DBOOST_POOL_INCLUDE_DIR=/path/to/boost \
-#   -DNLOHMANN_JSON_INCLUDE_DIR=/path/to/json \
-#   -DGEMMI_INCLUDE_DIR=/path/to/gemmi ..
+#   -DNLOHMANN_JSON_INCLUDE_DIR=/home/xx/Desktop/coding/json/include \
+#   -DGEMMI_INCLUDE_DIR=/home/xx/Desktop/coding/gemmi/include ..
 
-cmake ..
+cmake -DBUILD_TESTS=ON ..
 
 # Build the project
 make

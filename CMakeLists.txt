@@ -17,11 +17,12 @@ set(PROJECT_ROOT ${CMAKE_SOURCE_DIR})
 # Set the output directory for executables
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
-# Replace hardcoded absolute paths with configurable CMake options
-set(BOOST_POOL_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/external/boost_pool/include" CACHE PATH "Path to Boost pool include directory")
-set(NLOHMANN_JSON_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/external/nlohmann_json/include" CACHE PATH "Path to nlohmann/json include directory")
-set(GEMMI_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/external/gemmi/include" CACHE PATH "Path to Gemmi include directory")
+# Find Boost
+find_package(Boost REQUIRED)
 
+# Replace hardcoded absolute paths with configurable CMake options
+set(NLOHMANN_JSON_INCLUDE_DIR "/usr/local/src/json/include" CACHE PATH "Path to nlohmann/json include directory")
+set(GEMMI_INCLUDE_DIR "/usr/local/src/gemmi/include" CACHE PATH "Path to Gemmi include directory")
 
 # Option to build tests
 option(BUILD_TESTS "Build the tests" OFF)
@@ -53,7 +54,7 @@ target_link_libraries(gmp-featurizer
 target_include_directories(gmp-featurizer-lib
     PUBLIC
     ${CMAKE_SOURCE_DIR}/src
-    ${BOOST_POOL_INCLUDE_DIR}
+    ${Boost_INCLUDE_DIRS}
     ${NLOHMANN_JSON_INCLUDE_DIR}
     ${GEMMI_INCLUDE_DIR}
 )

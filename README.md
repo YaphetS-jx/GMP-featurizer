@@ -6,8 +6,12 @@ A C++ project using the foonathan memory library for efficient memory management
 
 - CMake (version 3.14 or higher)
 - C++ compiler with C++11 support
-- boost/pool memory management from https://github.com/boostorg/pool
-- nlohmann json parser from https://github.com/nlohmann/json
+- install boost by apt-get install libboost-all-dev
+- gemmi CIF parser from https://github.com/project-gemmi/gemmi.git
+
+### Or
+
+- use Dockerfile to build the image and launch the container, where all libraries are already installed correctly. 
 
 ## Building the Project
 
