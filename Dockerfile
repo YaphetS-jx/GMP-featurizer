@@ -1,5 +1,5 @@
-# Use a minimal base image with build tools
-FROM gcc:latest
+# Use Ubuntu 24.04 as base image
+FROM ubuntu:24.04
 
 # Set maintainer label
 LABEL maintainer="jingxin.bc@gmail.com"
@@ -7,31 +7,26 @@ LABEL maintainer="jingxin.bc@gmail.com"
 # Prevent interactive prompts during package installation
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install only necessary build tools and dependencies
+# Install build tools and dependencies
 RUN apt-get update && apt-get install -y \
     git \
     vim \
-    # Build essentials (gcc is already included in base image)
+    # Build essentials
+    build-essential \
+    gcc \
+    g++ \
     cmake \
     make \
+    # Boost libraries
+    libboost-all-dev \
     # Clean up
     && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
 WORKDIR /app
 
-# Install Boost with retry mechanism
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-    libboost-all-dev \
-    && rm -rf /var/lib/apt/lists/*
-
 # Create directories for external libraries
 RUN mkdir -p /usr/local/src
-
-# Install nlohmann/json (header-only library)
-RUN cd /usr/local/src && \
-    git clone https://github.com/nlohmann/json.git
 
 # Install GEMMI
 RUN cd /usr/local/src && \
