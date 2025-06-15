@@ -2,7 +2,7 @@
 #include <vector>
 #include <tuple>
 #include <fstream>
-#include <nlohmann/json.hpp>
+#include <boost/json/src.hpp>
 
 #include "input.hpp"
 #include "error.hpp"
@@ -100,30 +100,40 @@ namespace gmp { namespace input {
             return;
         }
 
-        nlohmann::json config;
-        inFile >> config;
+        std::stringstream buffer;
+        buffer << inFile.rdbuf();
+        std::string json_str = buffer.str();
+
+        boost::json::error_code ec;
+        boost::json::value jv = boost::json::parse(json_str, ec);
+        if (ec) {
+            update_error(gmp::error_t::invalid_json_file);
+            return;
+        }
+
+        boost::json::object const& config = jv.as_object();
         
         std::vector<int> orders;
         std::vector<double> sigmas;
         std::vector<std::tuple<int, double>> feature_list;
 
         // Required entries
-        this->files->set_atom_file(config.value("system file path", ""));
-        this->files->set_psp_file(config.value("psp file path", ""));
-        this->files->set_output_file(config.value("output file path", "./gmpFeatures.dat"));
-        this->descriptor_config->set_square(config.value("square", 0));
-        this->descriptor_config->set_cutoff(config.value("cutoff", 0.0));
-        this->descriptor_config->set_overlap_threshold(config.value("overlap threshold", 1e-11));
-        this->descriptor_config->set_cutoff_method(static_cast<cutoff_method_t>(config.value("cutoff method", 4)));
-        this->descriptor_config->set_scaling_mode(static_cast<scaling_mode_t>(config.value("scaling mode", 0)));
+        this->files->set_atom_file(std::string(config.at("system file path").as_string()));
+        this->files->set_psp_file(std::string(config.at("psp file path").as_string()));
+        this->files->set_output_file(std::string(config.at("output file path").as_string()));
+        this->descriptor_config->set_square(config.at("square").as_int64());
+        this->descriptor_config->set_cutoff(config.at("cutoff").as_double());
+        this->descriptor_config->set_overlap_threshold(config.at("overlap threshold").as_double());
+        this->descriptor_config->set_cutoff_method(static_cast<cutoff_method_t>(config.at("cutoff method").as_int64()));
+        this->descriptor_config->set_scaling_mode(static_cast<scaling_mode_t>(config.at("scaling mode").as_int64()));
         
         if (config.contains("ref_grid")) {
-            auto ref_grid_json = config["ref_grid"];
+            auto const& ref_grid_json = config.at("ref_grid").as_array();
             if (ref_grid_json.size() == 3) {
                 array3d_int32 ref_grid_array(
-                    ref_grid_json[0].get<int>(),
-                    ref_grid_json[1].get<int>(),
-                    ref_grid_json[2].get<int>()
+                    ref_grid_json[0].as_int64(),
+                    ref_grid_json[1].as_int64(),
+                    ref_grid_json[2].as_int64()
                 );
                 this->descriptor_config->set_ref_grid(ref_grid_array);
             }
@@ -131,14 +141,22 @@ namespace gmp { namespace input {
 
         // Optional entries
         if (config.contains("orders")) {
-            for (auto &val : config["orders"]) orders.push_back(val);
+            auto const& orders_json = config.at("orders").as_array();
+            for (auto const& val : orders_json) {
+                orders.push_back(val.as_int64());
+            }
         }
         if (config.contains("sigmas")) {
-            for (auto &val : config["sigmas"]) sigmas.push_back(val);
+            auto const& sigmas_json = config.at("sigmas").as_array();
+            for (auto const& val : sigmas_json) {
+                sigmas.push_back(val.as_double());
+            }
         }
         if (config.contains("feature lists")) {
-            for (auto &pair : config["feature lists"]) {
-                feature_list.emplace_back(pair[0].get<int>(), pair[1].get<double>());
+            auto const& feature_lists_json = config.at("feature lists").as_array();
+            for (auto const& pair : feature_lists_json) {
+                auto const& pair_array = pair.as_array();
+                feature_list.emplace_back(pair_array[0].as_int64(), pair_array[1].as_double());
             }
         }
         

@@ -21,7 +21,6 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 find_package(Boost REQUIRED)
 
 # Replace hardcoded absolute paths with configurable CMake options
-set(NLOHMANN_JSON_INCLUDE_DIR "/usr/local/src/json/include" CACHE PATH "Path to nlohmann/json include directory")
 set(GEMMI_INCLUDE_DIR "/usr/local/src/gemmi/include" CACHE PATH "Path to Gemmi include directory")
 
 # Option to build tests
@@ -55,7 +54,6 @@ target_include_directories(gmp-featurizer-lib
     PUBLIC
     ${CMAKE_SOURCE_DIR}/src
     ${Boost_INCLUDE_DIRS}
-    ${NLOHMANN_JSON_INCLUDE_DIR}
     ${GEMMI_INCLUDE_DIR}
 )
 

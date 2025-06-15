@@ -9,10 +9,9 @@ cd build
 
 # change here if you want to replace the external libraries
 # cmake -DBUILD_TESTS=ON \
-#   -DNLOHMANN_JSON_INCLUDE_DIR=/home/xx/Desktop/coding/json/include \
 #   -DGEMMI_INCLUDE_DIR=/home/xx/Desktop/coding/gemmi/include ..
 
 cmake -DBUILD_TESTS=ON ..
 
 # Build the project
-make
+make -j

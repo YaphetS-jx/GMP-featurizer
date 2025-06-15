@@ -3,6 +3,9 @@
 #include <iostream>
 #include <iomanip>
 #include <filesystem>
+#include <boost/json.hpp>
+#include <fstream>
+#include <sstream>
 
 // Define PROJECT_ROOT if not already defined by CMake
 #ifndef PROJECT_ROOT
@@ -141,25 +144,51 @@ TEST_F(InputTest, read_psp_file) {
     EXPECT_EQ(offset.size(), 4);
 }
 
-TEST_F(InputTest, input_t_parse_arguments) {
-    // Create input object with path relative to project root
-    input_t input(get_project_path("test/test_files/input_test.json"));
+TEST_F(InputTest, boost_json_parse_arguments) {
+    // Read the JSON file
+    std::string json_path = get_project_path("test/test_files/input_test.json");
+    std::ifstream file(json_path);
+    std::stringstream buffer;
+    buffer << file.rdbuf();
+    std::string json_str = buffer.str();
+
+    // Parse JSON using Boost.JSON
+    boost::json::error_code ec;
+    boost::json::value jv = boost::json::parse(json_str, ec);
+    ASSERT_FALSE(ec) << "JSON parsing failed: " << ec.message();
+
+    // Access and verify JSON values
+    boost::json::object const& obj = jv.as_object();
     
-    // Check if error occurred
-    EXPECT_EQ(gmp::gmp_error, gmp::error_t::success);
+    // Check file paths
+    EXPECT_EQ(obj.at("system file path").as_string(), "test/test_files/test.cif");
+    EXPECT_EQ(obj.at("psp file path").as_string(), "test/test_files/test.gpsp");
+    EXPECT_EQ(obj.at("output file path").as_string(), "output.dat");
     
-    // Check parsed values
-    EXPECT_EQ(input.files->get_atom_file(), "test/test_files/test.cif");
-    EXPECT_EQ(input.files->get_psp_file(), "test/test_files/test.gpsp");
-    EXPECT_EQ(input.files->get_output_file(), "output.dat");
+    // Check arrays
+    boost::json::array const& orders = obj.at("orders").as_array();
+    boost::json::array const& sigmas = obj.at("sigmas").as_array();
     
-    // Each order is combined with each sigma: 2 orders * 2 sigmas = 4 features
-    EXPECT_EQ(input.descriptor_config->get_feature_list().size(), 4);
-    EXPECT_EQ(input.descriptor_config->get_cutoff_method(), cutoff_method_t::cutoff_sigma);
-    EXPECT_DOUBLE_EQ(input.descriptor_config->get_cutoff(), 5.0);
-    EXPECT_DOUBLE_EQ(input.descriptor_config->get_overlap_threshold(), 1e-10);
-    EXPECT_EQ(input.descriptor_config->get_scaling_mode(), scaling_mode_t::radial);
-    EXPECT_TRUE(input.descriptor_config->get_square());
+    EXPECT_EQ(orders.size(), 2);
+    EXPECT_EQ(sigmas.size(), 2);
+    EXPECT_EQ(orders[0].as_int64(), 0);
+    EXPECT_EQ(orders[1].as_int64(), 1);
+    EXPECT_DOUBLE_EQ(sigmas[0].as_double(), 0.1);
+    EXPECT_DOUBLE_EQ(sigmas[1].as_double(), 0.2);
+    
+    // Check numeric values
+    EXPECT_EQ(obj.at("cutoff method").as_int64(), 1);
+    EXPECT_DOUBLE_EQ(obj.at("cutoff").as_double(), 5.0);
+    EXPECT_DOUBLE_EQ(obj.at("overlap threshold").as_double(), 1e-10);
+    EXPECT_EQ(obj.at("scaling mode").as_int64(), 0);
+    EXPECT_EQ(obj.at("square").as_int64(), 1);
+    
+    // Check array of doubles
+    boost::json::array const& tree_min_bounds = obj.at("tree min bounds").as_array();
+    EXPECT_EQ(tree_min_bounds.size(), 3);
+    EXPECT_DOUBLE_EQ(tree_min_bounds[0].as_double(), 1.0);
+    EXPECT_DOUBLE_EQ(tree_min_bounds[1].as_double(), 1.0);
+    EXPECT_DOUBLE_EQ(tree_min_bounds[2].as_double(), 1.0);
 }
 
 TEST_F(InputTest, to_string_functions) {
