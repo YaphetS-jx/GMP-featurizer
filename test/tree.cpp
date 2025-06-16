@@ -8,8 +8,6 @@
 using namespace gmp::tree;
 using namespace gmp::containers;
 
-auto& pool = gmp_resource::instance(64, 1<<20).get_host_memory().get_pool();
-
 // Helper function to compare two internal nodes
 bool compare_nodes(const internal_node_t<uint32_t, int32_t>& a, const internal_node_t<uint32_t, int32_t>& b) {
     return a.left == b.left &&

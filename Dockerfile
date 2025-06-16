@@ -32,6 +32,10 @@ RUN mkdir -p /usr/local/src
 RUN cd /usr/local/src && \
     git clone https://github.com/project-gemmi/gemmi.git
 
+# Install xsimd
+RUN cd /usr/local/src && \
+    git clone https://github.com/xtensor-stack/xsimd.git
+    
 # Configure readline for better command-line experience
 RUN echo '"\e[A": history-search-backward' >> /root/.inputrc && \
     echo '"\e[B": history-search-forward' >> /root/.inputrc && \

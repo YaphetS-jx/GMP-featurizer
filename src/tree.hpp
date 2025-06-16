@@ -32,7 +32,7 @@ namespace gmp { namespace tree {
         typename MortonCodeType = std::uint32_t, 
         typename IndexType = std::int32_t,
         template<typename, typename...> class Container = vec, 
-        typename map_t = unordered_map<IndexType, vec<array3d_int32>>
+        typename map_t = std::unordered_map<IndexType, vec<array3d_int32>>
     >
     class binary_radix_tree_t {
         using inode_t = internal_node_t<MortonCodeType, IndexType>;

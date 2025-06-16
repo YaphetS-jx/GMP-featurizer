@@ -16,9 +16,6 @@ using namespace gmp::input;
 using namespace gmp::math;
 using namespace gmp::atom;
 using namespace gmp::geometry;
-// Removed using namespace gmp to avoid ambiguity with error_t
-
-auto& pool = gmp_resource::instance(64, 1<<20).get_host_memory().get_pool();
 
 // Helper function to construct paths relative to project root
 std::string get_project_path(const std::string& relative_path) {

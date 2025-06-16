@@ -1,13 +1,11 @@
 #include <gtest/gtest.h>
 #include "atom.hpp"
-#include "resources.hpp"
+#include "types.hpp"
 
 using namespace gmp;
 using namespace gmp::atom;
 using namespace gmp::geometry;
 using namespace gmp::containers;
-
-auto& pool = gmp_resource::instance(64, 1<<20).get_host_memory().get_pool();
 
 // Test atom_t class
 TEST(atom_system, atom_constructors) {

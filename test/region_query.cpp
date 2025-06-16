@@ -10,8 +10,6 @@ using namespace gmp::atom;
 using namespace gmp::containers;
 using namespace gmp::geometry;
 
-auto& pool = gmp_resource::instance(64, 1<<25).get_host_memory().get_pool();
-
 TEST(RegionQueryTest, basic_query) {
     matrix3d_flt64 lattice_vectors = {
         {1.0, 0.0, 0.0},
