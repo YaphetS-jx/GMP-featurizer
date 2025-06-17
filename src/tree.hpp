@@ -21,7 +21,7 @@ namespace gmp { namespace tree {
             : left(left), right(right), lower_bound(lower_bound), upper_bound(upper_bound) {}
     };
 
-    template <typename MortonCodeType, typename VecType = vec<array3d_int32>>
+    template <typename MortonCodeType, typename VecType = vector<array3d_int32>>
     class compare_op_t {
     public: 
         virtual bool operator()(MortonCodeType query_lower_bound, MortonCodeType query_upper_bound) const = 0;
@@ -31,8 +31,8 @@ namespace gmp { namespace tree {
     template <
         typename MortonCodeType = std::uint32_t, 
         typename IndexType = std::int32_t,
-        template<typename, typename...> class Container = vec, 
-        typename map_t = std::unordered_map<IndexType, vec<array3d_int32>>
+        template<typename, typename...> class Container = vector, 
+        typename map_t = std::unordered_map<IndexType, vector<array3d_int32>>
     >
     class binary_radix_tree_t {
         using inode_t = internal_node_t<MortonCodeType, IndexType>;

@@ -111,8 +111,8 @@ namespace gmp { namespace featurizer {
         }
 
         // calculate all cutoffs
-        vec<double> cutoff_all;
-        vec<double> factors = {1, 1, 1, 1, 1e-1, 1e-2, 1e-4, 1e-5, 1e-7, 1e-9, 1e-11}; // for threshold 
+        vector<double> cutoff_all;
+        vector<double> factors = {1, 1, 1, 1, 1e-1, 1e-2, 1e-4, 1e-5, 1e-7, 1e-9, 1e-11}; // for threshold 
         const auto &feature_list = descriptor_config->get_feature_list();
         for (const auto& feature : feature_list) {
             
@@ -142,7 +142,7 @@ namespace gmp { namespace featurizer {
         assert(num_features_ * gaussian_mapping_.size() == cutoff_all.size());
 
         // get the max cutoff for each atom type
-        vec<double> cutoff_elemental;
+        vector<double> cutoff_elemental;
         for (auto feature_idx = 0; feature_idx < num_features_; ++feature_idx) {
             auto shift = feature_idx * gaussian_mapping_.size();
             for (auto atom_type_idx = 0; atom_type_idx < num_atom_types_; ++atom_type_idx) {
@@ -319,7 +319,7 @@ namespace gmp { namespace featurizer {
         return dist;
     }
 
-    vec<vec<double>> featurizer_t::compute(const vec<point_flt64>& ref_positions, 
+    vector<vector<double>> featurizer_t::compute(const vector<point_flt64>& ref_positions, 
         const descriptor_config_t* descriptor_config, const unit_cell_t* unit_cell, const psp_config_t* psp_config)
     {
         // Get the singleton instance first
@@ -327,14 +327,14 @@ namespace gmp { namespace featurizer {
         const auto& region_query = region_query_;
         const auto& feature_list = descriptor_config->get_feature_list();
 
-        vec<vec<double>> feature_collection;
+        vector<vector<double>> feature_collection;
         feature_collection.reserve(ref_positions.size());
         for (auto const & ref_position : ref_positions) {
             // find neighbors
             auto query_results = region_query->query(ref_position, cutoff_table_->get_largest_cutoff(), unit_cell);            
 
             // calculate GMP features
-            vec<double> feature;            
+            vector<double> feature;            
             for (auto feature_idx = 0; feature_idx < feature_list.size(); ++feature_idx) {
                 auto order = feature_list[feature_idx].order;
                 auto sigma = feature_list[feature_idx].sigma;
@@ -342,7 +342,7 @@ namespace gmp { namespace featurizer {
                 // Get the function for the specified order
                 const auto& mcsh_func = registry.get_function(order);
                 const auto& num_values = registry.get_num_values(order);
-                vec<double> desc_values(num_values, 0.0);
+                vector<double> desc_values(num_values, 0.0);
 
                 for (auto neighbor_idx = 0; neighbor_idx < query_results.size(); ++neighbor_idx) {
                     const auto neighbor_index = query_results[neighbor_idx].neighbor_index;

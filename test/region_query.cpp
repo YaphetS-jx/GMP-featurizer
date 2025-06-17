@@ -29,7 +29,7 @@ TEST(RegionQueryTest, basic_query) {
     std::uniform_real_distribution<double> dist(0.0, 1.0);
 
     // Create random atoms
-    vec<atom_t> atoms;
+    vector<atom_t> atoms;
     auto num_atoms = 1000;
     auto num_bits_per_dim = 5;
     atoms.reserve(num_atoms);
@@ -43,7 +43,7 @@ TEST(RegionQueryTest, basic_query) {
     unit_cell.set_atoms(std::move(atoms));
 
     // Create region query object
-    region_query_t<uint32_t, int32_t, double, vec<array3d_int32>> region_query(&unit_cell, num_bits_per_dim);
+    region_query_t<uint32_t, int32_t, double, vector<array3d_int32>> region_query(&unit_cell, num_bits_per_dim);
 
     // Test query around a point
     point_flt64 query_point{0.8071282732743802, 0.7297317866938179, 0.5362280914547007};
@@ -59,7 +59,7 @@ TEST(RegionQueryTest, basic_query) {
     auto cell_shift_start = compare_op.get_cell_shift_start();
     auto cell_shift_end = compare_op.get_cell_shift_end();
     
-    vec<query_result_t<double>> results_benchmark;
+    vector<query_result_t<double>> results_benchmark;
     for (auto shift_z = cell_shift_start[2]; shift_z <= cell_shift_end[2]; shift_z++) {
         for (auto shift_y = cell_shift_start[1]; shift_y <= cell_shift_end[1]; shift_y++) {
             for (auto shift_x = cell_shift_start[0]; shift_x <= cell_shift_end[0]; shift_x++) {

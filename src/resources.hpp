@@ -1,9 +1,9 @@
 #pragma once
-
 #include <memory>
 #include <sys/sysinfo.h>
 #include <iostream>
 #include <iomanip>
+#include "error.hpp"
 
 namespace gmp { namespace resources {
 

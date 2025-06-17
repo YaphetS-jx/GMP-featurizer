@@ -1,41 +1,39 @@
 #pragma once
-#include "boost_pool.hpp"
-#include "resources.hpp"
 #include <vector>
 #include <stack>
+#include <unordered_map>
+#include <cstdint>
 
 namespace gmp { namespace containers {
 
     // type aliases 
     using atom_type_id_t = std::uint8_t;
-    using atom_type_map_t = std::unordered_map<std::string, atom_type_id_t>;
-    
-    using namespace gmp::resources;
+    using atom_type_map_t = std::unordered_map<std::string, atom_type_id_t>;    
 
     template <typename T, typename Allocator = std::allocator<T>>
-    class vec : public std::vector<T, Allocator> {
+    class vector : public std::vector<T, Allocator> {
         using base = std::vector<T, Allocator>;
     public:
         // Default constructor uses the default allocator
-        vec() : base() {}
+        vector() : base() {}
 
         template <typename size_type>
-        explicit vec(size_type size, const T& value) : base(size, value) {}
+        explicit vector(size_type size, const T& value) : base(size, value) {}
 
         template <typename size_type>
-        explicit vec(size_type size, const T& value, const Allocator& alloc) : base(size, value, alloc) {}
+        explicit vector(size_type size, const T& value, const Allocator& alloc) : base(size, value, alloc) {}
         
         // Constructor with specific allocator
-        explicit vec(const Allocator& alloc) : base(alloc) {}
+        explicit vector(const Allocator& alloc) : base(alloc) {}
         
         // copy constructor
-        vec(const vec& other) : base(other) {}
+        vector(const vector& other) : base(other) {}
 
         // move constructor
-        vec(vec&& other) noexcept : base(std::move(other)) {}
+        vector(vector&& other) noexcept : base(std::move(other)) {}
 
         // copy assignment
-        vec& operator=(const vec& other) { base::operator=(other); return *this; }
+        vector& operator=(const vector& other) { base::operator=(other); return *this; }
 
         // Forward all other vector constructors
         using base::base;

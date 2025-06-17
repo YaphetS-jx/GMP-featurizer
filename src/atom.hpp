@@ -46,7 +46,7 @@ namespace gmp { namespace atom {
         ~unit_cell_t() = default;
 
         // accessors
-        const vec<atom_t>& get_atoms() const { return atoms_; }
+        const vector<atom_t>& get_atoms() const { return atoms_; }
         const lattice_t* get_lattice() const { return lattice_.get(); }
         const array3d_bool& get_periodicity() const { return periodicity_; }
         const atom_t& operator[](size_t i) const { return atoms_[i]; }
@@ -54,7 +54,7 @@ namespace gmp { namespace atom {
 
         // mutators
         void set_lattice(std::unique_ptr<lattice_t>&& lattice) { lattice_ = std::move(lattice); }
-        void set_atoms(vec<atom_t>&& atoms) { atoms_ = std::move(atoms); }
+        void set_atoms(vector<atom_t>&& atoms) { atoms_ = std::move(atoms); }
         void set_atom_type_map(atom_type_map_t&& atom_type_map) { atom_type_map_ = std::move(atom_type_map); }
         void set_periodicity(const array3d_bool& periodicity) { periodicity_ = periodicity; }
 
@@ -62,7 +62,7 @@ namespace gmp { namespace atom {
 
     private:
         std::unique_ptr<lattice_t> lattice_;
-        vec<atom_t> atoms_;
+        vector<atom_t> atoms_;
         atom_type_map_t atom_type_map_;
         array3d_bool periodicity_;
     };
@@ -79,21 +79,21 @@ namespace gmp { namespace atom {
         psp_config_t(std::string psp_file, const unit_cell_t* unit_cell);
         ~psp_config_t() = default;
 
-        const vec<int>& get_offset() const { return offset_; }        
+        const vector<int>& get_offset() const { return offset_; }        
         const gaussian_t& operator[](const int idx) const { return gaussian_table_[idx]; }
         void dump() const;
 
     private:         
-        vec<gaussian_t> gaussian_table_;
-        vec<int> offset_;
+        vector<gaussian_t> gaussian_table_;
+        vector<int> offset_;
     };
 
     // read psp file
-    void read_psp_file(const std::string& psp_file, const atom_type_map_t& atom_type_map, vec<gaussian_t>& gaussian_table, vec<int>& offset);
+    void read_psp_file(const std::string& psp_file, const atom_type_map_t& atom_type_map, vector<gaussian_t>& gaussian_table, vector<int>& offset);
 
     // read atom file
-    void read_atom_file(const std::string& atom_file, std::unique_ptr<lattice_t>& lattice, vec<atom_t>& atoms, atom_type_map_t& atom_type_map);
+    void read_atom_file(const std::string& atom_file, std::unique_ptr<lattice_t>& lattice, vector<atom_t>& atoms, atom_type_map_t& atom_type_map);
 
     // set reference positions
-    vec<point_flt64> set_ref_positions(const array3d_int32& ref_grid, const vec<atom_t>& atoms);
+    vector<point_flt64> set_ref_positions(const array3d_int32& ref_grid, const vector<atom_t>& atoms);
 }}

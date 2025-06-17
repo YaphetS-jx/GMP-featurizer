@@ -28,7 +28,7 @@ namespace gmp { namespace featurizer {
         void dump() const;
 
     private: 
-        vec<kernel_params_t> table_;
+        vector<kernel_params_t> table_;
         int num_gaussians_;
         int num_features_;
     };
@@ -59,10 +59,10 @@ namespace gmp { namespace featurizer {
         void dump() const;
 
     private: 
-        vec<double> table_;
-        vec<double> table2_;
-        vec<int> feature_mapping_;  // outer index
-        vec<int> gaussian_mapping_; // inner index
+        vector<double> table_;
+        vector<double> table2_;
+        vector<int> feature_mapping_;  // outer index
+        vector<int> gaussian_mapping_; // inner index
         double largest_cutoff_;
         int num_features_;
         int num_gaussians_;
@@ -73,7 +73,7 @@ namespace gmp { namespace featurizer {
     // featurizer class
     class featurizer_t {
     public:
-        using query_t = region_query_t<uint32_t, int32_t, double, vec<array3d_int32>>;
+        using query_t = region_query_t<uint32_t, int32_t, double, vector<array3d_int32>>;
         // ctor
         featurizer_t(const descriptor_config_t* descriptor_config, const unit_cell_t* unit_cell, const psp_config_t* psp_config)
             : kernel_params_table_(std::make_unique<kernel_params_table_t>(descriptor_config, psp_config)), 
@@ -83,7 +83,7 @@ namespace gmp { namespace featurizer {
         ~featurizer_t() = default;
 
         // calculate features 
-        vec<vec<double>> compute(const vec<point_flt64>& ref_positions, 
+        vector<vector<double>> compute(const vector<point_flt64>& ref_positions, 
             const descriptor_config_t* descriptor_config, const unit_cell_t* unit_cell, const psp_config_t* psp_config);
 
     private: 

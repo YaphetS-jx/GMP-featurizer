@@ -39,7 +39,7 @@ namespace gmp { namespace atom {
     }
 
     // read cif file 
-    void read_atom_file(const std::string& atom_file, std::unique_ptr<lattice_t>& lattice, vec<atom_t>& atoms, atom_type_map_t& atom_type_map) 
+    void read_atom_file(const std::string& atom_file, std::unique_ptr<lattice_t>& lattice, vector<atom_t>& atoms, atom_type_map_t& atom_type_map) 
     {
         gemmi::cif::Document doc;
         try {
@@ -90,9 +90,9 @@ namespace gmp { namespace atom {
     }
 
     // read psp file 
-    void read_psp_file(const std::string& psp_file, const atom_type_map_t& atom_type_map, vec<gaussian_t>& gaussian_table, vec<int>& offset) 
+    void read_psp_file(const std::string& psp_file, const atom_type_map_t& atom_type_map, vector<gaussian_t>& gaussian_table, vector<int>& offset) 
     {
-        vec<vec<gaussian_t>> gaussian_table_2d(atom_type_map.size());
+        vector<vector<gaussian_t>> gaussian_table_2d(atom_type_map.size());
 
         std::ifstream file(psp_file);
         if (!file.is_open()) {
@@ -185,9 +185,9 @@ namespace gmp { namespace atom {
         std::cout << std::endl;
     }
 
-    vec<point_flt64> set_ref_positions(const array3d_int32& ref_grid, const vec<atom_t>& atoms)
+    vector<point_flt64> set_ref_positions(const array3d_int32& ref_grid, const vector<atom_t>& atoms)
     {
-        vec<point_flt64> ref_positions;
+        vector<point_flt64> ref_positions;
         if (ref_grid[0] <= 0 || ref_grid[1] <= 0 || ref_grid[2] <= 0) {
             for (const auto& atom : atoms) {
                 ref_positions.emplace_back(atom.pos());

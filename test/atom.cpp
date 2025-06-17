@@ -48,7 +48,7 @@ TEST(atom, system_mutators) {
     unit_cell_t system;
 
     // Test set_atoms
-    vec<atom_t> atoms;
+    vector<atom_t> atoms;
     atoms.push_back(atom_t(1.0, 2.0, 3.0));
     system.set_atoms(std::move(atoms));
     EXPECT_EQ(system.get_atoms().size(), 1);
@@ -73,7 +73,7 @@ TEST(atom, system_mutators) {
 
 TEST(atom, system_accessors) {
     // Create system with some atoms
-    vec<atom_t> atoms;
+    vector<atom_t> atoms;
     atoms.push_back(atom_t(1.0, 2.0, 3.0));
     atoms.push_back(atom_t(4.0, 5.0, 6.0));
     

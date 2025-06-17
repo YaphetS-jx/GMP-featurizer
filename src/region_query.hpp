@@ -42,7 +42,7 @@ namespace gmp { namespace region_query {
         }
     };
 
-    template <typename MortonCodeType, typename FloatType, typename IndexType, typename VecType = vec<array3d_int32>>
+    template <typename MortonCodeType, typename FloatType, typename IndexType, typename VecType = vector<array3d_int32>>
     class check_sphere_t : public compare_op_t<MortonCodeType, VecType> {
     private:
         point3d_t<FloatType> position;
@@ -190,16 +190,16 @@ namespace gmp { namespace region_query {
         ~region_query_t() = default;
     
     private: 
-        vec<MortonCodeType> unique_morton_codes;
-        vec<IndexType> offsets;
-        vec<IndexType> sorted_indexes;
+        vector<MortonCodeType> unique_morton_codes;
+        vector<IndexType> offsets;
+        vector<IndexType> sorted_indexes;
         std::unique_ptr<binary_radix_tree_t<MortonCodeType, IndexType>> brt;
         check_sphere_t<MortonCodeType, FloatType, IndexType, VecType> compare_op;
 
     private:
-        void get_morton_codes(const vec<atom_t>& atoms, const int num_bits_per_dim = 10) 
+        void get_morton_codes(const vector<atom_t>& atoms, const int num_bits_per_dim = 10) 
         {
-            vec<MortonCodeType> morton_codes;
+            vector<MortonCodeType> morton_codes;
             auto natom = atoms.size();
             morton_codes.reserve(natom);
             for (const auto& atom : atoms) 
@@ -211,16 +211,16 @@ namespace gmp { namespace region_query {
             }
 
             // index mapping from morton codes to atoms
-            sorted_indexes = util::sort_indexes<MortonCodeType, IndexType, vec>(morton_codes);
+            sorted_indexes = util::sort_indexes<MortonCodeType, IndexType, vector>(morton_codes);
             std::sort(morton_codes.begin(), morton_codes.end());
 
             // compact
             unique_morton_codes.clear();
             unique_morton_codes.reserve(natom);
-            vec<IndexType> indexing(natom+1);
+            vector<IndexType> indexing(natom+1);
             for (auto i = 0; i < natom+1; i++) indexing[i] = i;
             // get same flag 
-            vec<bool> same(natom);
+            vector<bool> same(natom);
             same[0] = true;
             for (auto i = 1; i < natom; i++) {
                 same[i] = morton_codes[i] != morton_codes[i-1];
@@ -244,11 +244,11 @@ namespace gmp { namespace region_query {
         }
 
     public:         
-        const vec<MortonCodeType>& get_unique_morton_codes() const { return unique_morton_codes; }
-        const vec<IndexType>& get_offsets() const { return offsets; }
-        const vec<IndexType>& get_sorted_indexes() const { return sorted_indexes; }
+        const vector<MortonCodeType>& get_unique_morton_codes() const { return unique_morton_codes; }
+        const vector<IndexType>& get_offsets() const { return offsets; }
+        const vector<IndexType>& get_sorted_indexes() const { return sorted_indexes; }
         const check_sphere_t<MortonCodeType, FloatType, IndexType, VecType>& get_compare_op() const { return compare_op; }
-        using result_t = vec<query_result_t<FloatType>>;
+        using result_t = vector<query_result_t<FloatType>>;
 
         result_t query(const point3d_t<FloatType>& position, const FloatType cutoff, const unit_cell_t* unit_cell)
         {

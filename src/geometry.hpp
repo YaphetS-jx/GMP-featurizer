@@ -2,6 +2,7 @@
 #include <cstdint>
 #include <array>
 #include <cmath>
+#include <memory>
 #include "math.hpp"
 
 namespace gmp { namespace geometry {

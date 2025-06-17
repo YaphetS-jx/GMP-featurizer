@@ -30,7 +30,7 @@ std::string node_to_string(const internal_node_t<uint32_t, int32_t>& node) {
 
 TEST(BinaryRadixTreeTest, BasicConstruction) {
     // Test morton codes
-    vec<uint32_t> morton_codes = {0, 0b100, 0b001000000, 0b001000001, 0b111111111};
+    vector<uint32_t> morton_codes = {0, 0b100, 0b001000000, 0b001000001, 0b111111111};
     auto num_bits = 9;
 
     // Create and build the tree
@@ -53,7 +53,7 @@ TEST(BinaryRadixTreeTest, BasicConstruction) {
 }
 
 TEST(BinaryRadixTreeTest, DeltaFunction) {
-    vec<uint32_t> morton_codes = {1, 2, 4, 5, 19, 24, 25, 30};
+    vector<uint32_t> morton_codes = {1, 2, 4, 5, 19, 24, 25, 30};
     binary_radix_tree_t<uint32_t, int32_t> tree;
     
     EXPECT_EQ(tree.delta(morton_codes, 0, -1), -1); // out of bounds
@@ -63,7 +63,7 @@ TEST(BinaryRadixTreeTest, DeltaFunction) {
     EXPECT_EQ(tree.delta(morton_codes, 3, 5, 10), 5); // 5 and 24 differ 5 bits
 }
 
-template <typename MortonCodeType, typename VecType = vec<array3d_int32>>
+template <typename MortonCodeType, typename VecType = vector<array3d_int32>>
 class check_intersect_box_t : public compare_op_t<MortonCodeType, VecType> {
 public:
     MortonCodeType query_lower_bound, query_upper_bound;
@@ -94,7 +94,7 @@ public:
 };
 
 TEST(BinaryRadixTreeTest, Traverse_for_test) {
-    vec<uint32_t> morton_codes = {0, 0b100, 0b001000000, 0b001000001, 0b111111111};
+    vector<uint32_t> morton_codes = {0, 0b100, 0b001000000, 0b001000001, 0b111111111};
     auto num_bits = 3;
 
     // Create and build the tree
@@ -104,7 +104,7 @@ TEST(BinaryRadixTreeTest, Traverse_for_test) {
     uint32_t query_lower_bound = interleave_bits(0, 0, 0, num_bits);
     uint32_t query_upper_bound = interleave_bits(0b100, 0b100, 0b100, num_bits);
 
-    check_intersect_box_t<uint32_t, vec<array3d_int32>> op(query_lower_bound, query_upper_bound);
+    check_intersect_box_t<uint32_t, vector<array3d_int32>> op(query_lower_bound, query_upper_bound);
     auto result = tree.traverse(op);
     EXPECT_EQ(result.size(), 3);
     EXPECT_TRUE(result.find(0) != result.end());
@@ -132,7 +132,7 @@ TEST(BinaryRadixTreeTest, Traverse_general_case) {
 
     // Generate points and morton codes
     std::set<std::tuple<int, int, int>> unique_points;
-    vec<uint32_t> morton_codes;
+    vector<uint32_t> morton_codes;
     morton_codes.reserve(num_points);
 
     for (int i = 0; i < num_points; ++i) {
@@ -169,13 +169,13 @@ TEST(BinaryRadixTreeTest, Traverse_general_case) {
     uint32_t query_min = interleave_bits(x1, y1, z1, num_bits);
     uint32_t query_max = interleave_bits(x2, y2, z2, num_bits);
     // check_intersect_box_t<uint32_t> op(query_min, query_max);
-    check_intersect_box_t<uint32_t, vec<array3d_int32>> op(query_min, query_max);
+    check_intersect_box_t<uint32_t, vector<array3d_int32>> op(query_min, query_max);
 
     // Get results from tree traversal
     auto result = tree.traverse(op);
 
     // get result vec
-    vec<int32_t> result_vec;
+    vector<int32_t> result_vec;
     for (const auto& [index, shifts] : result) {
         for (const auto& shift : shifts) {
             result_vec.push_back(index);

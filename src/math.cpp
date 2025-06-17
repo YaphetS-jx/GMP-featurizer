@@ -104,19 +104,19 @@ namespace gmp { namespace math {
     }
 
     
-    void calculate_solid_mcsh_n1(const array3d_flt64& dr, const double r_sqr, const double temp, const double lambda, const double gamma, vec<double>& value) 
+    void calculate_solid_mcsh_n1(const array3d_flt64& dr, const double r_sqr, const double temp, const double lambda, const double gamma, vector<double>& value) 
     {
         assert(value.size() == 1);
         value[0] += temp;
     }
 
-    void calculate_solid_mcsh_0(const array3d_flt64& dr, const double r_sqr, const double temp, const double lambda, const double gamma, vec<double>& value) 
+    void calculate_solid_mcsh_0(const array3d_flt64& dr, const double r_sqr, const double temp, const double lambda, const double gamma, vector<double>& value) 
     {
         assert(value.size() == 1);
         value[0] += temp;
     }
 
-    void calculate_solid_mcsh_1(const array3d_flt64& dr, const double r_sqr, const double temp, const double lambda, const double gamma, vec<double>& value) 
+    void calculate_solid_mcsh_1(const array3d_flt64& dr, const double r_sqr, const double temp, const double lambda, const double gamma, vector<double>& value) 
     {
         assert(value.size() == 3);
         const double lambda_x0 = lambda * dr[0];
@@ -133,7 +133,7 @@ namespace gmp { namespace math {
     }
 
 
-    void calculate_solid_mcsh_2(const array3d_flt64& dr, const double r_sqr, const double temp, const double lambda, const double gamma, vec<double>& value) 
+    void calculate_solid_mcsh_2(const array3d_flt64& dr, const double r_sqr, const double temp, const double lambda, const double gamma, vector<double>& value) 
     {
         assert(value.size() == 6);
         const double lambda_x0 = lambda * dr[0];
@@ -171,7 +171,7 @@ namespace gmp { namespace math {
         value[5] += gp2_miu_2_2_3;
     }
 
-    void calculate_solid_mcsh_3(const array3d_flt64& dr, const double r_sqr, const double temp, const double lambda, const double gamma, vec<double>& value) 
+    void calculate_solid_mcsh_3(const array3d_flt64& dr, const double r_sqr, const double temp, const double lambda, const double gamma, vector<double>& value) 
     {
         assert(value.size() == 10);
         const double lambda_x0 = lambda * dr[0];
@@ -238,7 +238,7 @@ namespace gmp { namespace math {
         value[9] += gp3_m_3_3;
     }
 
-    void calculate_solid_mcsh_4(const array3d_flt64& dr, const double r_sqr, const double temp, const double lambda, const double gamma, vec<double>& value) 
+    void calculate_solid_mcsh_4(const array3d_flt64& dr, const double r_sqr, const double temp, const double lambda, const double gamma, vector<double>& value) 
     {
         assert(value.size() == 15);
 
@@ -337,7 +337,7 @@ namespace gmp { namespace math {
         value[14] += gp4_miu_3;
     }
 
-    void calculate_solid_mcsh_5(const array3d_flt64& dr, const double r_sqr, const double temp, const double lambda, const double gamma, vec<double>& value) 
+    void calculate_solid_mcsh_5(const array3d_flt64& dr, const double r_sqr, const double temp, const double lambda, const double gamma, vector<double>& value) 
     {
         assert(value.size() == 21);
 
@@ -467,7 +467,7 @@ namespace gmp { namespace math {
         value[20] += gp5_miu_3;
     }
 
-    void calculate_solid_mcsh_6(const array3d_flt64& dr, const double r_sqr, const double temp, const double lambda, const double gamma, vec<double>& value) 
+    void calculate_solid_mcsh_6(const array3d_flt64& dr, const double r_sqr, const double temp, const double lambda, const double gamma, vector<double>& value) 
     {
         assert(value.size() == 28);
 
@@ -635,7 +635,7 @@ namespace gmp { namespace math {
 
     }
 
-    void calculate_solid_mcsh_7(const array3d_flt64& dr, const double r_sqr, const double temp, const double lambda, const double gamma, vec<double>& value) 
+    void calculate_solid_mcsh_7(const array3d_flt64& dr, const double r_sqr, const double temp, const double lambda, const double gamma, vector<double>& value) 
     {
         assert(value.size() == 36);
 
@@ -842,7 +842,7 @@ namespace gmp { namespace math {
 
     }
 
-    void calculate_solid_mcsh_8(const array3d_flt64& dr, const double r_sqr, const double temp, const double lambda, const double gamma, vec<double>& value) 
+    void calculate_solid_mcsh_8(const array3d_flt64& dr, const double r_sqr, const double temp, const double lambda, const double gamma, vector<double>& value) 
     {
         assert(value.size() == 45);
         const double lambda_x0 = lambda * dr[0];
@@ -1095,7 +1095,7 @@ namespace gmp { namespace math {
     }
 
 
-    void calculate_solid_mcsh_9(const array3d_flt64& dr, const double r_sqr, const double temp, const double lambda, const double gamma, vec<double>& value) 
+    void calculate_solid_mcsh_9(const array3d_flt64& dr, const double r_sqr, const double temp, const double lambda, const double gamma, vector<double>& value) 
     {
         assert(value.size() == 55);
         const double lambda_x0 = lambda * dr[0];
@@ -1392,7 +1392,7 @@ namespace gmp { namespace math {
 
     }
 
-    double weighted_square_sum(const int mcsh_order, const vec<double>& v) {
+    double weighted_square_sum(const int mcsh_order, const vector<double>& v) {
         switch (mcsh_order) {
         case -1:
             return v[0] * v[0];
