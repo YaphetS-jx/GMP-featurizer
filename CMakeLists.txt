@@ -7,7 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Set release mode and flags
 set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
-set(CMAKE_CXX_FLAGS_RELEASE "-O3" CACHE STRING "Release flags" FORCE)
+set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native" CACHE STRING "Release flags" FORCE)
 # set(CMAKE_BUILD_TYPE Debug CACHE STRING "Build type" FORCE)
 # set(CMAKE_CXX_FLAGS_DEBUG "-O0 -pg" CACHE STRING "Release flags" FORCE)
 
@@ -37,7 +37,7 @@ target_sources(gmp-featurizer-lib
     src/geometry.cpp
     src/error.cpp
     src/input.cpp
-    src/featurizer.cpp    
+    src/featurizer.cpp
     src/math.cpp    
 )
 
@@ -122,6 +122,10 @@ if(BUILD_TESTS)
         test/cif_test.cpp
     )
 
+    add_executable(gmp-mcsh-simd-test
+        test/mcsh_simd.cpp
+    )
+
     # Add project root definition to all test executables
     target_compile_definitions(gmp-resources-test PRIVATE PROJECT_ROOT="${PROJECT_ROOT}")
     target_compile_definitions(gmp-math-test PRIVATE PROJECT_ROOT="${PROJECT_ROOT}")
@@ -134,6 +138,7 @@ if(BUILD_TESTS)
     target_compile_definitions(gmp-region-query-test PRIVATE PROJECT_ROOT="${PROJECT_ROOT}")
     target_compile_definitions(gmp-cif-test PRIVATE PROJECT_ROOT="${PROJECT_ROOT}")
     target_compile_definitions(gmp-xsimd-test PRIVATE PROJECT_ROOT="${PROJECT_ROOT}")
+    target_compile_definitions(gmp-mcsh-simd-test PRIVATE PROJECT_ROOT="${PROJECT_ROOT}")
 
     # Link against Google Test and the library
     target_link_libraries(gmp-xsimd-test
@@ -213,6 +218,13 @@ if(BUILD_TESTS)
         gmp-featurizer-lib
     )
 
+    target_link_libraries(gmp-mcsh-simd-test
+        PRIVATE
+        GTest::gtest_main
+        GTest::gmock_main
+        gmp-featurizer-lib
+    )
+
     # Include directories for tests
     target_include_directories(gmp-xsimd-test
         PRIVATE
@@ -270,6 +282,11 @@ if(BUILD_TESTS)
         ${CMAKE_SOURCE_DIR}/src
     )
 
+    target_include_directories(gmp-mcsh-simd-test
+        PRIVATE
+        ${CMAKE_SOURCE_DIR}/src
+    )
+
     # Set the output directory for the test executables
     set_target_properties(gmp-xsimd-test PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY ${TEST_RUNTIME_OUTPUT_DIRECTORY}
@@ -315,6 +332,10 @@ if(BUILD_TESTS)
         RUNTIME_OUTPUT_DIRECTORY ${TEST_RUNTIME_OUTPUT_DIRECTORY}
     )
 
+    set_target_properties(gmp-mcsh-simd-test PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY ${TEST_RUNTIME_OUTPUT_DIRECTORY}
+    )
+
     # Register tests
     include(GoogleTest)
     gtest_discover_tests(gmp-xsimd-test)
@@ -328,11 +349,12 @@ if(BUILD_TESTS)
     gtest_discover_tests(gmp-tree-test)
     gtest_discover_tests(gmp-region-query-test)
     gtest_discover_tests(gmp-cif-test)
+    gtest_discover_tests(gmp-mcsh-simd-test)
 
     # Add a custom target to build and run all tests
     add_custom_target(run_all_tests
         COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
-        DEPENDS gmp-xsimd-test gmp-resources-test gmp-math-test gmp-geometry-test gmp-atom-test gmp-util-test gmp-input-test gmp-morton-test gmp-tree-test gmp-region-query-test gmp-cif-test
+        DEPENDS gmp-xsimd-test gmp-resources-test gmp-math-test gmp-geometry-test gmp-atom-test gmp-util-test gmp-input-test gmp-morton-test gmp-tree-test gmp-region-query-test gmp-cif-test gmp-mcsh-simd-test
         WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
         COMMENT "Running all tests..."
     )
