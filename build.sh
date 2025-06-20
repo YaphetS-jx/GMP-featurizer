@@ -8,10 +8,12 @@ cd build
 # then run the following command
 
 # change here if you want to replace the external libraries
-# cmake -DBUILD_TESTS=ON \
-#   -DGEMMI_INCLUDE_DIR=/home/xx/Desktop/coding/gemmi/include ..
+# cmake -DBUILD_TESTS=ON -DBUILD_TYPE_RELEASE=ON \
+#   -DGEMMI_INCLUDE_DIR=/home/xx/Desktop/coding/gemmi/include\
+#   -DXSIMD_INCLUDE_DIR=/home/xx/Desktop/coding/xsimd/include ..
 
-cmake -DBUILD_TESTS=ON ..
+
+cmake ..
 
 # Build the project
 make -j

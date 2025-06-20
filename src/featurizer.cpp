@@ -7,6 +7,7 @@
 #include "types.hpp"
 #include "util.hpp"
 #include "region_query.hpp"
+#include "mcsh_simd.hpp"
 
 namespace gmp { namespace featurizer {
 
@@ -340,9 +341,13 @@ namespace gmp { namespace featurizer {
                 auto sigma = feature_list[feature_idx].sigma;
 
                 // Get the function for the specified order
-                const auto& mcsh_func = registry.get_function(order);
-                const auto& num_values = registry.get_num_values(order);
-                vector<double> desc_values(num_values, 0.0);
+                // const auto& mcsh_func = registry.get_function(order);
+                // const auto& num_values = registry.get_num_values(order);
+                
+                const auto num_values = order < 0 ? 1 : gmp::simd::num_values_[order];
+                gmp::simd::vector_aligned<double> desc_values(num_values, 0.0);
+
+                gmp::simd::Params<double> params;
 
                 for (auto neighbor_idx = 0; neighbor_idx < query_results.size(); ++neighbor_idx) {
                     const auto neighbor_index = query_results[neighbor_idx].neighbor_index;
@@ -368,15 +373,32 @@ namespace gmp { namespace featurizer {
                         const auto C1 = kernel_params.C1;
                         const auto C2 = kernel_params.C2;
 
-                        const auto temp = C1 * std::exp(C2 * distance2) * occ;
+                        // const auto temp = C1 * std::exp(C2 * distance2) * occ;
                         const auto shift = query_results[neighbor_idx].difference;
 
-                        mcsh_func(shift, distance2, temp, lambda, gamma, desc_values);
+                        // mcsh_func(shift, distance2, temp, lambda, gamma, desc_values);
+
+                        params.dx.push_back(shift[0]);
+                        params.dy.push_back(shift[1]);
+                        params.dz.push_back(shift[2]);
+                        params.r_sqr.push_back(distance2);
+                        params.C1.push_back(C1);
+                        params.C2.push_back(C2);
+                        params.lambda.push_back(lambda);
+                        params.gamma.push_back(gamma);
                     }
                 }
 
+                
+                params.num_elements = params.dx.size();
+                gmp::simd::mcsh_simd_func(order, params, desc_values);
+
+                // for (auto i = 0; i < num_values; ++i) {
+                //     std::cout << "desc_values_simd[" << i << "]: " << desc_values_simd[i] << ", " << desc_values[i] << std::endl;
+                // }
+
                 // weighted square sum of the values
-                double squareSum = weighted_square_sum(order, desc_values);
+                double squareSum = gmp::simd::weighted_square_sum(order, desc_values);
                 if (descriptor_config->get_square()) {
                     feature.push_back(squareSum);
                 } else {

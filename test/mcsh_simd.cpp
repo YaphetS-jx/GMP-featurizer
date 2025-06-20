@@ -6,11 +6,9 @@
 #include <chrono>
 #include "simd.hpp"
 #include "mcsh_simd.hpp"
-#include "mcsh.hpp"
 #include "math.hpp"
 #include "types.hpp"
 
-using namespace gmp::mcsh;
 using namespace gmp::simd;
 using namespace gmp::containers;
 
@@ -54,7 +52,7 @@ Params<T> create_random_params(size_t length, T min_val = -1.0, T max_val = 1.0)
 TEST(MCSHSIMDTest, test_order_0) {
     const size_t length = 1033;
     const auto params = create_random_params<double>(length);
-    const auto num_values = gmp::mcsh::num_values_[0];
+    const auto num_values = gmp::simd::num_values_[0];
 
     auto start = std::chrono::high_resolution_clock::now();
     // Initialize output vector with the correct size for order 0
@@ -74,8 +72,7 @@ TEST(MCSHSIMDTest, test_order_0) {
     start = std::chrono::high_resolution_clock::now();
     vector_aligned<double> out_simd(num_values, 0.0);
     // test simd
-    gmp::simd::mcsh_simd_launcher_0<double> mcsh_func;
-    mcsh_func(params, out_simd);
+    gmp::simd::mcsh_simd_launcher_0<double>()(params, out_simd);
     end = std::chrono::high_resolution_clock::now();
     duration = end - start;
     auto time2 = duration.count();
@@ -91,7 +88,7 @@ TEST(MCSHSIMDTest, test_order_0) {
 TEST(MCSHSIMDTest, test_order_1) {
     const size_t length = 1033;
     const auto params = create_random_params<double>(length);
-    const auto num_values = gmp::mcsh::num_values_[1];
+    const auto num_values = gmp::simd::num_values_[1];
 
     auto start = std::chrono::high_resolution_clock::now();
     // Initialize output vector with the correct size for order 0
@@ -111,8 +108,7 @@ TEST(MCSHSIMDTest, test_order_1) {
     start = std::chrono::high_resolution_clock::now();
     vector_aligned<double> out_simd(num_values, 0.0);
     // test simd
-    gmp::simd::mcsh_simd_launcher_1<double> mcsh_func;
-    mcsh_func(params, out_simd);
+    gmp::simd::mcsh_simd_launcher_1<double>()(params, out_simd);
     end = std::chrono::high_resolution_clock::now();
     duration = end - start;
     auto time2 = duration.count();
@@ -129,7 +125,7 @@ TEST(MCSHSIMDTest, test_order_1) {
 TEST(MCSHSIMDTest, test_order_2) {
     const size_t length = 1033;
     const auto params = create_random_params<double>(length);
-    const auto num_values = gmp::mcsh::num_values_[2];
+    const auto num_values = gmp::simd::num_values_[2];
 
     auto start = std::chrono::high_resolution_clock::now();
     // Initialize output vector with the correct size for order 0
@@ -149,8 +145,7 @@ TEST(MCSHSIMDTest, test_order_2) {
     start = std::chrono::high_resolution_clock::now();
     vector_aligned<double> out_simd(num_values, 0.0);
     // test simd
-    gmp::simd::mcsh_simd_launcher_2<double> mcsh_func;
-    mcsh_func(params, out_simd);
+    gmp::simd::mcsh_simd_launcher_2<double>()(params, out_simd);
     end = std::chrono::high_resolution_clock::now();
     duration = end - start;
     auto time2 = duration.count();
@@ -166,7 +161,7 @@ TEST(MCSHSIMDTest, test_order_2) {
 TEST(MCSHSIMDTest, test_order_3) {
     const size_t length = 1033;
     const auto params = create_random_params<double>(length);
-    const auto num_values = gmp::mcsh::num_values_[3];
+    const auto num_values = gmp::simd::num_values_[3];
 
     auto start = std::chrono::high_resolution_clock::now();
     // Initialize output vector with the correct size for order 0
@@ -186,8 +181,7 @@ TEST(MCSHSIMDTest, test_order_3) {
     start = std::chrono::high_resolution_clock::now();
     vector_aligned<double> out_simd(num_values, 0.0);
     // test simd
-    gmp::simd::mcsh_simd_launcher_3<double> mcsh_func;
-    mcsh_func(params, out_simd);
+    gmp::simd::mcsh_simd_launcher_3<double>()(params, out_simd);
     end = std::chrono::high_resolution_clock::now();
     duration = end - start;
     auto time2 = duration.count();
@@ -202,7 +196,7 @@ TEST(MCSHSIMDTest, test_order_3) {
 TEST(MCSHSIMDTest, test_order_4) {
     const size_t length = 1033;
     const auto params = create_random_params<double>(length);
-    const auto num_values = gmp::mcsh::num_values_[4];
+    const auto num_values = gmp::simd::num_values_[4];
 
     auto start = std::chrono::high_resolution_clock::now();
     // Initialize output vector with the correct size for order 0
@@ -222,8 +216,7 @@ TEST(MCSHSIMDTest, test_order_4) {
     start = std::chrono::high_resolution_clock::now();
     vector_aligned<double> out_simd(num_values, 0.0);
     // test simd
-    gmp::simd::mcsh_simd_launcher_4<double> mcsh_func;
-    mcsh_func(params, out_simd);
+    gmp::simd::mcsh_simd_launcher_4<double>()(params, out_simd);
     end = std::chrono::high_resolution_clock::now();
     duration = end - start;
     auto time2 = duration.count();
@@ -238,7 +231,7 @@ TEST(MCSHSIMDTest, test_order_4) {
 TEST(MCSHSIMDTest, test_order_5) {
     const size_t length = 1033;
     const auto params = create_random_params<double>(length);
-    const auto num_values = gmp::mcsh::num_values_[5];
+    const auto num_values = gmp::simd::num_values_[5];
 
     auto start = std::chrono::high_resolution_clock::now();
     // Initialize output vector with the correct size for order 0
@@ -258,8 +251,7 @@ TEST(MCSHSIMDTest, test_order_5) {
     start = std::chrono::high_resolution_clock::now();
     vector_aligned<double> out_simd(num_values, 0.0);
     // test simd
-    gmp::simd::mcsh_simd_launcher_5<double> mcsh_func;
-    mcsh_func(params, out_simd);
+    gmp::simd::mcsh_simd_launcher_5<double>()(params, out_simd);
     end = std::chrono::high_resolution_clock::now();
     duration = end - start;
     auto time2 = duration.count();
@@ -274,7 +266,7 @@ TEST(MCSHSIMDTest, test_order_5) {
 TEST(MCSHSIMDTest, test_order_6) {
     const size_t length = 1033;
     const auto params = create_random_params<double>(length);
-    const auto num_values = gmp::mcsh::num_values_[6];
+    const auto num_values = gmp::simd::num_values_[6];
 
     auto start = std::chrono::high_resolution_clock::now();
     // Initialize output vector with the correct size for order 0
@@ -294,8 +286,7 @@ TEST(MCSHSIMDTest, test_order_6) {
     start = std::chrono::high_resolution_clock::now();
     vector_aligned<double> out_simd(num_values, 0.0);
     // test simd
-    gmp::simd::mcsh_simd_launcher_6<double> mcsh_func;
-    mcsh_func(params, out_simd);
+    gmp::simd::mcsh_simd_launcher_6<double>()(params, out_simd);
     end = std::chrono::high_resolution_clock::now();
     duration = end - start;
     auto time2 = duration.count();
@@ -310,7 +301,7 @@ TEST(MCSHSIMDTest, test_order_6) {
 TEST(MCSHSIMDTest, test_order_7) {
     const size_t length = 1033;
     const auto params = create_random_params<double>(length);
-    const auto num_values = gmp::mcsh::num_values_[7];
+    const auto num_values = gmp::simd::num_values_[7];
 
     auto start = std::chrono::high_resolution_clock::now();
     // Initialize output vector with the correct size for order 0
@@ -330,8 +321,7 @@ TEST(MCSHSIMDTest, test_order_7) {
     start = std::chrono::high_resolution_clock::now();
     vector_aligned<double> out_simd(num_values, 0.0);
     // test simd
-    gmp::simd::mcsh_simd_launcher_7<double> mcsh_func;
-    mcsh_func(params, out_simd);
+    gmp::simd::mcsh_simd_launcher_7<double>()(params, out_simd);
     end = std::chrono::high_resolution_clock::now();
     duration = end - start;
     auto time2 = duration.count();
@@ -346,7 +336,7 @@ TEST(MCSHSIMDTest, test_order_7) {
 TEST(MCSHSIMDTest, test_order_8) {
     const size_t length = 1033;
     const auto params = create_random_params<double>(length);
-    const auto num_values = gmp::mcsh::num_values_[8];
+    const auto num_values = gmp::simd::num_values_[8];
 
     auto start = std::chrono::high_resolution_clock::now();
     // Initialize output vector with the correct size for order 0
@@ -366,8 +356,7 @@ TEST(MCSHSIMDTest, test_order_8) {
     start = std::chrono::high_resolution_clock::now();
     vector_aligned<double> out_simd(num_values, 0.0);
     // test simd
-    gmp::simd::mcsh_simd_launcher_8<double> mcsh_func;
-    mcsh_func(params, out_simd);
+    gmp::simd::mcsh_simd_launcher_8<double>()(params, out_simd);
     end = std::chrono::high_resolution_clock::now();
     duration = end - start;
     auto time2 = duration.count();
@@ -382,7 +371,7 @@ TEST(MCSHSIMDTest, test_order_8) {
 TEST(MCSHSIMDTest, test_order_9) {
     const size_t length = 1033;
     const auto params = create_random_params<double>(length);
-    const auto num_values = gmp::mcsh::num_values_[9];
+    const auto num_values = gmp::simd::num_values_[9];
 
     auto start = std::chrono::high_resolution_clock::now();
     // Initialize output vector with the correct size for order 0
@@ -402,8 +391,7 @@ TEST(MCSHSIMDTest, test_order_9) {
     start = std::chrono::high_resolution_clock::now();
     vector_aligned<double> out_simd(num_values, 0.0);
     // test simd
-    gmp::simd::mcsh_simd_launcher_9<double> mcsh_func;
-    mcsh_func(params, out_simd);
+    gmp::simd::mcsh_simd_launcher_9<double>()(params, out_simd);
     end = std::chrono::high_resolution_clock::now();
     duration = end - start;
     auto time2 = duration.count();

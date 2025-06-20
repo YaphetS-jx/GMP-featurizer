@@ -5,11 +5,17 @@ project(gmp-featurizer LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Set release mode and flags
-set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
-set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native" CACHE STRING "Release flags" FORCE)
-# set(CMAKE_BUILD_TYPE Debug CACHE STRING "Build type" FORCE)
-# set(CMAKE_CXX_FLAGS_DEBUG "-O0 -pg" CACHE STRING "Release flags" FORCE)
+# Add option to select build type
+option(BUILD_TYPE_RELEASE "Build in Release mode (default: ON)" ON)
+
+# Set release mode and flags based on the option
+if(BUILD_TYPE_RELEASE)
+    set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
+    set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native" CACHE STRING "Release flags" FORCE)
+else()
+    set(CMAKE_BUILD_TYPE Debug CACHE STRING "Build type" FORCE)
+    set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g -march=native" CACHE STRING "Debug flags" FORCE)
+endif()
 
 # Define project root path
 set(PROJECT_ROOT ${CMAKE_SOURCE_DIR})

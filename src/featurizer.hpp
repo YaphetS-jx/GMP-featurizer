@@ -14,6 +14,8 @@ namespace gmp { namespace featurizer {
     struct kernel_params_t {
         double C1, C2;
         double lambda, gamma;
+        kernel_params_t() : C1(0.0), C2(0.0), lambda(0.0), gamma(0.0) {}
+        kernel_params_t(const double C1, const double C2, const double lambda, const double gamma) : C1(C1), C2(C2), lambda(lambda), gamma(gamma) {}
     };
 
     class kernel_params_table_t {
