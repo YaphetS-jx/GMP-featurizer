@@ -25,7 +25,9 @@ namespace gmp { namespace input {
         parse_json(json_file);
 
         // print config
+    #ifdef DEBUG
         dump();
+    #endif
     }
 
     // file path config
@@ -84,8 +86,6 @@ namespace gmp { namespace input {
         for (const auto& feature : feature_list_) {
             std::cout << "  Order: " << feature.order << ", Sigma: " << feature.sigma << std::endl;
         }
-        std::cout << "Cutoff method: " << gmp_to_string(cutoff_method_) << std::endl;
-        std::cout << "Cutoff: " << cutoff_ << std::endl;
         std::cout << "Overlap threshold: " << overlap_threshold_ << std::endl;
         std::cout << "Scaling mode: " << gmp_to_string(scaling_mode_) << std::endl;
         std::cout << "Ref grid: " << ref_grid_[0] << ", " << ref_grid_[1] << ", " << ref_grid_[2] << std::endl;
@@ -122,9 +122,7 @@ namespace gmp { namespace input {
         this->files->set_psp_file(std::string(config.at("psp file path").as_string()));
         this->files->set_output_file(std::string(config.at("output file path").as_string()));
         this->descriptor_config->set_square(config.at("square").as_int64());
-        this->descriptor_config->set_cutoff(config.at("cutoff").as_double());
         this->descriptor_config->set_overlap_threshold(config.at("overlap threshold").as_double());
-        this->descriptor_config->set_cutoff_method(static_cast<cutoff_method_t>(config.at("cutoff method").as_int64()));
         this->descriptor_config->set_scaling_mode(static_cast<scaling_mode_t>(config.at("scaling mode").as_int64()));
         
         if (config.contains("ref_grid")) {
@@ -175,8 +173,6 @@ namespace gmp { namespace input {
         std::cout << "  sigmas <list>                    List of sigmas (e.g., 0.1,0.2,0.3)" << std::endl;
         std::cout << "  feature lists <list>             List of feature pairs (e.g., (1,0.1),(2,0.2))" << std::endl;
         std::cout << "  square <int>                     Square option (0 or 1)" << std::endl;
-        std::cout << "  cutoff method <int>              Cutoff method (0 to 4)" << std::endl;
-        std::cout << "  cutoff <double>                  Cutoff value" << std::endl;
         std::cout << "  overlap threshold <double>       Overlap threshold" << std::endl;
         std::cout << "  scaling mode <int>               Scaling mode (0 for radial, 1 for both)" << std::endl;
         std::cout << "  output file path <path>          Path to the output file" << std::endl;

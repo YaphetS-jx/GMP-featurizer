@@ -40,6 +40,18 @@ namespace gmp { namespace simd {
         vector_aligned<T> C1, C2;
         vector_aligned<T> lambda, gamma;
         size_t num_elements;
+
+        Params(size_t reserve_size) {
+            dx.resize(reserve_size);
+            dy.resize(reserve_size);
+            dz.resize(reserve_size);
+            r_sqr.resize(reserve_size);
+            C1.resize(reserve_size);
+            C2.resize(reserve_size);
+            lambda.resize(reserve_size);
+            gamma.resize(reserve_size);
+            num_elements = reserve_size;
+        }
     };
 
     template <typename T>

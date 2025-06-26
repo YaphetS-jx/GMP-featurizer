@@ -50,9 +50,7 @@ TEST_F(InputTest, descriptor_config_t) {
     
     // Test default values
     EXPECT_EQ(config.get_feature_list().size(), 0);
-    EXPECT_EQ(config.get_cutoff_method(), cutoff_method_t::cutoff_feature_gaussian);
     EXPECT_EQ(config.get_scaling_mode(), scaling_mode_t::radial);
-    EXPECT_DOUBLE_EQ(config.get_cutoff(), 0.0);
     EXPECT_DOUBLE_EQ(config.get_overlap_threshold(), 1e-11);
     EXPECT_FALSE(config.get_square());
     
@@ -65,14 +63,8 @@ TEST_F(InputTest, descriptor_config_t) {
     // Each order is combined with each sigma: 2 orders * 2 sigmas = 4 features
     EXPECT_EQ(config.get_feature_list().size(), 4);
     
-    config.set_cutoff_method(cutoff_method_t::cutoff_sigma);
-    EXPECT_EQ(config.get_cutoff_method(), cutoff_method_t::cutoff_sigma);
-    
     config.set_scaling_mode(scaling_mode_t::both);
     EXPECT_EQ(config.get_scaling_mode(), scaling_mode_t::both);
-    
-    config.set_cutoff(5.0);
-    EXPECT_DOUBLE_EQ(config.get_cutoff(), 5.0);
     
     config.set_overlap_threshold(1e-10);
     EXPECT_DOUBLE_EQ(config.get_overlap_threshold(), 1e-10);
@@ -174,8 +166,6 @@ TEST_F(InputTest, boost_json_parse_arguments) {
     EXPECT_DOUBLE_EQ(sigmas[1].as_double(), 0.2);
     
     // Check numeric values
-    EXPECT_EQ(obj.at("cutoff method").as_int64(), 1);
-    EXPECT_DOUBLE_EQ(obj.at("cutoff").as_double(), 5.0);
     EXPECT_DOUBLE_EQ(obj.at("overlap threshold").as_double(), 1e-10);
     EXPECT_EQ(obj.at("scaling mode").as_int64(), 0);
     EXPECT_EQ(obj.at("square").as_int64(), 1);
@@ -189,13 +179,6 @@ TEST_F(InputTest, boost_json_parse_arguments) {
 }
 
 TEST_F(InputTest, to_string_functions) {
-    // Test cutoff_method_t to_string
-    EXPECT_EQ(gmp_to_string(cutoff_method_t::custom_cutoff), "custom_cutoff");
-    EXPECT_EQ(gmp_to_string(cutoff_method_t::cutoff_sigma), "cutoff_sigma");
-    EXPECT_EQ(gmp_to_string(cutoff_method_t::cutoff_sigma_elemental), "cutoff_sigma_elemental");
-    EXPECT_EQ(gmp_to_string(cutoff_method_t::cutoff_feature_elemental), "cutoff_feature_elemental");
-    EXPECT_EQ(gmp_to_string(cutoff_method_t::cutoff_feature_gaussian), "cutoff_feature_gaussian");
-    
     // Test scaling_mode_t to_string
     EXPECT_EQ(gmp_to_string(scaling_mode_t::radial), "radial");
     EXPECT_EQ(gmp_to_string(scaling_mode_t::both), "both");

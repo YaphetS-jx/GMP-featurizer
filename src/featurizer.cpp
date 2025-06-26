@@ -63,150 +63,45 @@ namespace gmp { namespace featurizer {
         }
     }
 
-    // cutoff_table_t ctor
-    cutoff_table_t::cutoff_table_t(const descriptor_config_t* descriptor_config, const psp_config_t* psp_config)
-        : table_(), table2_(), feature_mapping_(), gaussian_mapping_(), largest_cutoff_(0.0), 
-        num_features_(0), num_gaussians_(0)
+    // cutoff_list_t ctor
+    cutoff_list_t::cutoff_list_t(const descriptor_config_t* descriptor_config, const psp_config_t* psp_config)
     {
-        table_.clear();
-        feature_mapping_.clear();
-        gaussian_mapping_.clear();
-        auto cutoff_method = descriptor_config->get_cutoff_method();
-        bool sigma_only = cutoff_method == cutoff_method_t::cutoff_sigma || cutoff_method == cutoff_method_t::cutoff_sigma_elemental;
-        const auto &gaussian_offset = psp_config->get_offset();
-        num_atom_types_ = gaussian_offset.size() - 1;
+        cutoff_info_.clear();
+        offset_.clear();
+        cutoff_max_.clear();
 
-        // create gaussian mapping 
-        int count = 0;
+        const auto &gaussian_offset = psp_config->get_offset();
+        const auto num_atom_types_ = gaussian_offset.size() - 1;
+        const auto &feature_list = descriptor_config->get_feature_list();
+        const auto num_features_ = feature_list.size();
+        
+        cutoff_info_.reserve(gaussian_offset.back() * num_features_);
+        offset_.reserve(num_atom_types_ + 1);
+        offset_.push_back(0);
+        cutoff_max_.reserve(num_atom_types_);
+
+        vector<double> factors = {1, 1, 1, 1, 1e-1, 1e-2, 1e-4, 1e-5, 1e-7, 1e-9, 1e-11}; // for threshold 
+
         for (auto atom_type_idx = 0; atom_type_idx < num_atom_types_; ++atom_type_idx) {
             auto start = gaussian_offset[atom_type_idx];
             auto end = gaussian_offset[atom_type_idx + 1];
-            for (auto gaussian_idx = start; gaussian_idx < end; ++gaussian_idx) {
-                switch (cutoff_method) {
-                    case cutoff_method_t::cutoff_sigma:
-                        gaussian_mapping_.push_back(0); count ++; break;
-                    case cutoff_method_t::cutoff_sigma_elemental:
-                        gaussian_mapping_.push_back(atom_type_idx); count++; break;
-                    case cutoff_method_t::cutoff_feature_elemental:
-                        gaussian_mapping_.push_back(atom_type_idx); count++; break;
-                    case cutoff_method_t::cutoff_feature_gaussian:
-                        gaussian_mapping_.push_back(count); count++; break;
-                    default:
-                        update_error(gmp::error_t::invalid_cutoff_method);
+            double cutoff_max = 0.0;
+
+            for (auto feature_idx = 0; feature_idx < feature_list.size(); ++feature_idx) {
+                const auto &feature = feature_list[feature_idx];
+                double threshold = descriptor_config->get_overlap_threshold() * factors[feature.order + 1];
+
+                for (auto gaussian_idx = start; gaussian_idx < end; ++gaussian_idx) {
+                    const auto &gaussian = (*psp_config)[gaussian_idx];
+                    cutoff_info_.emplace_back(feature_idx, gaussian_idx, 
+                        get_cutoff_gaussian(feature.sigma, gaussian, threshold));
+                    cutoff_max = std::max(cutoff_max, cutoff_info_.back().cutoff_);
                 }
             }
-        }
+            offset_.push_back(cutoff_info_.size());
 
-        // set gaussian size
-        switch (cutoff_method) {
-            case cutoff_method_t::cutoff_sigma:
-                num_gaussians_ = 1; break;
-            case cutoff_method_t::cutoff_sigma_elemental:
-                num_gaussians_ = num_atom_types_; break;
-            case cutoff_method_t::cutoff_feature_elemental:
-                num_gaussians_ = num_atom_types_; break;
-            case cutoff_method_t::cutoff_feature_gaussian:
-                num_gaussians_ = count; break;
-            default:
-                update_error(gmp::error_t::invalid_cutoff_method);
-        }
-
-        // calculate all cutoffs
-        vector<double> cutoff_all;
-        vector<double> factors = {1, 1, 1, 1, 1e-1, 1e-2, 1e-4, 1e-5, 1e-7, 1e-9, 1e-11}; // for threshold 
-        const auto &feature_list = descriptor_config->get_feature_list();
-        for (const auto& feature : feature_list) {
-            
-            if (feature_mapping_.empty()) {
-                feature_mapping_.push_back(0);
-            } else if (!sigma_only || feature.sigma != feature_list[feature_mapping_.back()].sigma) {
-                feature_mapping_.push_back(feature_mapping_.back() + 1);
-            } else {
-                feature_mapping_.push_back(feature_mapping_.back());
-                continue;
-            }
-
-            double threshold = sigma_only ? 
-                descriptor_config->get_overlap_threshold() : 
-                descriptor_config->get_overlap_threshold() * factors[feature.order + 1];
-
-            for (auto atom_type_idx = 0; atom_type_idx < num_atom_types_; ++atom_type_idx) {
-                auto start = gaussian_offset[atom_type_idx];
-                auto end = gaussian_offset[atom_type_idx + 1];
-                for (auto gaussian_idx = start; gaussian_idx < end; ++gaussian_idx) {
-                    const auto& gaussian = (*psp_config)[gaussian_idx];
-                    cutoff_all.push_back(get_cutoff_gaussian(feature.sigma, gaussian, threshold));
-                }                
-            }
-        }
-        num_features_ = feature_mapping_.back() + 1;
-        assert(num_features_ * gaussian_mapping_.size() == cutoff_all.size());
-
-        // get the max cutoff for each atom type
-        vector<double> cutoff_elemental;
-        for (auto feature_idx = 0; feature_idx < num_features_; ++feature_idx) {
-            auto shift = feature_idx * gaussian_mapping_.size();
-            for (auto atom_type_idx = 0; atom_type_idx < num_atom_types_; ++atom_type_idx) {
-                auto start = gaussian_offset[atom_type_idx];
-                auto end = gaussian_offset[atom_type_idx + 1];
-                cutoff_elemental.push_back(*(std::max_element(cutoff_all.begin() + shift + start, cutoff_all.begin() + shift + end)));
-            }
-        }
-        assert(cutoff_elemental.size() == num_features_ * num_atom_types_);
-
-        if (cutoff_method == cutoff_method_t::cutoff_feature_gaussian) {
-            table_ = std::move(cutoff_all);
-            table2_ = std::move(cutoff_elemental);
-            largest_cutoff_ = *std::max_element(table2_.begin(), table2_.end());
-            return;
-        }
-        
-        if (cutoff_method == cutoff_method_t::cutoff_sigma_elemental || 
-            cutoff_method == cutoff_method_t::cutoff_feature_elemental) {
-            table_ = std::move(cutoff_elemental);
-            largest_cutoff_ = *std::max_element(table_.begin(), table_.end());
-            return;
-        }
-
-        // get the max cutoff for each feature
-        for (auto feature_idx = 0; feature_idx < num_features_; ++feature_idx) {
-            auto start = feature_idx * num_atom_types_;
-            auto end = start + num_atom_types_;
-            table_.push_back(*(std::max_element(cutoff_elemental.begin() + start, cutoff_elemental.begin() + end)));
-        }
-        largest_cutoff_ = *std::max_element(table_.begin(), table_.end());
-        return;
-    }
-
-    void cutoff_table_t::dump() const {
-        std::cout << "feature mapping: ";
-        for (auto i = 0; i < feature_mapping_.size(); ++i) {
-            std::cout << feature_mapping_[i] << ", ";
-        }
-        std::cout << std::endl;
-
-        std::cout << "gaussian mapping: ";
-        for (auto i = 0; i < gaussian_mapping_.size(); ++i) {
-            std::cout << gaussian_mapping_[i] << ", ";
-        }
-        std::cout << std::endl;
-
-        std::cout << "sigma gaussian table: " << std::endl;
-        for (auto feature_idx = 0; feature_idx < num_features_; ++feature_idx) {
-            std::cout << "feature[" << feature_idx << "]: ";
-            for (auto gaussian_idx = 0; gaussian_idx < num_gaussians_; ++gaussian_idx) {
-                std::cout << table_[feature_idx * num_gaussians_ + gaussian_idx] << ", ";
-            }
-            std::cout << std::endl;
-        }
-        
-        std::cout << "elemental table: " << std::endl;
-        for (auto feature_idx = 0; feature_idx < num_features_; ++feature_idx) {
-            std::cout << "feature[" << feature_idx << "]: ";
-            for (auto gaussian_idx = 0; gaussian_idx < num_atom_types_; ++gaussian_idx) {
-                std::cout << table2_[feature_idx * num_atom_types_ + gaussian_idx] << ", ";
-            }
-            std::cout << std::endl;
+            std::sort(cutoff_info_.begin() + offset_[atom_type_idx], cutoff_info_.begin() + offset_[atom_type_idx + 1]);
+            cutoff_max_.push_back(cutoff_max);
         }
     }
 
@@ -320,85 +215,150 @@ namespace gmp { namespace featurizer {
         return dist;
     }
 
-    vector<vector<double>> featurizer_t::compute(const vector<point_flt64>& ref_positions, 
-        const descriptor_config_t* descriptor_config, const unit_cell_t* unit_cell, const psp_config_t* psp_config)
+    // vector<vector<double>> featurizer_t::compute_simd(const vector<point_flt64>& ref_positions, 
+    //     const descriptor_config_t* descriptor_config, const unit_cell_t* unit_cell, const psp_config_t* psp_config)
+    // {
+    //     // Get the singleton instance first
+    //     const auto& region_query = region_query_;
+    //     const auto& feature_list = descriptor_config->get_feature_list();
+
+    //     vector<vector<double>> feature_collection;
+    //     feature_collection.reserve(ref_positions.size());
+    //     for (auto const & ref_position : ref_positions) {
+    //         // find neighbors
+    //         auto query_results = region_query->query(ref_position, cutoff_table_->get_largest_cutoff(), unit_cell);            
+
+    //         // calculate GMP features
+    //         vector<double> feature;            
+    //         for (auto feature_idx = 0; feature_idx < feature_list.size(); ++feature_idx) {
+    //             auto order = feature_list[feature_idx].order;
+    //             auto sigma = feature_list[feature_idx].sigma;
+
+    //             const auto num_values = order < 0 ? 1 : gmp::simd::num_values_[order];
+    //             gmp::simd::vector_aligned<double> desc_values(num_values, 0.0);
+
+    //             gmp::simd::Params<double> params(query_results.size() * 7);
+
+    //             for (auto neighbor_idx = 0; neighbor_idx < query_results.size(); ++neighbor_idx) {
+    //                 const auto neighbor_index = query_results[neighbor_idx].neighbor_index;
+    //                 const auto distance2 = query_results[neighbor_idx].distance_squared;
+    //                 const auto& neighbor_atom = unit_cell->get_atoms()[neighbor_index];
+    //                 const auto elemental_cutoff = cutoff_table_->get_cufoff_table_2(feature_idx, neighbor_atom.id());
+
+    //                 if (distance2 > elemental_cutoff * elemental_cutoff) continue;
+
+    //                 const auto & occ = neighbor_atom.occ();
+    //                 auto start = psp_config->get_offset()[neighbor_atom.id()];
+    //                 auto end = psp_config->get_offset()[neighbor_atom.id() + 1];
+
+    //                 for (auto gaussian_idx = start; gaussian_idx < end; ++gaussian_idx) {                        
+    //                     const auto gaussian_cutoff = (*cutoff_table_)(feature_idx, gaussian_idx);
+    //                     if (distance2 > gaussian_cutoff * gaussian_cutoff) continue;
+    //                     const auto B = (*psp_config)[gaussian_idx].B;
+    //                     if (gmp::math::isZero(B)) continue;
+
+    //                     const auto kernel_params = (*kernel_params_table_)(feature_idx, gaussian_idx);
+    //                     const auto lambda = kernel_params.lambda;
+    //                     const auto gamma = kernel_params.gamma;
+    //                     const auto C1 = kernel_params.C1;
+    //                     const auto C2 = kernel_params.C2;
+
+    //                     const auto shift = query_results[neighbor_idx].difference;
+    //                     params.dx.push_back(shift[0]);
+    //                     params.dy.push_back(shift[1]);
+    //                     params.dz.push_back(shift[2]);
+    //                     params.r_sqr.push_back(distance2);
+    //                     params.C1.push_back(C1);
+    //                     params.C2.push_back(C2);
+    //                     params.lambda.push_back(lambda);
+    //                     params.gamma.push_back(gamma);
+    //                 }
+    //             }
+
+                
+    //             params.num_elements = params.dx.size();
+    //             gmp::simd::mcsh_simd_func(order, params, desc_values);
+
+    //             // weighted square sum of the values
+    //             double squareSum = gmp::simd::weighted_square_sum(order, desc_values);
+    //             if (descriptor_config->get_square()) {
+    //                 feature.push_back(squareSum);
+    //             } else {
+    //                 feature.push_back(std::sqrt(squareSum));
+    //             }
+    //         }
+    //         feature_collection.push_back(feature);
+    //     }
+    //     return feature_collection;
+    // }
+
+    vector<vector<double>> featurizer_t::compute(const descriptor_config_t* descriptor_config, const unit_cell_t* unit_cell, const psp_config_t* psp_config)
     {
         // Get the singleton instance first
         const auto& registry = mcsh_function_registry_t::get_instance();
         const auto& region_query = region_query_;
         const auto& feature_list = descriptor_config->get_feature_list();
+        const auto atoms = unit_cell->get_atoms();
 
-        vector<vector<double>> feature_collection;
-        feature_collection.reserve(ref_positions.size());
-        for (auto const & ref_position : ref_positions) {
-            // find neighbors
-            auto query_results = region_query->query(ref_position, cutoff_table_->get_largest_cutoff(), unit_cell);            
+        vector<vector<vector<double>>> desc_values(ref_positions_.size(), vector<vector<double>>(feature_list.size()));
+        for (auto i = 0; i < ref_positions_.size(); ++i) {
+            for (auto j = 0; j < feature_list.size(); ++j) {
+                auto order = feature_list[j].order;
+                auto num_values = order < 0 ? 1 : gmp::simd::num_values_[order];
+                desc_values[i][j] = vector<double>(num_values, 0.0);
+            }
+        }
 
-            // calculate GMP features
-            vector<double> feature;            
-            for (auto feature_idx = 0; feature_idx < feature_list.size(); ++feature_idx) {
-                auto order = feature_list[feature_idx].order;
-                auto sigma = feature_list[feature_idx].sigma;
+        for (const auto& atom : atoms) {
+            const auto occ = atom.occ();
 
-                // Get the function for the specified order
-                // const auto& mcsh_func = registry.get_function(order);
-                // const auto& num_values = registry.get_num_values(order);
-                
-                const auto num_values = order < 0 ? 1 : gmp::simd::num_values_[order];
-                gmp::simd::vector_aligned<double> desc_values(num_values, 0.0);
+            auto start = cutoff_list_->offset_[atom.id()];
+            auto end = cutoff_list_->offset_[atom.id() + 1];
 
-                gmp::simd::Params<double> params;
+            auto cutoff = cutoff_list_->cutoff_max_[atom.id()];
+            auto query_results = region_query->query_ref(atom.pos(), cutoff, unit_cell, ref_positions_);
+
+
+            for (auto idx = start; idx < end; ++idx) {
+                auto cutoff_info = cutoff_list_->cutoff_info_[idx];
+                auto cutoff_squared = cutoff_info.cutoff_ * cutoff_info.cutoff_;
+
+                auto feature_idx = cutoff_info.feature_idx_;
+                auto gaussian_idx = cutoff_info.gaussian_idx_;
+
+                auto order = feature_list[feature_idx].order;                
+
+                const auto& mcsh_func = registry.get_function(order);
+
+                const auto B = (*psp_config)[gaussian_idx].B;
+                if (gmp::math::isZero(B)) continue;
+
+                const auto kernel_params = (*kernel_params_table_)(feature_idx, gaussian_idx);
+                const auto lambda = kernel_params.lambda;
+                const auto gamma = kernel_params.gamma;
+                const auto C1 = kernel_params.C1;
+                const auto C2 = kernel_params.C2;
 
                 for (auto neighbor_idx = 0; neighbor_idx < query_results.size(); ++neighbor_idx) {
-                    const auto neighbor_index = query_results[neighbor_idx].neighbor_index;
-                    const auto distance2 = query_results[neighbor_idx].distance_squared;
-                    const auto& neighbor_atom = unit_cell->get_atoms()[neighbor_index];
-                    const auto elemental_cutoff = cutoff_table_->get_cufoff_table_2(feature_idx, neighbor_atom.id());
+                    auto result = query_results[neighbor_idx];
+                    if (cutoff_squared < result.distance_squared) break;
 
-                    if (distance2 > elemental_cutoff * elemental_cutoff) continue;
+                    const auto shift = result.difference;
+                    const auto distance2 = result.distance_squared;
 
-                    const auto & occ = neighbor_atom.occ();
-                    auto start = psp_config->get_offset()[neighbor_atom.id()];
-                    auto end = psp_config->get_offset()[neighbor_atom.id() + 1];
-
-                    for (auto gaussian_idx = start; gaussian_idx < end; ++gaussian_idx) {                        
-                        const auto gaussian_cutoff = (*cutoff_table_)(feature_idx, gaussian_idx);
-                        if (distance2 > gaussian_cutoff * gaussian_cutoff) continue;
-                        const auto B = (*psp_config)[gaussian_idx].B;
-                        if (gmp::math::isZero(B)) continue;
-
-                        const auto kernel_params = (*kernel_params_table_)(feature_idx, gaussian_idx);
-                        const auto lambda = kernel_params.lambda;
-                        const auto gamma = kernel_params.gamma;
-                        const auto C1 = kernel_params.C1;
-                        const auto C2 = kernel_params.C2;
-
-                        // const auto temp = C1 * std::exp(C2 * distance2) * occ;
-                        const auto shift = query_results[neighbor_idx].difference;
-
-                        // mcsh_func(shift, distance2, temp, lambda, gamma, desc_values);
-
-                        params.dx.push_back(shift[0]);
-                        params.dy.push_back(shift[1]);
-                        params.dz.push_back(shift[2]);
-                        params.r_sqr.push_back(distance2);
-                        params.C1.push_back(C1);
-                        params.C2.push_back(C2);
-                        params.lambda.push_back(lambda);
-                        params.gamma.push_back(gamma);
-                    }
+                    const auto temp = C1 * std::exp(C2 * distance2) * occ;
+                    mcsh_func(shift, distance2, temp, lambda, gamma, desc_values[result.neighbor_index][feature_idx]);
                 }
+            }
+        }
 
-                
-                params.num_elements = params.dx.size();
-                gmp::simd::mcsh_simd_func(order, params, desc_values);
-
-                // for (auto i = 0; i < num_values; ++i) {
-                //     std::cout << "desc_values_simd[" << i << "]: " << desc_values_simd[i] << ", " << desc_values[i] << std::endl;
-                // }
-
-                // weighted square sum of the values
-                double squareSum = gmp::simd::weighted_square_sum(order, desc_values);
+        vector<vector<double>> feature_collection;
+        feature_collection.reserve(ref_positions_.size());
+        for (auto i = 0; i < ref_positions_.size(); ++i) {
+            vector<double> feature;
+            for (auto j = 0; j < feature_list.size(); ++j) {
+                auto order = feature_list[j].order;
+                double squareSum = weighted_square_sum(order, desc_values[i][j]);
                 if (descriptor_config->get_square()) {
                     feature.push_back(squareSum);
                 } else {
@@ -409,5 +369,5 @@ namespace gmp { namespace featurizer {
         }
         return feature_collection;
     }
-    
 }}
+

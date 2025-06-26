@@ -4,7 +4,6 @@
     "output file path": "output.dat",
     "orders": [0, 1],
     "sigmas": [0.1, 0.2],
-    "cutoff method": 1,
     "cutoff": 5.0,
     "overlap threshold": 1e-10,
     "scaling mode": 0,

@@ -7,14 +7,20 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Add option to select build type
 option(BUILD_TYPE_RELEASE "Build in Release mode (default: ON)" ON)
+option(BUILD_TYPE_PROFILE "Build in Profile mode for gprof profiling" OFF)
 
 # Set release mode and flags based on the option
-if(BUILD_TYPE_RELEASE)
+if(BUILD_TYPE_PROFILE)
+    set(CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING "Build type" FORCE)
+    set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O0 -pg -march=native" CACHE STRING "Profile flags" FORCE)
+    set(CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO "-pg" CACHE STRING "Profile linker flags" FORCE)
+    set(CMAKE_SHARED_LINKER_FLAGS_RELWITHDEBINFO "-pg" CACHE STRING "Profile shared linker flags" FORCE)
+elseif(BUILD_TYPE_RELEASE)
     set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
     set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native" CACHE STRING "Release flags" FORCE)
 else()
     set(CMAKE_BUILD_TYPE Debug CACHE STRING "Build type" FORCE)
-    set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g -march=native" CACHE STRING "Debug flags" FORCE)
+    set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g -DDEBUG -march=native" CACHE STRING "Debug flags" FORCE)
 endif()
 
 # Define project root path

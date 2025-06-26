@@ -287,4 +287,17 @@ namespace gmp { namespace util {
             [&data](size_t i1, size_t i2) {return data[i1] < data[i2];});
         return idx;
     }
+
+    template<typename DataType, typename IndexType, template<typename, typename...> class Container>
+    Container<IndexType> sort_indexes(const Container<DataType>& data, int start, int end) 
+    {
+        Container<IndexType> idx(end - start);
+        std::iota(idx.begin(), idx.end(), 0);
+        // sort indexes based on comparing values in data using std::stable_sort 
+        // instead of std::sort to avoid unnecessary index re-orderings when data 
+        //contains elements of equal values 
+        std::stable_sort(idx.begin(), idx.end(),
+            [&data, start](size_t i1, size_t i2) {return data[i1 + start] < data[i2 + start];});
+        return idx;
+    }
 }}

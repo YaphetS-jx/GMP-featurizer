@@ -20,18 +20,7 @@ Params<T> create_random_params(size_t length, T min_val = -1.0, T max_val = 1.0)
     std::mt19937 gen(11);
     std::uniform_real_distribution<T> dist(min_val, max_val);
     
-    Params<T> params;
-    params.num_elements = length;
-    
-    // Initialize all vectors
-    params.dx.resize(length);
-    params.dy.resize(length);
-    params.dz.resize(length);
-    params.r_sqr.resize(length);
-    params.C1.resize(length);
-    params.C2.resize(length);
-    params.lambda.resize(length);
-    params.gamma.resize(length);
+    Params<T> params(length);
     
     // Fill with random values
     for (size_t i = 0; i < length; ++i) {

@@ -21,8 +21,10 @@ namespace gmp { namespace atom {
         // set periodicity
         periodicity_ = array3d_bool{true, true, true};
 
+    #ifdef DEBUG
         // dump
-        lattice_->dump();
+        dump();
+    #endif
     }
 
     void unit_cell_t::dump() const {
@@ -166,6 +168,10 @@ namespace gmp { namespace atom {
     {
         // read psp file 
         read_psp_file(psp_file, unit_cell->get_atom_type_map(), gaussian_table_, offset_);
+
+    #ifdef DEBUG
+        dump();
+    #endif
     }
 
 

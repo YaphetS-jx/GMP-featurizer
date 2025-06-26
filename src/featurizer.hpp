@@ -35,40 +35,34 @@ namespace gmp { namespace featurizer {
         int num_features_;
     };
 
-    class cutoff_table_t {
+    struct cutoff_info_t {
+        int feature_idx_;
+        int gaussian_idx_;
+        double cutoff_;
+
+        cutoff_info_t(int feature_idx, int gaussian_idx, double cutoff) : 
+            feature_idx_(feature_idx), gaussian_idx_(gaussian_idx), cutoff_(cutoff) {}
+        
+        bool operator<(const cutoff_info_t& other) const {
+            if (cutoff_ != other.cutoff_) {
+                return cutoff_ < other.cutoff_;
+            } else if (feature_idx_ != other.feature_idx_) {
+                return feature_idx_ < other.feature_idx_;
+            } else {
+                return gaussian_idx_ < other.gaussian_idx_;
+            }
+        }
+    };
+
+    class cutoff_list_t {
     public:
-        cutoff_table_t(const descriptor_config_t* descriptor_config, const psp_config_t* psp_config);
-        ~cutoff_table_t() = default;
+        cutoff_list_t(const descriptor_config_t* descriptor_config, const psp_config_t* psp_config);
+        ~cutoff_list_t() = default;
 
-        int get_feature_idx(const int feature_idx) const {
-            return feature_mapping_[feature_idx];
-        }
-
-        int get_gaussian_idx(const int gaussian_idx) const {
-            return gaussian_mapping_[gaussian_idx];
-        }
-
-        double operator()(const int feature_idx, const int gaussian_idx) const {
-            return table_[get_feature_idx(feature_idx) * num_gaussians_ + get_gaussian_idx(gaussian_idx)];
-        }
-
-        double get_largest_cutoff() const { return largest_cutoff_; }
-
-        double get_cufoff_table_2(const int feature_idx, const int element_idx) const {
-            return table2_[get_feature_idx(feature_idx) * num_atom_types_ + element_idx];
-        }
-
-        void dump() const;
-
-    private: 
-        vector<double> table_;
-        vector<double> table2_;
-        vector<int> feature_mapping_;  // outer index
-        vector<int> gaussian_mapping_; // inner index
-        double largest_cutoff_;
-        int num_features_;
-        int num_gaussians_;
-        int num_atom_types_;
+    public: 
+        vector<cutoff_info_t> cutoff_info_;
+        vector<int> offset_;
+        vector<double> cutoff_max_;
     };
 
 
@@ -77,20 +71,24 @@ namespace gmp { namespace featurizer {
     public:
         using query_t = region_query_t<uint32_t, int32_t, double, vector<array3d_int32>>;
         // ctor
-        featurizer_t(const descriptor_config_t* descriptor_config, const unit_cell_t* unit_cell, const psp_config_t* psp_config)
-            : kernel_params_table_(std::make_unique<kernel_params_table_t>(descriptor_config, psp_config)), 
-            cutoff_table_(std::make_unique<cutoff_table_t>(descriptor_config, psp_config)),            
-            region_query_(std::make_unique<query_t>(unit_cell, 4))
+        featurizer_t(vector<point_flt64>&& ref_positions, const descriptor_config_t* descriptor_config, const unit_cell_t* unit_cell, const psp_config_t* psp_config)
+            : ref_positions_(std::move(ref_positions)),
+            kernel_params_table_(std::make_unique<kernel_params_table_t>(descriptor_config, psp_config)), 
+            cutoff_list_(std::make_unique<cutoff_list_t>(descriptor_config, psp_config)),
+            region_query_(std::make_unique<query_t>(ref_positions_, unit_cell, 4))
         {}
         ~featurizer_t() = default;
 
         // calculate features 
-        vector<vector<double>> compute(const vector<point_flt64>& ref_positions, 
-            const descriptor_config_t* descriptor_config, const unit_cell_t* unit_cell, const psp_config_t* psp_config);
+        vector<vector<double>> compute(const descriptor_config_t* descriptor_config, const unit_cell_t* unit_cell, const psp_config_t* psp_config);
 
+        // vector<vector<double>> compute_simd(const vector<point_flt64>& ref_positions, 
+        //     const descriptor_config_t* descriptor_config, const unit_cell_t* unit_cell, const psp_config_t* psp_config);
+        
     private: 
+        vector<point_flt64> ref_positions_;
         std::unique_ptr<kernel_params_table_t> kernel_params_table_;
-        std::unique_ptr<cutoff_table_t> cutoff_table_;        
+        std::unique_ptr<cutoff_list_t> cutoff_list_;
         std::unique_ptr<query_t> region_query_;
     };
 
