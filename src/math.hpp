@@ -391,7 +391,7 @@ namespace gmp { namespace math {
     
     // solid mcsh function registry
     class mcsh_function_registry_t {
-        using solid_gmp_function_t = std::function<void(const array3d_flt64&, const double, const double, const double, const double, vector<double>&)>;
+        using solid_gmp_function_t = void (*)(const array3d_flt64&, const double, const double, const double, const double, vector<double>&);
     public: 
         // Add a flag to control whether register_functions is called in constructor
         mcsh_function_registry_t(bool register_on_init = true) : functions_{}, num_values_{} {
@@ -405,7 +405,7 @@ namespace gmp { namespace math {
             return instance;
         }
 
-        const solid_gmp_function_t& get_function(int order) const {
+        const solid_gmp_function_t get_function(int order) const {
             return order < 0 ? functions_[0] : functions_[order];
         }
 
