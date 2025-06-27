@@ -55,7 +55,9 @@ TEST(RegionQueryTest, basic_query) {
     std::sort(results.begin(), results.end());
     std::cout << "query results size: " << results.size() << std::endl;
 
-    auto compare_op = region_query.get_compare_op();
+    // Create compare_op manually for benchmarking
+    check_sphere_t<uint32_t, double, int32_t, vector<array3d_int32>> compare_op(num_bits_per_dim, unit_cell.get_periodicity(), unit_cell.get_lattice());
+    compare_op.update_point_radius(query_point, cutoff);
     auto cell_shift_start = compare_op.get_cell_shift_start();
     auto cell_shift_end = compare_op.get_cell_shift_end();
     
