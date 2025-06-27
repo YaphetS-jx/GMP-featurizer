@@ -240,7 +240,7 @@ namespace gmp { namespace featurizer {
                 const auto& ref_position = ref_positions[i];
                 
                 // find neighbors
-                auto query_results = region_query->query(ref_position, cutoff_list2_->cutoff_max_, unit_cell);
+                auto query_results = region_query->query(ref_position, cutoff_list_->cutoff_max_, unit_cell);
 
                 // calculate GMP features
                 vector<double> feature(feature_list.size(), 0.0);
@@ -259,13 +259,13 @@ namespace gmp { namespace featurizer {
                         const auto occ = atom.occ();
 
                         int start, end;
-                        cutoff_list2_->get_range(feature_idx, atom.id(), start, end);
+                        cutoff_list_->get_range(feature_idx, atom.id(), start, end);
 
                         for (auto idx = start; idx < end; ++idx) {
-                            const auto gaussian_cutoff = cutoff_list2_->cutoff_list_[idx];
+                            const auto gaussian_cutoff = cutoff_list_->cutoff_list_[idx];
                             if (distance2 > gaussian_cutoff * gaussian_cutoff) break;
 
-                            const auto gaussian_idx = cutoff_list2_->cutoff_info_[idx];
+                            const auto gaussian_idx = cutoff_list_->cutoff_info_[idx];
                             const auto gaussian = (*psp_config)[gaussian_idx];
                             const auto B = gaussian.B;
                             if (gmp::math::isZero(B)) continue;

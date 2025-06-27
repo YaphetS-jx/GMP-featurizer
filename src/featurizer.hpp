@@ -56,7 +56,7 @@ namespace gmp { namespace featurizer {
         // ctor
         featurizer_t(const descriptor_config_t* descriptor_config, const unit_cell_t* unit_cell, const psp_config_t* psp_config)
             : kernel_params_table_(std::make_unique<kernel_params_table_t>(descriptor_config, psp_config)), 
-            cutoff_list2_(std::make_unique<cutoff_list_t>(descriptor_config, psp_config)),
+            cutoff_list_(std::make_unique<cutoff_list_t>(descriptor_config, psp_config)),
             region_query_(std::make_unique<query_t>(unit_cell, descriptor_config->get_num_bits_per_dim()))
         {}
 
@@ -71,7 +71,7 @@ namespace gmp { namespace featurizer {
         
     private: 
         std::unique_ptr<kernel_params_table_t> kernel_params_table_;
-        std::unique_ptr<cutoff_list_t> cutoff_list2_;
+        std::unique_ptr<cutoff_list_t> cutoff_list_;
         std::unique_ptr<query_t> region_query_;
     };
 
