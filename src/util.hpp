@@ -8,6 +8,8 @@
 #include <iostream>
 #include <numeric>      
 #include <algorithm>    
+#include <thread>
+#include <sys/sysinfo.h>
 
 #include "error.hpp"
 
@@ -315,4 +317,24 @@ namespace gmp { namespace util {
             });
         return idx;
     }
+
+    // Get the number of available system threads
+    inline size_t get_system_thread_count() {
+        // Get the number of available CPU cores
+        size_t thread_count = std::thread::hardware_concurrency();
+        
+        // If hardware_concurrency() returns 0, fall back to sysinfo
+        if (thread_count == 0) {
+            struct sysinfo si;
+            if (sysinfo(&si) == 0) {
+                thread_count = si.procs;
+            } else {
+                // Fallback to a reasonable default
+                thread_count = 1;
+            }
+        }
+        
+        return thread_count;
+    }
+
 }}

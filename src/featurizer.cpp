@@ -1,5 +1,6 @@
 #include <cmath>
 #include <iostream>
+#include <future>
 #include "featurizer.hpp"
 #include "error.hpp"
 #include "math.hpp"
@@ -7,7 +8,8 @@
 #include "types.hpp"
 #include "util.hpp"
 #include "region_query.hpp"
-#include "mcsh_simd.hpp"
+// #include "mcsh_simd.hpp"
+#include "resources.hpp"
 
 namespace gmp { namespace featurizer {
 
@@ -223,62 +225,82 @@ namespace gmp { namespace featurizer {
         const auto& feature_list = descriptor_config->get_feature_list();
 
         vector<vector<double>> feature_collection;
-        feature_collection.reserve(ref_positions.size());
-        for (auto const & ref_position : ref_positions) {
-            // find neighbors
-            auto query_results = region_query->query(ref_position, cutoff_list2_->cutoff_max_, unit_cell);            
+        feature_collection.resize(ref_positions.size());
+        
+        // Get thread pool for parallel processing
+        auto& thread_pool = gmp::resources::gmp_resource::instance().get_thread_pool(descriptor_config->get_num_threads());
+        
+        // Create futures to store results
+        std::vector<std::future<vector<double>>> futures;
+        futures.reserve(ref_positions.size());
+        
+        // Submit tasks to thread pool
+        for (size_t i = 0; i < ref_positions.size(); ++i) {
+            futures.emplace_back(thread_pool.enqueue([&, i]() -> vector<double> {
+                const auto& ref_position = ref_positions[i];
+                
+                // find neighbors
+                auto query_results = region_query->query(ref_position, cutoff_list2_->cutoff_max_, unit_cell);
 
-            // calculate GMP features
-            vector<double> feature(feature_list.size(), 0.0);
-            for (auto feature_idx = 0; feature_idx < feature_list.size(); ++feature_idx) {
-                auto order = feature_list[feature_idx].order;
-                auto sigma = feature_list[feature_idx].sigma;
+                // calculate GMP features
+                vector<double> feature(feature_list.size(), 0.0);
+                for (auto feature_idx = 0; feature_idx < feature_list.size(); ++feature_idx) {
+                    auto order = feature_list[feature_idx].order;
+                    auto sigma = feature_list[feature_idx].sigma;
 
-                // Get the function for the specified order
-                const auto& mcsh_func = registry.get_function(order);
-                const auto& num_values = registry.get_num_values(order);
-                vector<double> desc_values(num_values, 0.0);
+                    // Get the function for the specified order
+                    const auto& mcsh_func = registry.get_function(order);
+                    const auto& num_values = registry.get_num_values(order);
+                    vector<double> desc_values(num_values, 0.0);
 
-                for (const auto& result : query_results) {
-                    const auto distance2 = result.distance_squared;
-                    const auto& atom = unit_cell->get_atoms()[result.neighbor_index];
-                    const auto occ = atom.occ();
+                    for (const auto& result : query_results) {
+                        const auto distance2 = result.distance_squared;
+                        const auto& atom = unit_cell->get_atoms()[result.neighbor_index];
+                        const auto occ = atom.occ();
 
-                    int start, end;
-                    cutoff_list2_->get_range(feature_idx, atom.id(), start, end);
+                        int start, end;
+                        cutoff_list2_->get_range(feature_idx, atom.id(), start, end);
 
-                    for (auto idx = start; idx < end; ++idx) {
-                        const auto gaussian_cutoff = cutoff_list2_->cutoff_list_[idx];
-                        if (distance2 > gaussian_cutoff * gaussian_cutoff) break;
+                        for (auto idx = start; idx < end; ++idx) {
+                            const auto gaussian_cutoff = cutoff_list2_->cutoff_list_[idx];
+                            if (distance2 > gaussian_cutoff * gaussian_cutoff) break;
 
-                        const auto gaussian_idx = cutoff_list2_->cutoff_info_[idx];
-                        const auto gaussian = (*psp_config)[gaussian_idx];
-                        const auto B = gaussian.B;
-                        if (gmp::math::isZero(B)) continue;
+                            const auto gaussian_idx = cutoff_list2_->cutoff_info_[idx];
+                            const auto gaussian = (*psp_config)[gaussian_idx];
+                            const auto B = gaussian.B;
+                            if (gmp::math::isZero(B)) continue;
 
-                        const auto kernel_params = (*kernel_params_table_)(feature_idx, gaussian_idx);
-                        const auto lambda = kernel_params.lambda;
-                        const auto gamma = kernel_params.gamma;
-                        const auto C1 = kernel_params.C1;
-                        const auto C2 = kernel_params.C2;
+                            const auto kernel_params = (*kernel_params_table_)(feature_idx, gaussian_idx);
+                            const auto lambda = kernel_params.lambda;
+                            const auto gamma = kernel_params.gamma;
+                            const auto C1 = kernel_params.C1;
+                            const auto C2 = kernel_params.C2;
 
-                        const auto temp = C1 * std::exp(C2 * distance2) * occ;
-                        const auto shift = result.difference;
+                            const auto temp = C1 * std::exp(C2 * distance2) * occ;
+                            const auto shift = result.difference;
 
-                        mcsh_func(shift, distance2, temp, lambda, gamma, desc_values);
+                            mcsh_func(shift, distance2, temp, lambda, gamma, desc_values);
+                        }
+                    }
+
+                    // weighted square sum of the values
+                    double squareSum = weighted_square_sum(order, desc_values);
+                    if (descriptor_config->get_square()) {
+                        feature[feature_idx] = squareSum;
+                    } else {
+                        feature[feature_idx] = std::sqrt(squareSum);
                     }
                 }
-
-                // weighted square sum of the values
-                double squareSum = weighted_square_sum(order, desc_values);
-                if (descriptor_config->get_square()) {
-                    feature[feature_idx] = squareSum;
-                } else {
-                    feature[feature_idx] = std::sqrt(squareSum);
-                }
-            }
-            feature_collection.push_back(feature);
+                
+                return feature;
+            }));
         }
+        
+        // Collect results
+        for (size_t i = 0; i < futures.size(); ++i) {
+            feature_collection[i] = futures[i].get();
+        }
+        
         return feature_collection;
     }
 }}

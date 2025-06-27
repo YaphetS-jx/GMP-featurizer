@@ -172,8 +172,8 @@ namespace gmp { namespace region_query {
     template <typename MortonCodeType, typename IndexType, typename FloatType, typename VecType>
     class region_query_t {
     public:
-        region_query_t(const unit_cell_t* unit_cell, const int num_bits_per_dim = 10) 
-            : compare_op(num_bits_per_dim, unit_cell->get_periodicity(), unit_cell->get_lattice())
+        region_query_t(const unit_cell_t* unit_cell, const uint8_t num_bits_per_dim = 10) 
+            : num_bits_per_dim(num_bits_per_dim)
         {
             // get morton codes
             get_morton_codes(unit_cell->get_atoms(), num_bits_per_dim);
@@ -188,10 +188,10 @@ namespace gmp { namespace region_query {
         vector<IndexType> offsets;
         vector<IndexType> sorted_indexes;
         std::unique_ptr<binary_radix_tree_t<MortonCodeType, IndexType>> brt;
-        check_sphere_t<MortonCodeType, FloatType, IndexType, VecType> compare_op;
+        const int num_bits_per_dim;
 
     private:
-        void get_morton_codes(const vector<atom_t>& atoms, const int num_bits_per_dim = 10) 
+        void get_morton_codes(const vector<atom_t>& atoms, const uint8_t num_bits_per_dim = 10) 
         {
             vector<MortonCodeType> morton_codes;
             auto natom = atoms.size();
@@ -241,11 +241,12 @@ namespace gmp { namespace region_query {
         const vector<MortonCodeType>& get_unique_morton_codes() const { return unique_morton_codes; }
         const vector<IndexType>& get_offsets() const { return offsets; }
         const vector<IndexType>& get_sorted_indexes() const { return sorted_indexes; }
-        const check_sphere_t<MortonCodeType, FloatType, IndexType, VecType>& get_compare_op() const { return compare_op; }
         using result_t = vector<query_result_t<FloatType>>;
+        using sphere_op_t = check_sphere_t<MortonCodeType, FloatType, IndexType, VecType>;
 
         result_t query(const point3d_t<FloatType>& position, const FloatType cutoff, const unit_cell_t* unit_cell)
         {
+            sphere_op_t compare_op(num_bits_per_dim, unit_cell->get_periodicity(), unit_cell->get_lattice());
             compare_op.update_point_radius(position, cutoff);
             auto cutoff_squared = cutoff * cutoff;
             auto query_mc = brt->traverse(compare_op);

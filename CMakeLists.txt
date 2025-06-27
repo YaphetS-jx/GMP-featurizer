@@ -12,7 +12,7 @@ option(BUILD_TYPE_PROFILE "Build in Profile mode for gprof profiling" OFF)
 # Set release mode and flags based on the option
 if(BUILD_TYPE_PROFILE)
     set(CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING "Build type" FORCE)
-    set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O0 -pg -march=native" CACHE STRING "Profile flags" FORCE)
+    set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3 -pg -march=native" CACHE STRING "Profile flags" FORCE)
     set(CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO "-pg" CACHE STRING "Profile linker flags" FORCE)
     set(CMAKE_SHARED_LINKER_FLAGS_RELWITHDEBINFO "-pg" CACHE STRING "Profile shared linker flags" FORCE)
 elseif(BUILD_TYPE_RELEASE)

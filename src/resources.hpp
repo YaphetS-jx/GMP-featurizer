@@ -3,7 +3,9 @@
 #include <sys/sysinfo.h>
 #include <iostream>
 #include <iomanip>
+#include <thread>
 #include "error.hpp"
+#include "thread_pool.hpp"
 
 namespace gmp { namespace resources {
 
@@ -42,7 +44,7 @@ namespace gmp { namespace resources {
     };
 
     // collection of all resources
-    template <typename PoolType>
+    // template <typename PoolType>
     class gmp_resource {
     public:
         // Thread-safe singleton instance
@@ -51,13 +53,33 @@ namespace gmp { namespace resources {
             return instance;
         }
 
-        // get host memory pool
-        HostMemory<PoolType>& get_host_memory() const {
-            return HostMemory<PoolType>::instance();
+        // get thread pool (lazy initialization)
+        ThreadPool& get_thread_pool(const int num_threads) const {
+            std::lock_guard<std::mutex> lock(pool_mutex_);
+            
+            // Create thread pool only when first accessed
+            if (!thread_pool_) {
+                thread_pool_ = std::make_unique<ThreadPool>(num_threads);
+                std::cout << "Thread pool created on with " 
+                          << thread_pool_->get_thread_count() << " threads" << std::endl;
+            }
+            
+            return *thread_pool_;
         }
 
+        // get host memory pool
+        // HostMemory<PoolType>& get_host_memory() const {
+        //     return HostMemory<PoolType>::instance();
+        // }
+
     private:
-        gmp_resource() {}
+        mutable std::unique_ptr<ThreadPool> thread_pool_;
+        mutable std::mutex pool_mutex_;
+
+        gmp_resource() {
+            // Thread pool is NOT created here - it's created when first accessed
+        }
+        
         ~gmp_resource() = default;
         gmp_resource(const gmp_resource&) = delete;
         gmp_resource& operator=(const gmp_resource&) = delete;

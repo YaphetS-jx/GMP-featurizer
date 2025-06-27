@@ -61,7 +61,8 @@ namespace gmp { namespace input {
         descriptor_config_t() : feature_list_(), 
             scaling_mode_(scaling_mode_t::radial), 
             ref_grid_(0, 0, 0),
-            overlap_threshold_(1e-11), square_(false) {}
+            overlap_threshold_(1e-11), square_(false),
+            num_bits_per_dim_(5), num_threads_(0) {}
         ~descriptor_config_t() = default;
 
     private:
@@ -70,6 +71,8 @@ namespace gmp { namespace input {
         array3d_int32 ref_grid_;
         double overlap_threshold_;
         bool square_;
+        uint8_t num_bits_per_dim_;
+        size_t num_threads_;
 
     public:
         // accessor
@@ -78,6 +81,8 @@ namespace gmp { namespace input {
         double get_overlap_threshold() const { return overlap_threshold_; }
         bool get_square() const { return square_; }
         const array3d_int32& get_ref_grid() const { return ref_grid_; }
+        uint8_t get_num_bits_per_dim() const { return num_bits_per_dim_; }
+        size_t get_num_threads() const { return num_threads_; }
 
         // setter
         void set_feature_list(const std::vector<int> orders, const std::vector<double> sigmas, const std::vector<std::tuple<int, double>> feature_list);
@@ -85,6 +90,8 @@ namespace gmp { namespace input {
         void set_overlap_threshold(const double overlap_threshold) { overlap_threshold_ = overlap_threshold; }
         void set_square(const bool square) { square_ = square; }
         void set_ref_grid(const array3d_int32& ref_grid) { ref_grid_ = ref_grid; }
+        void set_num_bits_per_dim(const uint8_t num_bits_per_dim) { num_bits_per_dim_ = num_bits_per_dim; }
+        void set_num_threads(const size_t num_threads) { num_threads_ = num_threads; }
 
         // print config
         void dump() const;

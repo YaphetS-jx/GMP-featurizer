@@ -121,12 +121,20 @@ namespace gmp { namespace input {
         this->files->set_atom_file(std::string(config.at("system file path").as_string()));
         this->files->set_psp_file(std::string(config.at("psp file path").as_string()));
         this->files->set_output_file(std::string(config.at("output file path").as_string()));
-        this->descriptor_config->set_square(config.at("square").as_int64());
-        this->descriptor_config->set_overlap_threshold(config.at("overlap threshold").as_double());
-        this->descriptor_config->set_scaling_mode(static_cast<scaling_mode_t>(config.at("scaling mode").as_int64()));
+
+        // Optional entries
+        if (config.contains("square")) {
+            this->descriptor_config->set_square(config.at("square").as_int64());
+        }
+        if (config.contains("overlap threshold")) {
+            this->descriptor_config->set_overlap_threshold(config.at("overlap threshold").as_double());
+        }
+        if (config.contains("scaling mode")) {
+            this->descriptor_config->set_scaling_mode(static_cast<scaling_mode_t>(config.at("scaling mode").as_int64()));
+        }
         
-        if (config.contains("ref_grid")) {
-            auto const& ref_grid_json = config.at("ref_grid").as_array();
+        if (config.contains("reference grid")) {
+            auto const& ref_grid_json = config.at("reference grid").as_array();
             if (ref_grid_json.size() == 3) {
                 array3d_int32 ref_grid_array(
                     ref_grid_json[0].as_int64(),
@@ -136,8 +144,14 @@ namespace gmp { namespace input {
                 this->descriptor_config->set_ref_grid(ref_grid_array);
             }
         }
+        
+        if (config.contains("num bits per dim")) {
+            this->descriptor_config->set_num_bits_per_dim(static_cast<uint8_t>(config.at("num bits per dim").as_int64()));
+        }
+        if (config.contains("num threads")) {
+            this->descriptor_config->set_num_threads(static_cast<size_t>(config.at("num threads").as_int64()));
+        }
 
-        // Optional entries
         if (config.contains("orders")) {
             auto const& orders_json = config.at("orders").as_array();
             for (auto const& val : orders_json) {
@@ -176,7 +190,9 @@ namespace gmp { namespace input {
         std::cout << "  overlap threshold <double>       Overlap threshold" << std::endl;
         std::cout << "  scaling mode <int>               Scaling mode (0 for radial, 1 for both)" << std::endl;
         std::cout << "  output file path <path>          Path to the output file" << std::endl;
-        std::cout << "  ref_grid <list>                  Reference grid (e.g., 10,10,10)" << std::endl;
+        std::cout << "  reference grid <list>            Reference grid (e.g., 10,10,10)" << std::endl;
+        std::cout << "  num bits per dim <int>           Number of bits per dimension" << std::endl;
+        std::cout << "  num threads <int>                Number of threads" << std::endl;
         std::cout << "  -h                               Print this help message" << std::endl;
         return;
     }
