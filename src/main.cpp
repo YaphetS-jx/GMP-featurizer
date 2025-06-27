@@ -34,17 +34,16 @@ int main(int argc, char* argv[]) {
 
     // create featurizer_t
     std::unique_ptr<featurizer::featurizer_t> featurizer = std::make_unique<featurizer::featurizer_t>(
-        std::move(ref_positions), input->descriptor_config.get(), unit_cell.get(), psp_config.get());
+        input->descriptor_config.get(), unit_cell.get(), psp_config.get());
     GMP_CHECK(get_last_error());
 
     // compute features
     auto t1 = std::chrono::high_resolution_clock::now();
-    auto result = featurizer->compute(input->descriptor_config.get(), unit_cell.get(), psp_config.get());
+    auto result = featurizer->compute(ref_positions, input->descriptor_config.get(), unit_cell.get(), psp_config.get());
     auto t2 = std::chrono::high_resolution_clock::now();
     auto compute_time = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1);
     std::cout << "compute time: " << static_cast<double>(compute_time.count()) / 1000.0 << " seconds" << std::endl;
     util::write_vector_2d(result, input->files->get_output_file());
-
 
     auto end_time = std::chrono::high_resolution_clock::now();
     auto walltime = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);

@@ -35,34 +35,17 @@ namespace gmp { namespace featurizer {
         int num_features_;
     };
 
-    struct cutoff_info_t {
-        int feature_idx_;
-        int gaussian_idx_;
-        double cutoff_;
-
-        cutoff_info_t(int feature_idx, int gaussian_idx, double cutoff) : 
-            feature_idx_(feature_idx), gaussian_idx_(gaussian_idx), cutoff_(cutoff) {}
-        
-        bool operator<(const cutoff_info_t& other) const {
-            if (cutoff_ != other.cutoff_) {
-                return cutoff_ < other.cutoff_;
-            } else if (feature_idx_ != other.feature_idx_) {
-                return feature_idx_ < other.feature_idx_;
-            } else {
-                return gaussian_idx_ < other.gaussian_idx_;
-            }
-        }
-    };
-
     class cutoff_list_t {
     public:
         cutoff_list_t(const descriptor_config_t* descriptor_config, const psp_config_t* psp_config);
         ~cutoff_list_t() = default;
 
+        void get_range(const int feature_idx, const int atom_idx, int &start, int &end) const;
     public: 
-        vector<cutoff_info_t> cutoff_info_;
-        vector<int> offset_;
-        vector<double> cutoff_max_;
+        vector<double> cutoff_list_;
+        vector<int> cutoff_info_;
+        vector<int> gaussian_offset_;
+        double cutoff_max_;
     };
 
 
@@ -71,24 +54,24 @@ namespace gmp { namespace featurizer {
     public:
         using query_t = region_query_t<uint32_t, int32_t, double, vector<array3d_int32>>;
         // ctor
-        featurizer_t(vector<point_flt64>&& ref_positions, const descriptor_config_t* descriptor_config, const unit_cell_t* unit_cell, const psp_config_t* psp_config)
-            : ref_positions_(std::move(ref_positions)),
-            kernel_params_table_(std::make_unique<kernel_params_table_t>(descriptor_config, psp_config)), 
-            cutoff_list_(std::make_unique<cutoff_list_t>(descriptor_config, psp_config)),
-            region_query_(std::make_unique<query_t>(ref_positions_, unit_cell, 4))
+        featurizer_t(const descriptor_config_t* descriptor_config, const unit_cell_t* unit_cell, const psp_config_t* psp_config)
+            : kernel_params_table_(std::make_unique<kernel_params_table_t>(descriptor_config, psp_config)), 
+            cutoff_list2_(std::make_unique<cutoff_list_t>(descriptor_config, psp_config)),
+            region_query_(std::make_unique<query_t>(unit_cell, 4))
         {}
+
         ~featurizer_t() = default;
 
         // calculate features 
-        vector<vector<double>> compute(const descriptor_config_t* descriptor_config, const unit_cell_t* unit_cell, const psp_config_t* psp_config);
+        vector<vector<double>> compute(const vector<point_flt64>& ref_positions, 
+            const descriptor_config_t* descriptor_config, const unit_cell_t* unit_cell, const psp_config_t* psp_config);
 
         // vector<vector<double>> compute_simd(const vector<point_flt64>& ref_positions, 
         //     const descriptor_config_t* descriptor_config, const unit_cell_t* unit_cell, const psp_config_t* psp_config);
         
     private: 
-        vector<point_flt64> ref_positions_;
         std::unique_ptr<kernel_params_table_t> kernel_params_table_;
-        std::unique_ptr<cutoff_list_t> cutoff_list_;
+        std::unique_ptr<cutoff_list_t> cutoff_list2_;
         std::unique_ptr<query_t> region_query_;
     };
 

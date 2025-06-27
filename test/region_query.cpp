@@ -42,10 +42,8 @@ TEST(RegionQueryTest, basic_query) {
     }
     unit_cell.set_atoms(std::move(atoms));
 
-    auto ref_positions = set_ref_positions(array3d_int32{0, 0, 0}, unit_cell.get_atoms());
-
     // Create region query object
-    region_query_t<uint32_t, int32_t, double, vector<array3d_int32>> region_query(ref_positions, &unit_cell, num_bits_per_dim);
+    region_query_t<uint32_t, int32_t, double, vector<array3d_int32>> region_query(&unit_cell, num_bits_per_dim);
 
     // Test query around a point
     point_flt64 query_point{0.8071282732743802, 0.7297317866938179, 0.5362280914547007};

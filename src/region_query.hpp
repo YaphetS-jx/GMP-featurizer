@@ -29,16 +29,10 @@ namespace gmp { namespace region_query {
             if (distance_squared != other.distance_squared) {
                 return distance_squared < other.distance_squared;
             }
-            if (difference[0] != other.difference[0]) {
-                return difference[0] < other.difference[0];
+            if (neighbor_index != other.neighbor_index) {
+                return neighbor_index < other.neighbor_index;
             }
-            if (difference[1] != other.difference[1]) {
-                return difference[1] < other.difference[1];
-            }
-            if (difference[2] != other.difference[2]) {
-                return difference[2] < other.difference[2];
-            }
-            return neighbor_index < other.neighbor_index;
+            return true;
         }
     };
 
@@ -73,9 +67,6 @@ namespace gmp { namespace region_query {
             cell_shift_end[1] = std::floor(position.y + frac_radius[1]);
             cell_shift_start[2] = std::floor(position.z - frac_radius[2]);
             cell_shift_end[2] = std::floor(position.z + frac_radius[2]);
-
-            // std::cout << "cell_shift_start: " << cell_shift_start[0] << ", " << cell_shift_start[1] << ", " << cell_shift_start[2] << std::endl;
-            // std::cout << "cell_shift_end: " << cell_shift_end[0] << ", " << cell_shift_end[1] << ", " << cell_shift_end[2] << std::endl;
         }
 
         array3d_t<IndexType> get_cell_shift_start() const { return cell_shift_start; }
@@ -181,11 +172,11 @@ namespace gmp { namespace region_query {
     template <typename MortonCodeType, typename IndexType, typename FloatType, typename VecType>
     class region_query_t {
     public:
-        region_query_t(const vector<point_flt64>& ref_positions, const unit_cell_t* unit_cell, const int num_bits_per_dim = 10) 
+        region_query_t(const unit_cell_t* unit_cell, const int num_bits_per_dim = 10) 
             : compare_op(num_bits_per_dim, unit_cell->get_periodicity(), unit_cell->get_lattice())
         {
             // get morton codes
-            get_morton_codes(ref_positions, num_bits_per_dim);
+            get_morton_codes(unit_cell->get_atoms(), num_bits_per_dim);
             
             // build tree
             brt = std::make_unique<binary_radix_tree_t<MortonCodeType, IndexType>>(unique_morton_codes, num_bits_per_dim * 3);
@@ -246,52 +237,6 @@ namespace gmp { namespace region_query {
             offsets.push_back(natom);
         }
 
-        void get_morton_codes(const vector<point_flt64>& ref_positions, const int num_bits_per_dim = 10) 
-        {
-            vector<MortonCodeType> morton_codes;
-            auto npts = ref_positions.size();
-            morton_codes.reserve(npts);
-            for (const auto& ref_position : ref_positions) 
-            {
-                MortonCodeType mc_x = coordinate_to_morton_code<FloatType, MortonCodeType, IndexType>(ref_position.x, num_bits_per_dim);
-                MortonCodeType mc_y = coordinate_to_morton_code<FloatType, MortonCodeType, IndexType>(ref_position.y, num_bits_per_dim);
-                MortonCodeType mc_z = coordinate_to_morton_code<FloatType, MortonCodeType, IndexType>(ref_position.z, num_bits_per_dim);
-                morton_codes.push_back(interleave_bits(mc_x, mc_y, mc_z, num_bits_per_dim));
-            }
-
-            // index mapping from morton codes to ref_positions
-            sorted_indexes = util::sort_indexes<MortonCodeType, IndexType, vector>(morton_codes);
-            std::sort(morton_codes.begin(), morton_codes.end());
-
-            // compact
-            unique_morton_codes.clear();
-            unique_morton_codes.reserve(npts);
-            vector<IndexType> indexing(npts+1);
-            for (auto i = 0; i < npts+1; i++) indexing[i] = i;
-            // get same flag 
-            vector<bool> same(npts);
-            same[0] = true;
-            for (auto i = 1; i < npts; i++) {
-                same[i] = morton_codes[i] != morton_codes[i-1];
-            }
-            // get unique morton codes
-            for (auto i = 0; i < npts; i++) {
-                if (same[i]) {
-                    unique_morton_codes.push_back(morton_codes[i]);
-                }
-            }
-
-            // get offsets
-            offsets.clear();
-            offsets.reserve(npts + 1);
-            for (auto i = 0; i < npts; i++) {
-                if (same[i]) {
-                    offsets.push_back(indexing[i]);
-                }
-            }
-            offsets.push_back(npts);
-        }
-
     public:         
         const vector<MortonCodeType>& get_unique_morton_codes() const { return unique_morton_codes; }
         const vector<IndexType>& get_offsets() const { return offsets; }
@@ -322,32 +267,7 @@ namespace gmp { namespace region_query {
                     }
                 }
             }
-            return result;
-        }
 
-        result_t query_ref(const point3d_t<FloatType>& position, const FloatType cutoff, const unit_cell_t* unit_cell, const vector<point_flt64>& ref_positions)
-        {
-            compare_op.update_point_radius(position, cutoff);
-            auto cutoff_squared = cutoff * cutoff;
-            auto query_mc = brt->traverse(compare_op);
-
-            result_t result;
-            for (const auto& [index, shifts] : query_mc) {
-                for (const auto& shift : shifts) {
-                    for (auto idx = offsets[index]; idx < offsets[index+1]; idx++) {
-                        auto refpt_index = sorted_indexes[idx];
-                        auto reference_position = ref_positions[refpt_index];
-                        array3d_t<FloatType> difference;
-                        auto distance2 = unit_cell->get_lattice()->calculate_distance_squared(
-                            position, reference_position, array3d_t<FloatType>{static_cast<FloatType>(-shift[0]), 
-                            static_cast<FloatType>(-shift[1]), static_cast<FloatType>(-shift[2])}, difference);
-                        if (distance2 < cutoff_squared) {
-                            array3d_flt64 difference_cartesian = unit_cell->get_lattice()->fractional_to_cartesian(difference);
-                            result.emplace_back(difference_cartesian, distance2, refpt_index);
-                        }
-                    }
-                }
-            }
             std::sort(result.begin(), result.end());
             return result;
         }
