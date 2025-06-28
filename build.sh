@@ -10,8 +10,8 @@ cd build
 # change here if you want to replace the external libraries
 # For profiling: use -DBUILD_TYPE_PROFILE=ON instead of -DBUILD_TYPE_RELEASE=ON
 # cmake -DBUILD_TESTS=ON -DBUILD_TYPE_RELEASE=ON \
-#   -DGEMMI_INCLUDE_DIR=/home/xx/Desktop/coding/gemmi/include\
-#   -DXSIMD_INCLUDE_DIR=/home/xx/Desktop/coding/xsimd/include ..
+#   -DGEMMI_INCLUDE_DIR=/home/xx/Desktop/coding/gemmi/include \
+#   ..
 
 cmake ..
 

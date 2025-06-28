@@ -1,12 +1,13 @@
 {
-    "system file path": "./test.cif",
-    "psp file path": "./QE-kjpaw.gpsp",
-    "output file path": "./gmpFeatures.dat",
-    "square": 0,
-    "cutoff": 0.0,
-    "overlap threshold": 1e-11,
-    "cutoff method": 4,
-    "scaling mode": 0,
-    "orders": [-1, 0, 1, 2],
-    "sigmas": [0.1, 0.2, 0.3]
-} 
+  "system file path": "./structure.cif",
+  "psp file path": "./QE-kjpaw.gpsp",
+  "output file path": "./gmpFeatures.dat",
+  "square": 0,
+  "overlap threshold": 1e-11,
+  "scaling mode": 0,
+  "orders": [0, 1, 2, 3],
+  "sigmas": [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
+  "reference grid": [16, 16, 16],
+  "num bits per dim": 4,
+  "num threads": 20
+}

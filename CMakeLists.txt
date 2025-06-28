@@ -34,7 +34,6 @@ find_package(Boost REQUIRED)
 
 # Set paths for header-only libraries
 set(GEMMI_INCLUDE_DIR "/usr/local/src/gemmi/include" CACHE PATH "Path to GEMMI include directory")
-set(XSIMD_INCLUDE_DIR "/usr/local/src/xsimd/include" CACHE PATH "Path to xsimd include directory")
 
 # Option to build tests
 option(BUILD_TESTS "Build the tests" OFF)
@@ -68,7 +67,6 @@ target_include_directories(gmp-featurizer-lib
     ${CMAKE_SOURCE_DIR}/src
     ${Boost_INCLUDE_DIRS}
     ${GEMMI_INCLUDE_DIR}
-    ${XSIMD_INCLUDE_DIR}
 )
 
 if(BUILD_TESTS)
@@ -90,10 +88,6 @@ if(BUILD_TESTS)
     set(TEST_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/test)
 
     # Create test executables
-    add_executable(gmp-xsimd-test
-        test/xsimd.cpp
-    )
-
     add_executable(gmp-resources-test
         test/resources.cpp
     )
@@ -134,8 +128,8 @@ if(BUILD_TESTS)
         test/cif_test.cpp
     )
 
-    add_executable(gmp-mcsh-simd-test
-        test/mcsh_simd.cpp
+    add_executable(gmp-cpu-test
+        test/gmp_cpu.cpp
     )
 
     # Add project root definition to all test executables
@@ -149,17 +143,9 @@ if(BUILD_TESTS)
     target_compile_definitions(gmp-tree-test PRIVATE PROJECT_ROOT="${PROJECT_ROOT}")
     target_compile_definitions(gmp-region-query-test PRIVATE PROJECT_ROOT="${PROJECT_ROOT}")
     target_compile_definitions(gmp-cif-test PRIVATE PROJECT_ROOT="${PROJECT_ROOT}")
-    target_compile_definitions(gmp-xsimd-test PRIVATE PROJECT_ROOT="${PROJECT_ROOT}")
-    target_compile_definitions(gmp-mcsh-simd-test PRIVATE PROJECT_ROOT="${PROJECT_ROOT}")
+    target_compile_definitions(gmp-cpu-test PRIVATE PROJECT_ROOT="${PROJECT_ROOT}")
 
     # Link against Google Test and the library
-    target_link_libraries(gmp-xsimd-test
-        PRIVATE
-        GTest::gtest_main
-        GTest::gmock_main
-        gmp-featurizer-lib
-    )
-
     target_link_libraries(gmp-resources-test
         PRIVATE
         GTest::gtest_main
@@ -230,7 +216,7 @@ if(BUILD_TESTS)
         gmp-featurizer-lib
     )
 
-    target_link_libraries(gmp-mcsh-simd-test
+    target_link_libraries(gmp-cpu-test
         PRIVATE
         GTest::gtest_main
         GTest::gmock_main
@@ -238,12 +224,6 @@ if(BUILD_TESTS)
     )
 
     # Include directories for tests
-    target_include_directories(gmp-xsimd-test
-        PRIVATE
-        ${CMAKE_SOURCE_DIR}/src
-        ${XSIMD_INCLUDE_DIR}
-    )
-
     target_include_directories(gmp-resources-test
         PRIVATE
         ${CMAKE_SOURCE_DIR}/src
@@ -294,16 +274,12 @@ if(BUILD_TESTS)
         ${CMAKE_SOURCE_DIR}/src
     )
 
-    target_include_directories(gmp-mcsh-simd-test
+    target_include_directories(gmp-cpu-test
         PRIVATE
         ${CMAKE_SOURCE_DIR}/src
     )
 
     # Set the output directory for the test executables
-    set_target_properties(gmp-xsimd-test PROPERTIES
-        RUNTIME_OUTPUT_DIRECTORY ${TEST_RUNTIME_OUTPUT_DIRECTORY}
-    )
-
     set_target_properties(gmp-resources-test PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY ${TEST_RUNTIME_OUTPUT_DIRECTORY}
     )
@@ -344,13 +320,12 @@ if(BUILD_TESTS)
         RUNTIME_OUTPUT_DIRECTORY ${TEST_RUNTIME_OUTPUT_DIRECTORY}
     )
 
-    set_target_properties(gmp-mcsh-simd-test PROPERTIES
+    set_target_properties(gmp-cpu-test PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY ${TEST_RUNTIME_OUTPUT_DIRECTORY}
     )
 
     # Register tests
     include(GoogleTest)
-    gtest_discover_tests(gmp-xsimd-test)
     gtest_discover_tests(gmp-resources-test)
     gtest_discover_tests(gmp-math-test)
     gtest_discover_tests(gmp-geometry-test)
@@ -361,12 +336,12 @@ if(BUILD_TESTS)
     gtest_discover_tests(gmp-tree-test)
     gtest_discover_tests(gmp-region-query-test)
     gtest_discover_tests(gmp-cif-test)
-    gtest_discover_tests(gmp-mcsh-simd-test)
+    gtest_discover_tests(gmp-cpu-test)
 
     # Add a custom target to build and run all tests
     add_custom_target(run_all_tests
         COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
-        DEPENDS gmp-xsimd-test gmp-resources-test gmp-math-test gmp-geometry-test gmp-atom-test gmp-util-test gmp-input-test gmp-morton-test gmp-tree-test gmp-region-query-test gmp-cif-test gmp-mcsh-simd-test
+        DEPENDS gmp-resources-test gmp-math-test gmp-geometry-test gmp-atom-test gmp-util-test gmp-input-test gmp-morton-test gmp-tree-test gmp-region-query-test gmp-cif-test gmp-cpu-test
         WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
         COMMENT "Running all tests..."
     )
