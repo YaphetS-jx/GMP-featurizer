@@ -2,7 +2,7 @@
 
 namespace gmp { 
     namespace resources {
-        template <typename T> struct pool_allocator;
+        template <typename T, typename PoolType> struct pool_allocator;
         template <typename T, typename Pool> class pool_unique_ptr;
     }
 

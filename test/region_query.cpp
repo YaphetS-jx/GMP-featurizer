@@ -16,8 +16,8 @@ TEST(RegionQueryTest, basic_query) {
         {0.0, 1.0, 0.0},
         {0.0, 0.0, 1.0}
     };
-    auto lattice = std::make_unique<lattice_t>(lattice_vectors);
-    unit_cell_t unit_cell;
+    auto lattice = std::make_unique<lattice_flt64>(lattice_vectors);
+    unit_cell_flt64 unit_cell;
     unit_cell.set_lattice(std::move(lattice));
 
     // Create random number generator
@@ -29,7 +29,7 @@ TEST(RegionQueryTest, basic_query) {
     std::uniform_real_distribution<double> dist(0.0, 1.0);
 
     // Create random atoms
-    vector<atom_t> atoms;
+    vector<atom_flt64> atoms;
     auto num_atoms = 1000;
     auto num_bits_per_dim = 5;
     atoms.reserve(num_atoms);

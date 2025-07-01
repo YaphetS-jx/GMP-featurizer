@@ -46,16 +46,18 @@ namespace gmp { namespace input {
     };
 
     // descriptor configuration
+    template <typename T>
     struct feature_t {
-        double sigma;
+        T sigma;
         int order;
-        feature_t(int order, double sigma) : sigma(sigma), order(order) {}
+        feature_t(int order, T sigma) : sigma(sigma), order(order) {}
 
         bool operator<(const feature_t& other) const {
             return (sigma < other.sigma) || (sigma == other.sigma && order < other.order);
         }
     };
 
+    template <typename T>
     class descriptor_config_t {
     public: 
         descriptor_config_t() : feature_list_(), 
@@ -66,28 +68,28 @@ namespace gmp { namespace input {
         ~descriptor_config_t() = default;
 
     private:
-        std::vector<feature_t> feature_list_;
+        std::vector<feature_t<T>> feature_list_;
         scaling_mode_t scaling_mode_;
         array3d_int32 ref_grid_;
-        double overlap_threshold_;
+        T overlap_threshold_;
         bool square_;
         uint8_t num_bits_per_dim_;
         size_t num_threads_;
 
     public:
         // accessor
-        const std::vector<feature_t>& get_feature_list() const { return feature_list_; }
+        const std::vector<feature_t<T>>& get_feature_list() const { return feature_list_; }
         scaling_mode_t get_scaling_mode() const { return scaling_mode_; }        
-        double get_overlap_threshold() const { return overlap_threshold_; }
+        T get_overlap_threshold() const { return overlap_threshold_; }
         bool get_square() const { return square_; }
         const array3d_int32& get_ref_grid() const { return ref_grid_; }
         uint8_t get_num_bits_per_dim() const { return num_bits_per_dim_; }
         size_t get_num_threads() const { return num_threads_; }
 
         // setter
-        void set_feature_list(const std::vector<int> orders, const std::vector<double> sigmas, const std::vector<std::tuple<int, double>> feature_list);
+        void set_feature_list(const std::vector<int> orders, const std::vector<T> sigmas, const std::vector<std::tuple<int, T>> feature_list);
         void set_scaling_mode(const scaling_mode_t scaling_mode) { scaling_mode_ = scaling_mode; }
-        void set_overlap_threshold(const double overlap_threshold) { overlap_threshold_ = overlap_threshold; }
+        void set_overlap_threshold(const T overlap_threshold) { overlap_threshold_ = overlap_threshold; }
         void set_square(const bool square) { square_ = square; }
         void set_ref_grid(const array3d_int32& ref_grid) { ref_grid_ = ref_grid; }
         void set_num_bits_per_dim(const uint8_t num_bits_per_dim) { num_bits_per_dim_ = num_bits_per_dim; }
@@ -96,6 +98,10 @@ namespace gmp { namespace input {
         // print config
         void dump() const;
     };
+
+    // Type aliases for common types
+    using descriptor_config_flt64 = descriptor_config_t<double>;
+    using feature_flt64 = feature_t<double>;
 
     // input class
     class input_t {
@@ -108,11 +114,11 @@ namespace gmp { namespace input {
         std::unique_ptr<file_path_t> files;
 
         // descriptor_config
-        std::unique_ptr<descriptor_config_t> descriptor_config;
+        std::unique_ptr<descriptor_config_flt64> descriptor_config;
 
     public: 
         // functions
-        const descriptor_config_t* get_descriptor_config() const { return descriptor_config.get(); }
+        const descriptor_config_flt64* get_descriptor_config() const { return descriptor_config.get(); }
 
         void parse_json(const std::string& json_file);
 
@@ -123,3 +129,5 @@ namespace gmp { namespace input {
         void print_help() const;
     };
 }}
+
+#include "input.hxx"

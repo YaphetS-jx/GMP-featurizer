@@ -44,12 +44,7 @@ add_library(gmp-featurizer-lib STATIC)
 # Add source files to the library
 target_sources(gmp-featurizer-lib
     PRIVATE
-    src/atom.cpp
-    src/geometry.cpp
-    src/error.cpp
     src/input.cpp
-    src/featurizer.cpp
-    src/math.cpp    
 )
 
 # Create the main executable

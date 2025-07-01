@@ -1,6 +1,8 @@
 #include <gtest/gtest.h>
 #include "math.hpp"
 #include "resources.hpp"
+#include "mcsh.hpp"
+
 using namespace gmp::math;
 using namespace gmp::resources;
 
@@ -161,10 +163,10 @@ TEST(math, sym_matrix3d_t) {
     EXPECT_EQ(s * v, sv_expected);
 };
 
-// Very basic test for mcsh_function_registry_t
-TEST(math, mcsh_function_registry_t) {
+// Very basic test for mcsh_registry_t
+TEST(math, mcsh_registry_t) {
     // Use the test-friendly instance instead of the regular one
-    auto& registry = mcsh_function_registry_t::get_instance();
+    auto& registry = gmp::mcsh::mcsh_registry_t<double>::get_instance();
     
     // Now we can safely test the values without memory allocation issues
     EXPECT_EQ(registry.get_num_values(0), 1);

@@ -47,10 +47,10 @@ namespace gmp { namespace region_query {
         array3d_t<IndexType> cell_shift_end;
         const IndexType num_bits_per_dim;
         const array3d_bool periodicity;
-        const lattice_t* lattice;
+        const lattice_t<FloatType>* lattice;
 
     public:
-        explicit check_sphere_t(const IndexType num_bits_per_dim, const array3d_bool periodicity, const lattice_t* lattice)
+        explicit check_sphere_t(const IndexType num_bits_per_dim, const array3d_bool periodicity, const lattice_t<FloatType>* lattice)
             : num_bits_per_dim(num_bits_per_dim), periodicity(periodicity), lattice(lattice) 
         {}
 
@@ -172,7 +172,7 @@ namespace gmp { namespace region_query {
     template <typename MortonCodeType, typename IndexType, typename FloatType, typename VecType>
     class region_query_t {
     public:
-        region_query_t(const unit_cell_t* unit_cell, const uint8_t num_bits_per_dim = 10) 
+        region_query_t(const unit_cell_t<FloatType>* unit_cell, const uint8_t num_bits_per_dim = 10) 
             : num_bits_per_dim(num_bits_per_dim)
         {
             // get morton codes
@@ -191,7 +191,7 @@ namespace gmp { namespace region_query {
         const int num_bits_per_dim;
 
     private:
-        void get_morton_codes(const vector<atom_t>& atoms, const uint8_t num_bits_per_dim = 10) 
+        void get_morton_codes(const vector<atom_t<FloatType>>& atoms, const uint8_t num_bits_per_dim = 10) 
         {
             vector<MortonCodeType> morton_codes;
             auto natom = atoms.size();
@@ -244,7 +244,7 @@ namespace gmp { namespace region_query {
         using result_t = vector<query_result_t<FloatType>>;
         using sphere_op_t = check_sphere_t<MortonCodeType, FloatType, IndexType, VecType>;
 
-        result_t query(const point3d_t<FloatType>& position, const FloatType cutoff, const unit_cell_t* unit_cell)
+        result_t query(const point3d_t<FloatType>& position, const FloatType cutoff, const unit_cell_t<FloatType>* unit_cell)
         {
             sphere_op_t compare_op(num_bits_per_dim, unit_cell->get_periodicity(), unit_cell->get_lattice());
             compare_op.update_point_radius(position, cutoff);

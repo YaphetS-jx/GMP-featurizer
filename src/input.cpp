@@ -14,7 +14,7 @@ namespace gmp { namespace input {
 
     input_t::input_t(const std::string& json_file) : 
         files(std::make_unique<file_path_t>()),
-        descriptor_config(std::make_unique<descriptor_config_t>()) 
+        descriptor_config(std::make_unique<descriptor_config_flt64>()) 
     {
         if (json_file == "-h") {
             print_help();
@@ -36,59 +36,6 @@ namespace gmp { namespace input {
         std::cout << "Atom file: " << atom_file_ << std::endl;
         std::cout << "PSP file: " << psp_file_ << std::endl;
         std::cout << "Output file: " << output_file_ << std::endl;
-    }
-
-    // descriptor config
-    void descriptor_config_t::set_feature_list(std::vector<int> orders, std::vector<double> sigmas, std::vector<std::tuple<int, double>> feature_list) 
-    {
-        feature_list_.clear();
-
-        // parse feature list
-        bool negative_order = false;
-        if (!feature_list.empty()) {
-            for (auto &feature : feature_list) {
-                if (std::get<0>(feature) < -1 || std::get<0>(feature) > 9) {
-                    update_error(gmp::error_t::invalid_order_sigma); return;
-                } else if (std::get<0>(feature) == -1) {
-                    if (!negative_order) feature_list_.push_back(feature_t(-1, 0.0));
-                    negative_order = true;
-                } else {
-                    feature_list_.push_back(feature_t(std::get<0>(feature), std::get<1>(feature)));
-                }
-            }
-        } else {
-            for (auto order : orders) {
-                for (auto sigma : sigmas) {
-                    if (order < -1 || order > 9) {
-                        update_error(gmp::error_t::invalid_order_sigma); return;
-                    } else if (order == -1) {
-                        if (!negative_order) feature_list_.push_back(feature_t(-1, 0.0));
-                        negative_order = true;
-                    } else {
-                        feature_list_.push_back(feature_t(order, sigma));
-                    }
-                }
-            }
-        }
-
-        if (feature_list_.empty()) {
-            update_error(gmp::error_t::invalid_feature_list);
-            return;
-        }
-
-        // sort the feature list based on sigma, then order 
-        std::sort(feature_list_.begin(), feature_list_.end());
-    }
-
-    void descriptor_config_t::dump() const 
-    {
-        std::cout << "Feature list: " << std::endl;
-        for (const auto& feature : feature_list_) {
-            std::cout << "  Order: " << feature.order << ", Sigma: " << feature.sigma << std::endl;
-        }
-        std::cout << "Overlap threshold: " << overlap_threshold_ << std::endl;
-        std::cout << "Scaling mode: " << gmp_to_string(scaling_mode_) << std::endl;
-        std::cout << "Ref grid: " << ref_grid_[0] << ", " << ref_grid_[1] << ", " << ref_grid_[2] << std::endl;
     }
 
     // parse JSON  

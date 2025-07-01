@@ -1,20 +1,20 @@
 #include <cmath>
 #include <iostream>
 #include <future>
-#include "featurizer.hpp"
 #include "error.hpp"
 #include "math.hpp"
 #include "input.hpp"
 #include "types.hpp"
 #include "util.hpp"
 #include "region_query.hpp"
-// #include "mcsh_simd.hpp"
+#include "mcsh.hpp"
 #include "resources.hpp"
 
 namespace gmp { namespace featurizer {
 
     // kernel_params_table_t ctor
-    kernel_params_table_t::kernel_params_table_t(const descriptor_config_t* descriptor_config, const psp_config_t* psp_config) 
+    template <typename T>
+    kernel_params_table_t<T>::kernel_params_table_t(const descriptor_config_t<T>* descriptor_config, const psp_config_t<T>* psp_config) 
         : table_(), num_gaussians_(psp_config->get_offset().back()), num_features_(descriptor_config->get_feature_list().size()) 
     {
         table_.reserve(num_features_ * num_gaussians_);
@@ -24,8 +24,8 @@ namespace gmp { namespace featurizer {
         auto num_atom_types = psp_config->get_offset().size() - 1;
 
         for (const auto& feature : feature_list) {
-            const double A = get_scaling_const(feature.order, feature.sigma, scaling_mode);
-            const double alpha = (feature.order == -1) ? 0. : (1.0 / (2.0 * feature.sigma * feature.sigma));
+            const T A = get_scaling_const(feature.order, feature.sigma, scaling_mode);
+            const T alpha = (feature.order == -1) ? 0. : (1.0 / (2.0 * feature.sigma * feature.sigma));
             for (atom_type_id_t atom_type_idx = 0; atom_type_idx < num_atom_types; ++atom_type_idx) {
                 // get the ranges of gaussians for the current atom type
                 auto start = psp_config->get_offset()[atom_type_idx];
@@ -33,9 +33,9 @@ namespace gmp { namespace featurizer {
                 // loop over the gaussians for the current atom type
                 for (auto gaussian_idx = start; gaussian_idx < end; ++gaussian_idx) {
                     const auto& gaussian = (*psp_config)[gaussian_idx];
-                    kernel_params_t kernel_params;
-                    const double gamma = alpha + gaussian.beta;
-                    const double lambda = gaussian.beta / gamma;
+                    kernel_params_t<T> kernel_params;
+                    const T gamma = alpha + gaussian.beta;
+                    const T lambda = gaussian.beta / gamma;
                     kernel_params.lambda = lambda;
                     kernel_params.gamma = gamma;
 
@@ -43,7 +43,7 @@ namespace gmp { namespace featurizer {
                         kernel_params.C1 = gaussian.B;
                         kernel_params.C2 = -1.0 * gaussian.beta;
                     } else {
-                        const double temp = std::sqrt(M_PI / gamma);
+                        const T temp = std::sqrt(M_PI / gamma);
                         kernel_params.C1 = A * gaussian.B * temp * temp * temp;
                         kernel_params.C2 = -1.0 * (alpha * gaussian.beta / gamma);
                     }
@@ -53,7 +53,8 @@ namespace gmp { namespace featurizer {
         }
     }
 
-    void kernel_params_table_t::dump() const {
+    template <typename T>
+    void kernel_params_table_t<T>::dump() const {
         for (auto i = 0; i < num_features_; ++i) {
             for (auto j = 0; j < num_gaussians_; ++j) {
                 std::cout << "kernel_params[" << i << "][" << j << "]: " 
@@ -66,7 +67,8 @@ namespace gmp { namespace featurizer {
     }
 
     // cutoff_list_t ctor
-    cutoff_list_t::cutoff_list_t(const descriptor_config_t* descriptor_config, const psp_config_t* psp_config)
+    template <typename T>
+    cutoff_list_t<T>::cutoff_list_t(const descriptor_config_t<T>* descriptor_config, const psp_config_t<T>* psp_config)
         : cutoff_list_(), cutoff_info_(), gaussian_offset_(psp_config->get_offset()), cutoff_max_(0)
     {
         const auto num_atom_types_ = gaussian_offset_.size() - 1;
@@ -75,23 +77,23 @@ namespace gmp { namespace featurizer {
         cutoff_list_.reserve(gaussian_offset_.back() * num_features_);
         cutoff_info_.reserve(gaussian_offset_.back() * num_features_);
 
-        vector<double> factors = {1, 1, 1, 1, 1e-1, 1e-2, 1e-4, 1e-5, 1e-7, 1e-9, 1e-11}; // for threshold 
+        vector<T> factors = {1, 1, 1, 1, 1e-1, 1e-2, 1e-4, 1e-5, 1e-7, 1e-9, 1e-11}; // for threshold 
 
         for (auto feature_idx = 0; feature_idx < num_features_; ++feature_idx) {
             const auto &feature = feature_list[feature_idx];
-            double threshold = descriptor_config->get_overlap_threshold() * factors[feature.order + 1];
+            T threshold = descriptor_config->get_overlap_threshold() * factors[feature.order + 1];
 
             for (auto atom_type_idx = 0; atom_type_idx < num_atom_types_; ++atom_type_idx) {
                 auto start = gaussian_offset_[atom_type_idx];
                 auto end = gaussian_offset_[atom_type_idx + 1];
-                vector<double> cutoff_list;
+                vector<T> cutoff_list;
                 for (auto gaussian_idx = start; gaussian_idx < end; ++gaussian_idx) {
                     const auto &gaussian = (*psp_config)[gaussian_idx];
                     const auto cutoff = get_cutoff_gaussian(feature.sigma, gaussian, threshold);
                     cutoff_max_ = std::max(cutoff_max_, cutoff);
                     cutoff_list.push_back(cutoff);
                 }
-                auto sorted_idx = util::sort_indexes_desc<double, int, vector>(cutoff_list, 0, cutoff_list.size(), start);
+                auto sorted_idx = util::sort_indexes_desc<T, int, vector>(cutoff_list, 0, cutoff_list.size(), start);
                 cutoff_info_.insert(cutoff_info_.end(), sorted_idx.begin(), sorted_idx.end());
                 for (auto idx : sorted_idx) {
                     cutoff_list_.push_back(cutoff_list[idx - start]);
@@ -100,14 +102,16 @@ namespace gmp { namespace featurizer {
         }
     }
 
-    void cutoff_list_t::get_range(const int feature_idx, const int atom_idx, int &start, int &end) const {
+    template <typename T>
+    void cutoff_list_t<T>::get_range(const int feature_idx, const int atom_idx, int &start, int &end) const {
         const auto shift = feature_idx * gaussian_offset_.back();
         start = shift + gaussian_offset_[atom_idx];
         end = shift + gaussian_offset_[atom_idx + 1];
     }
 
     // functions 
-    double get_scaling_const(const int order, const double sigma, const scaling_mode_t scaling_mode)
+    template <typename T>
+    T get_scaling_const(const int order, const T sigma, const scaling_mode_t scaling_mode)
     {
         switch (scaling_mode) {
             case scaling_mode_t::radial:
@@ -120,16 +124,18 @@ namespace gmp { namespace featurizer {
         }
     }
 
-    double get_scaling_constant_radial(const double sigma) 
+    template <typename T>
+    T get_scaling_constant_radial(const T sigma) 
     {
-        const double temp = 1. / (sigma * std::sqrt(2. * M_PI));
+        const T temp = 1. / (sigma * std::sqrt(2. * M_PI));
         return temp * temp * temp;
     }
 
-    double get_scaling_constant_both_probes(const int order, const double sigma) 
+    template <typename T>
+    T get_scaling_constant_both_probes(const int order, const T sigma) 
     {
-        const double sigma2 = sigma * sigma;
-        double temp = pow(M_PI * sigma2, 1.5);
+        const T sigma2 = sigma * sigma;
+        T temp = pow(M_PI * sigma2, 1.5);
         switch (order) {
         case 0:
             return 1./std::sqrt(temp);
@@ -186,64 +192,67 @@ namespace gmp { namespace featurizer {
         }
     }
 
-    void get_c1_c2(const double A, const double B, const double alpha, const double beta, double& C1, double& C2) 
+    template <typename T>
+    void get_c1_c2(const T A, const T B, const T alpha, const T beta, T& C1, T& C2) 
     {
         if (gmp::math::isZero(alpha)) {
             C1 = B;
             C2 = -1.0 * beta;
         } else {
-            double temp = std::sqrt(M_PI / (alpha + beta));
+            T temp = std::sqrt(M_PI / (alpha + beta));
             C1 = A * B * temp * temp * temp;
             C2 = -1.0 * (alpha * beta / (alpha + beta));
         }
     }
 
-    double get_cutoff_gaussian(const double sigma, const input::gaussian_t gaussian, double threshold) 
+    template <typename T>
+    T get_cutoff_gaussian(const T sigma, const gaussian_t<T> gaussian, T threshold) 
     {
-        double A, alpha;
+        T A, alpha;
         if (gmp::math::isZero(sigma)) {
             A = alpha = 0;
         } else {
             A = 1.0 / (sigma * std::sqrt(2.0 * M_PI));
             alpha = 1.0 / (2.0 * sigma * sigma);
         }
-        double logThreshold = std::log(threshold);
+        T logThreshold = std::log(threshold);
         
-        double C1, C2;
+        T C1, C2;
         get_c1_c2(A, gaussian.B, alpha, gaussian.beta, C1, C2);
         C1 = std::abs(C1);
-        double dist = std::sqrt((logThreshold - C1) / C2);
+        T dist = std::sqrt((logThreshold - C1) / C2);
         return dist;
     }
 
-    vector<vector<double>> featurizer_t::compute(const vector<point_flt64>& ref_positions, 
-        const descriptor_config_t* descriptor_config, const unit_cell_t* unit_cell, const psp_config_t* psp_config)
+    template <typename T>
+    vector<vector<T>> featurizer_t<T>::compute(const vector<point3d_t<T>>& ref_positions, 
+        const descriptor_config_t<T>* descriptor_config, const unit_cell_t<T>* unit_cell, const psp_config_t<T>* psp_config)
     {
         // Get the singleton instance first
-        const auto& registry = mcsh_function_registry_t::get_instance();
+        const auto& registry = mcsh::mcsh_registry_t<T>::get_instance();
         const auto& region_query = region_query_;
         const auto& feature_list = descriptor_config->get_feature_list();
 
-        vector<vector<double>> feature_collection;
+        vector<vector<T>> feature_collection;
         feature_collection.resize(ref_positions.size());
         
         // Get thread pool for parallel processing
         auto& thread_pool = gmp::resources::gmp_resource::instance().get_thread_pool(descriptor_config->get_num_threads());
         
         // Create futures to store results
-        std::vector<std::future<vector<double>>> futures;
+        std::vector<std::future<vector<T>>> futures;
         futures.reserve(ref_positions.size());
         
         // Submit tasks to thread pool
         for (size_t i = 0; i < ref_positions.size(); ++i) {
-            futures.emplace_back(thread_pool.enqueue([&, i]() -> vector<double> {
+            futures.emplace_back(thread_pool.enqueue([&, i]() -> vector<T> {
                 const auto& ref_position = ref_positions[i];
                 
                 // find neighbors
                 auto query_results = region_query->query(ref_position, cutoff_list_->cutoff_max_, unit_cell);
 
                 // calculate GMP features
-                vector<double> feature(feature_list.size(), 0.0);
+                vector<T> feature(feature_list.size(), 0.0);
                 for (auto feature_idx = 0; feature_idx < feature_list.size(); ++feature_idx) {
                     auto order = feature_list[feature_idx].order;
                     auto sigma = feature_list[feature_idx].sigma;
@@ -251,7 +260,7 @@ namespace gmp { namespace featurizer {
                     // Get the function for the specified order
                     const auto& mcsh_func = registry.get_function(order);
                     const auto& num_values = registry.get_num_values(order);
-                    vector<double> desc_values(num_values, 0.0);
+                    vector<T> desc_values(num_values, 0.0);
 
                     for (const auto& result : query_results) {
                         const auto distance2 = result.distance_squared;
@@ -284,7 +293,7 @@ namespace gmp { namespace featurizer {
                     }
 
                     // weighted square sum of the values
-                    double squareSum = weighted_square_sum(order, desc_values);
+                    T squareSum = gmp::mcsh::weighted_square_sum(order, desc_values);
                     if (descriptor_config->get_square()) {
                         feature[feature_idx] = squareSum;
                     } else {
@@ -303,5 +312,4 @@ namespace gmp { namespace featurizer {
         
         return feature_collection;
     }
-}}
-
+}} 
