@@ -5,6 +5,7 @@
 #include <memory>
 #include <iostream>
 #include "math.hpp"
+#include "gmp_float.hpp"
 
 namespace gmp { namespace geometry {
 
@@ -12,9 +13,9 @@ namespace gmp { namespace geometry {
     using gmp::math::array3d_t;
     using gmp::math::matrix3d_t;
     using gmp::math::sym_matrix3d_t;
-    using gmp::math::array3d_flt64;
-    using gmp::math::matrix3d_flt64;
-    using gmp::math::sym_matrix3d_flt64;
+    using gmp::math::array3d_flt;
+    using gmp::math::matrix3d_flt;
+    using gmp::math::sym_matrix3d_flt;
 
     // 3d point class
     template <typename T>
@@ -26,9 +27,9 @@ namespace gmp { namespace geometry {
     template <typename T>
     std::ostream& operator<<(std::ostream& os, const point3d_t<T>& p);
 
-    // type aliases
+    // type aliases using configured floating-point type
     using point_int32 = point3d_t<int32_t>;
-    using point_flt64 = point3d_t<double>;
+    using point_flt = point3d_t<gmp::gmp_float>;
 
     // Lattice system - represents a crystal lattice with 3 basis vectors
     template <typename T>
@@ -82,8 +83,8 @@ namespace gmp { namespace geometry {
     template <typename T>
     std::unique_ptr<lattice_t<T>> cell_info_to_lattice(const array3d_t<T>& cell_lengths, const array3d_t<T>& cell_angles);
 
-    // Type aliases for common lattice types
-    using lattice_flt64 = lattice_t<double>;
+    // Type aliases using configured floating-point type
+    using lattice_flt = lattice_t<gmp::gmp_float>;
 
 }}
 

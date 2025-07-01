@@ -116,8 +116,12 @@ TEST_F(GmpCpuTest, CompareWithExpectedOutput) {
     EXPECT_TRUE(fileExists(get_project_path("test/test_files/gmpFeatures_test.dat"))) 
         << "Output file was not created";
     
-    // Read the expected output (original gmpFeatures.dat)
-    std::vector<double> expected_output = readFileAsDoubles(get_project_path("test/test_files/gmpFeatures_benchmark.dat"));
+    // Read the expected output based on precision
+#ifdef GMP_USE_SINGLE_PRECISION
+    std::vector<double> expected_output = readFileAsDoubles(get_project_path("test/test_files/gmpFeatures_float.dat"));
+#else
+    std::vector<double> expected_output = readFileAsDoubles(get_project_path("test/test_files/gmpFeatures_double.dat"));
+#endif
     EXPECT_FALSE(expected_output.empty()) << "Expected output file is empty or not found";
     
     // Read the actual output
@@ -131,8 +135,12 @@ TEST_F(GmpCpuTest, CompareWithExpectedOutput) {
     // Compute the norm of the difference
     double norm_diff = computeNormDifference(actual_output, expected_output);
     
-    // Check that the difference is within tolerance (adjust tolerance as needed)
-    double tolerance = 1e-10;
+    // Check that the difference is within tolerance (adjust tolerance based on precision)
+#ifdef GMP_USE_SINGLE_PRECISION
+    double tolerance = 1e-5;  // Larger tolerance for single precision
+#else
+    double tolerance = 1e-10; // Smaller tolerance for double precision
+#endif
     EXPECT_LT(norm_diff, tolerance) 
         << "Norm of difference (" << norm_diff << ") exceeds tolerance (" << tolerance << ")";
     

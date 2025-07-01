@@ -1,7 +1,12 @@
 #pragma once
+#include <memory>
+#include <vector>
 #include "types.hpp"
 #include "input.hpp"
 #include "region_query.hpp"
+#include "atom.hpp"
+#include "mcsh_kernel.hxx"
+#include "gmp_float.hpp"
 
 namespace gmp { namespace featurizer {
     
@@ -95,11 +100,11 @@ namespace gmp { namespace featurizer {
     template <typename T>
     T get_cutoff_gaussian(const T sigma, const gaussian_t<T> gaussian, T threshold);
 
-    // Type aliases for common types
-    using kernel_params_flt64 = kernel_params_t<double>;
-    using kernel_params_table_flt64 = kernel_params_table_t<double>;
-    using cutoff_list_flt64 = cutoff_list_t<double>;
-    using featurizer_flt64 = featurizer_t<double>;
+    // Type aliases using configured floating-point type
+    using kernel_params_flt = kernel_params_t<gmp::gmp_float>;
+    using kernel_params_table_flt = kernel_params_table_t<gmp::gmp_float>;
+    using cutoff_list_flt = cutoff_list_t<gmp::gmp_float>;
+    using featurizer_flt = featurizer_t<gmp::gmp_float>;
 }}
 
 #include "featurizer.hxx"

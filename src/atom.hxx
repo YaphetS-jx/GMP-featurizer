@@ -12,7 +12,7 @@
 
 namespace gmp { namespace atom {
 
-    using gmp::math::array3d_flt64;
+    using gmp::math::array3d_flt;
 
     // atom_t implementations
     template <typename T>
@@ -168,14 +168,14 @@ namespace gmp { namespace atom {
         
         std::vector<std::string> tags = {"_cell_length_a", "_cell_length_b", "_cell_length_c"};
         gemmi::cif::Table cell_table = block.find(tags);
-        array3d_flt64 cell = {
-            std::stod(cell_table[0][0]), std::stod(cell_table[0][1]), std::stod(cell_table[0][2])
+        gmp::math::array3d_t<T> cell = {
+            static_cast<T>(std::stod(cell_table[0][0])), static_cast<T>(std::stod(cell_table[0][1])), static_cast<T>(std::stod(cell_table[0][2]))
         };
 
         tags = {"_cell_angle_alpha", "_cell_angle_beta", "_cell_angle_gamma"};
         gemmi::cif::Table angle_table = block.find(tags);
-        array3d_flt64 angle = {
-            std::stod(angle_table[0][0]), std::stod(angle_table[0][1]), std::stod(angle_table[0][2])
+        gmp::math::array3d_t<T> angle = {
+            static_cast<T>(std::stod(angle_table[0][0])), static_cast<T>(std::stod(angle_table[0][1])), static_cast<T>(std::stod(angle_table[0][2]))
         };
 
         // create lattice from cell and angle

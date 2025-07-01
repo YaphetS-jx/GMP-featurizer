@@ -11,13 +11,13 @@ using namespace gmp::containers;
 using namespace gmp::geometry;
 
 TEST(RegionQueryTest, basic_query) {
-    matrix3d_flt64 lattice_vectors = {
-        {1.0, 0.0, 0.0},
-        {0.0, 1.0, 0.0},
-        {0.0, 0.0, 1.0}
+    matrix3d_t<double> lattice_vectors = {
+        array3d_t<double>{1.0, 0.0, 0.0},
+        array3d_t<double>{0.0, 1.0, 0.0},
+        array3d_t<double>{0.0, 0.0, 1.0}
     };
-    auto lattice = std::make_unique<lattice_flt64>(lattice_vectors);
-    unit_cell_flt64 unit_cell;
+    auto lattice = std::make_unique<lattice_t<double>>(lattice_vectors);
+    unit_cell_t<double> unit_cell;
     unit_cell.set_lattice(std::move(lattice));
 
     // Create random number generator
@@ -29,7 +29,7 @@ TEST(RegionQueryTest, basic_query) {
     std::uniform_real_distribution<double> dist(0.0, 1.0);
 
     // Create random atoms
-    vector<atom_flt64> atoms;
+    vector<atom_t<double>> atoms;
     auto num_atoms = 1000;
     auto num_bits_per_dim = 5;
     atoms.reserve(num_atoms);
@@ -46,7 +46,7 @@ TEST(RegionQueryTest, basic_query) {
     region_query_t<uint32_t, int32_t, double, vector<array3d_int32>> region_query(&unit_cell, num_bits_per_dim);
 
     // Test query around a point
-    point_flt64 query_point{0.8071282732743802, 0.7297317866938179, 0.5362280914547007};
+    point3d_t<double> query_point{0.8071282732743802, 0.7297317866938179, 0.5362280914547007};
     double cutoff = 0.9731157639793706;
     std::cout << "query point: " << query_point << std::endl;
     std::cout << "cutoff: " << cutoff << std::endl;
@@ -66,11 +66,11 @@ TEST(RegionQueryTest, basic_query) {
         for (auto shift_y = cell_shift_start[1]; shift_y <= cell_shift_end[1]; shift_y++) {
             for (auto shift_x = cell_shift_start[0]; shift_x <= cell_shift_end[0]; shift_x++) {
                 for (auto i = 0; i < num_atoms; i++) {
-                    array3d_flt64 cell_shift{static_cast<double>(shift_x), static_cast<double>(shift_y), static_cast<double>(shift_z)};
-                    array3d_flt64 difference;
+                    array3d_t<double> cell_shift{static_cast<double>(shift_x), static_cast<double>(shift_y), static_cast<double>(shift_z)};
+                    array3d_t<double> difference;
                     double distance2 = unit_cell.get_lattice()->calculate_distance_squared(atoms[i].pos(), query_point, cell_shift, difference);
                     if (distance2 < cutoff * cutoff) {
-                        array3d_flt64 difference_cartesian = unit_cell.get_lattice()->fractional_to_cartesian(difference);
+                        array3d_t<double> difference_cartesian = unit_cell.get_lattice()->fractional_to_cartesian(difference);
                         results_benchmark.emplace_back(difference_cartesian, distance2, i);
                     }
                 }

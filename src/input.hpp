@@ -5,6 +5,7 @@
 #include "types.hpp"
 #include "error.hpp"
 #include "atom.hpp"
+#include "gmp_float.hpp"
 
 namespace gmp { namespace input {
 
@@ -99,9 +100,9 @@ namespace gmp { namespace input {
         void dump() const;
     };
 
-    // Type aliases for common types
-    using descriptor_config_flt64 = descriptor_config_t<double>;
-    using feature_flt64 = feature_t<double>;
+    // Type aliases using configured floating-point type
+    using descriptor_config_flt = descriptor_config_t<gmp::gmp_float>;
+    using feature_flt = feature_t<gmp::gmp_float>;
 
     // input class
     class input_t {
@@ -114,11 +115,11 @@ namespace gmp { namespace input {
         std::unique_ptr<file_path_t> files;
 
         // descriptor_config
-        std::unique_ptr<descriptor_config_flt64> descriptor_config;
+        std::unique_ptr<descriptor_config_flt> descriptor_config;
 
     public: 
         // functions
-        const descriptor_config_flt64* get_descriptor_config() const { return descriptor_config.get(); }
+        const descriptor_config_flt* get_descriptor_config() const { return descriptor_config.get(); }
 
         void parse_json(const std::string& json_file);
 

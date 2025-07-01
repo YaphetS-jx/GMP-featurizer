@@ -14,7 +14,7 @@ namespace gmp { namespace input {
 
     input_t::input_t(const std::string& json_file) : 
         files(std::make_unique<file_path_t>()),
-        descriptor_config(std::make_unique<descriptor_config_flt64>()) 
+        descriptor_config(std::make_unique<descriptor_config_flt>()) 
     {
         if (json_file == "-h") {
             print_help();
@@ -61,8 +61,8 @@ namespace gmp { namespace input {
         boost::json::object const& config = jv.as_object();
         
         std::vector<int> orders;
-        std::vector<double> sigmas;
-        std::vector<std::tuple<int, double>> feature_list;
+        std::vector<gmp_float> sigmas;
+        std::vector<std::tuple<int, gmp_float>> feature_list;
 
         // Required entries
         this->files->set_atom_file(std::string(config.at("system file path").as_string()));
@@ -74,7 +74,7 @@ namespace gmp { namespace input {
             this->descriptor_config->set_square(config.at("square").as_int64());
         }
         if (config.contains("overlap threshold")) {
-            this->descriptor_config->set_overlap_threshold(config.at("overlap threshold").as_double());
+            this->descriptor_config->set_overlap_threshold(static_cast<gmp_float>(config.at("overlap threshold").as_double()));
         }
         if (config.contains("scaling mode")) {
             this->descriptor_config->set_scaling_mode(static_cast<scaling_mode_t>(config.at("scaling mode").as_int64()));
@@ -108,14 +108,14 @@ namespace gmp { namespace input {
         if (config.contains("sigmas")) {
             auto const& sigmas_json = config.at("sigmas").as_array();
             for (auto const& val : sigmas_json) {
-                sigmas.push_back(val.as_double());
+                sigmas.push_back(static_cast<gmp_float>(val.as_double()));
             }
         }
         if (config.contains("feature lists")) {
             auto const& feature_lists_json = config.at("feature lists").as_array();
             for (auto const& pair : feature_lists_json) {
                 auto const& pair_array = pair.as_array();
-                feature_list.emplace_back(pair_array[0].as_int64(), pair_array[1].as_double());
+                feature_list.emplace_back(pair_array[0].as_int64(), static_cast<gmp_float>(pair_array[1].as_double()));
             }
         }
         

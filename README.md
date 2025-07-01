@@ -21,9 +21,13 @@ To build the project:
 
     `chmod +x ./build.sh`
 
-2. Run the build script: 
+2. Run the build script with single precision (float): 
 
-    `./build.sh`
+    `./build.sh float`
+
+    or with double precision (double):
+
+    `./build.sh double`
 
 3. Run the `gmp-featurizer` with a json configuration file:
 

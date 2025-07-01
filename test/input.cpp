@@ -75,8 +75,8 @@ TEST_F(InputTest, descriptor_config_t) {
 
 TEST_F(InputTest, read_atom_file) {
     // Test reading a CIF file
-    std::unique_ptr<lattice_flt64> lattice;
-    vector<atom_flt64> atoms;
+    std::unique_ptr<lattice_t<double>> lattice;
+    vector<atom_t<double>> atoms;
     atom_type_map_t atom_type_map;
     
     // Use path relative to project root
@@ -116,7 +116,7 @@ TEST_F(InputTest, read_psp_file) {
     atom_type_map["O"] = 2;
     
     // Test reading a PSP file
-    vector<gaussian_flt64> gaussian_table;
+    vector<gaussian_t<double>> gaussian_table;
     vector<int> offset;
 
     // Use path relative to project root

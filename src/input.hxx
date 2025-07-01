@@ -64,8 +64,8 @@ namespace gmp { namespace input {
         std::cout << "Ref grid: " << ref_grid_[0] << ", " << ref_grid_[1] << ", " << ref_grid_[2] << std::endl;
     }
 
-    // Type aliases for common types
-    using descriptor_config_flt64 = descriptor_config_t<double>;
-    using feature_flt64 = feature_t<double>;
+    // Type aliases using configured floating-point type
+    using descriptor_config_flt = descriptor_config_t<gmp::gmp_float>;
+    using feature_flt = feature_t<gmp::gmp_float>;
 
 }} 

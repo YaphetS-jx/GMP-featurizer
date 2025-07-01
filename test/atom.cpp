@@ -10,7 +10,7 @@ using namespace gmp::containers;
 // Test atom_t class
 TEST(atom_system, atom_constructors) {
     // Default constructor with values
-    atom_flt64 atom1(1.0, 2.0, 3.0);
+    atom_t<double> atom1(1.0, 2.0, 3.0);
     EXPECT_DOUBLE_EQ(atom1.x(), 1.0);
     EXPECT_DOUBLE_EQ(atom1.y(), 2.0);
     EXPECT_DOUBLE_EQ(atom1.z(), 3.0);
@@ -18,8 +18,8 @@ TEST(atom_system, atom_constructors) {
     EXPECT_EQ(atom1.id(), std::numeric_limits<uint8_t>::max());
 
     // Constructor with point and custom values
-    point_flt64 pos{4.0, 5.0, 6.0};
-    atom_flt64 atom2(pos, 0.5, 2);
+    point3d_t<double> pos{4.0, 5.0, 6.0};
+    atom_t<double> atom2(pos, 0.5, 2);
     EXPECT_DOUBLE_EQ(atom2.x(), 4.0);
     EXPECT_DOUBLE_EQ(atom2.y(), 5.0);
     EXPECT_DOUBLE_EQ(atom2.z(), 6.0);
@@ -27,15 +27,15 @@ TEST(atom_system, atom_constructors) {
     EXPECT_EQ(atom2.id(), 2);
 
     // Copy constructor
-    atom_flt64 atom3(atom1);
+    atom_t<double> atom3(atom1);
     EXPECT_DOUBLE_EQ(atom3.x(), 1.0);
     EXPECT_DOUBLE_EQ(atom3.y(), 2.0);
     EXPECT_DOUBLE_EQ(atom3.z(), 3.0);
 }
 
 TEST(atom_system, atom_assignment) {
-    atom_flt64 atom1(1.0, 2.0, 3.0);
-    atom_flt64 atom2(4.0, 5.0, 6.0);
+    atom_t<double> atom1(1.0, 2.0, 3.0);
+    atom_t<double> atom2(4.0, 5.0, 6.0);
 
     // Copy assignment
     atom1 = atom2;
@@ -45,49 +45,51 @@ TEST(atom_system, atom_assignment) {
 }
 
 TEST(atom, system_mutators) {
-    unit_cell_flt64 system;
+    unit_cell_t<double> system;
 
     // Test set_atoms
-    vector<atom_flt64> atoms;
-    atoms.push_back(atom_flt64(1.0, 2.0, 3.0));
+    vector<atom_t<double>> atoms;
+    atoms.push_back(atom_t<double>(1.0, 2.0, 3.0));
     system.set_atoms(std::move(atoms));
     EXPECT_EQ(system.get_atoms().size(), 1);
     EXPECT_DOUBLE_EQ(system[0].x(), 1.0);
+    EXPECT_DOUBLE_EQ(system[0].y(), 2.0);
+    EXPECT_DOUBLE_EQ(system[0].z(), 3.0);
 
     // Test set_lattice
-    matrix3d_flt64 mat;
-    mat[0] = array3d_flt64{1.0, 0.0, 0.0};
-    mat[1] = array3d_flt64{0.0, 1.0, 0.0};
-    mat[2] = array3d_flt64{0.0, 0.0, 1.0};
-    auto lattice = std::make_unique<lattice_flt64>(mat);
+    matrix3d_t<double> mat;
+    mat[0] = array3d_t<double>{1.0, 0.0, 0.0};
+    mat[1] = array3d_t<double>{0.0, 1.0, 0.0};
+    mat[2] = array3d_t<double>{0.0, 0.0, 1.0};
+    auto lattice = std::make_unique<lattice_t<double>>(mat);
     system.set_lattice(std::move(lattice));
     EXPECT_TRUE(system.get_lattice());
 
     // Test set_periodicity
-    array3d_bool periodic{false, true, false};
+    array3d_bool periodic{true, false, true};
     system.set_periodicity(periodic);
-    EXPECT_FALSE(system.get_periodicity()[0]);
-    EXPECT_TRUE(system.get_periodicity()[1]);
-    EXPECT_FALSE(system.get_periodicity()[2]);
+    EXPECT_TRUE(system.get_periodicity()[0]);
+    EXPECT_FALSE(system.get_periodicity()[1]);
+    EXPECT_TRUE(system.get_periodicity()[2]);
 }
 
 TEST(atom, system_accessors) {
     // Create system with some atoms
-    vector<atom_flt64> atoms;
-    atoms.push_back(atom_flt64(1.0, 2.0, 3.0));
-    atoms.push_back(atom_flt64(4.0, 5.0, 6.0));
+    vector<atom_t<double>> atoms;
+    atoms.push_back(atom_t<double>(1.0, 2.0, 3.0));
+    atoms.push_back(atom_t<double>(4.0, 5.0, 6.0));
     
-    matrix3d_flt64 mat;
-    mat[0] = array3d_flt64{1.0, 0.0, 0.0};
-    mat[1] = array3d_flt64{0.0, 1.0, 0.0};
-    mat[2] = array3d_flt64{0.0, 0.0, 1.0};
-    auto lattice = std::make_unique<lattice_flt64>(mat);
+    matrix3d_t<double> mat;
+    mat[0] = array3d_t<double>{1.0, 0.0, 0.0};
+    mat[1] = array3d_t<double>{0.0, 1.0, 0.0};
+    mat[2] = array3d_t<double>{0.0, 0.0, 1.0};
+    auto lattice = std::make_unique<lattice_t<double>>(mat);
     
     atom_type_map_t atom_type_map;
     atom_type_map["H"] = 0;
     atom_type_map["O"] = 1;
     
-    unit_cell_flt64 system;
+    unit_cell_t<double> system;
     system.set_atoms(std::move(atoms));
     system.set_lattice(std::move(lattice));
     system.set_atom_type_map(std::move(atom_type_map));
@@ -111,7 +113,7 @@ TEST(atom, system_accessors) {
     EXPECT_DOUBLE_EQ(system[1].x(), 4.0);
 
     // Test const operator[]
-    const unit_cell_flt64& const_system = system;
+    const unit_cell_t<double>& const_system = system;
     EXPECT_DOUBLE_EQ(const_system[0].x(), 1.0);
     EXPECT_DOUBLE_EQ(const_system[1].x(), 4.0);
 }

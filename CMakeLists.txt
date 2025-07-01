@@ -9,6 +9,18 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 option(BUILD_TYPE_RELEASE "Build in Release mode (default: ON)" ON)
 option(BUILD_TYPE_PROFILE "Build in Profile mode for gprof profiling" OFF)
 
+# Add floating-point precision options
+option(USE_SINGLE_PRECISION "Use single precision (float) instead of double precision" OFF)
+
+# Set floating-point precision based on options
+if(USE_SINGLE_PRECISION)
+    add_compile_definitions(GMP_USE_SINGLE_PRECISION)
+    message(STATUS "Building with single precision (float)")
+else()
+    add_compile_definitions(GMP_USE_DOUBLE_PRECISION)
+    message(STATUS "Building with double precision (double)")
+endif()
+
 # Set release mode and flags based on the option
 if(BUILD_TYPE_PROFILE)
     set(CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING "Build type" FORCE)

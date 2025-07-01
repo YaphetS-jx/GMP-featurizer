@@ -262,7 +262,7 @@ namespace gmp { namespace region_query {
                             atom_position, position, array3d_t<FloatType>{static_cast<FloatType>(shift[0]), 
                             static_cast<FloatType>(shift[1]), static_cast<FloatType>(shift[2])}, difference);
                         if (distance2 < cutoff_squared) {
-                            array3d_flt64 difference_cartesian = unit_cell->get_lattice()->fractional_to_cartesian(difference);
+                            array3d_t<FloatType> difference_cartesian = unit_cell->get_lattice()->fractional_to_cartesian(difference);
                             result.emplace_back(difference_cartesian, distance2, atom_index);
                         }
                     }

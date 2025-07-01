@@ -6,6 +6,7 @@
 #include <cassert>
 #include "error.hpp"
 #include "types.hpp"
+#include "gmp_float.hpp"
 
 namespace gmp { namespace math {
 
@@ -100,8 +101,8 @@ namespace gmp { namespace math {
     template <typename T>
     array3d_t<T> operator/(const T scalar, const array3d_t<T>& arr);
 
-    // type aliases
-    using array3d_flt64 = array3d_t<double>;
+    // type aliases using configured floating-point type
+    using array3d_flt = array3d_t<gmp::gmp_float>;
     using array3d_uint32 = array3d_t<uint32_t>;
     using array3d_int32 = array3d_t<int32_t>;
     using array3d_int8 = array3d_t<int8_t>;
@@ -150,8 +151,8 @@ namespace gmp { namespace math {
         array3d_t<T> data_[3];
     };
 
-    // type aliases
-    using matrix3d_flt64 = matrix3d_t<double>;
+    // type aliases using configured floating-point type
+    using matrix3d_flt = matrix3d_t<gmp::gmp_float>;
 
     template <typename T>
     class sym_matrix3d_t {
@@ -182,8 +183,8 @@ namespace gmp { namespace math {
         array3d_t<T> off_diag_;
     };
 
-    // type aliases
-    using sym_matrix3d_flt64 = sym_matrix3d_t<double>;
+    // type aliases using configured floating-point type
+    using sym_matrix3d_flt = sym_matrix3d_t<gmp::gmp_float>;
 
     // other math functions 
     template <typename T>

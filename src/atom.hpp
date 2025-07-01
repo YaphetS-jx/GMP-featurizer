@@ -5,11 +5,12 @@
 #include "types.hpp"
 #include "resources.hpp"
 #include "math.hpp"
+#include "gmp_float.hpp"
 
 namespace gmp { namespace atom {
     
-    using gmp::geometry::lattice_flt64;
-    using gmp::geometry::point_flt64;
+    using gmp::geometry::lattice_flt;
+    using gmp::geometry::point_flt;
     using gmp::geometry::point3d_t;
     using gmp::math::array3d_bool;
     using gmp::math::array3d_int32;
@@ -117,11 +118,11 @@ namespace gmp { namespace atom {
     template <typename T>
     vector<gmp::geometry::point3d_t<T>> set_ref_positions(const array3d_int32& ref_grid, const vector<atom_t<T>>& atoms);
 
-    // Type aliases for common types
-    using atom_flt64 = atom_t<double>;
-    using unit_cell_flt64 = unit_cell_t<double>;
-    using gaussian_flt64 = gaussian_t<double>;
-    using psp_config_flt64 = psp_config_t<double>;
+    // Type aliases using configured floating-point type
+    using atom_flt = atom_t<gmp::gmp_float>;
+    using unit_cell_flt = unit_cell_t<gmp::gmp_float>;
+    using gaussian_flt = gaussian_t<gmp::gmp_float>;
+    using psp_config_flt = psp_config_t<gmp::gmp_float>;
 }}
 
 #include "atom.hxx"
