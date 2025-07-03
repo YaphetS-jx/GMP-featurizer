@@ -3,7 +3,7 @@
 #include <iostream>
 #include <iomanip>
 #include <filesystem>
-#include <boost/json.hpp>
+#include <nlohmann/json.hpp>
 #include <fstream>
 #include <sstream>
 
@@ -16,6 +16,7 @@ using namespace gmp::input;
 using namespace gmp::math;
 using namespace gmp::atom;
 using namespace gmp::geometry;
+using json = nlohmann::json;
 
 // Helper function to construct paths relative to project root
 std::string get_project_path(const std::string& relative_path) {
@@ -133,7 +134,7 @@ TEST_F(InputTest, read_psp_file) {
     EXPECT_EQ(offset.size(), 4);
 }
 
-TEST_F(InputTest, boost_json_parse_arguments) {
+TEST_F(InputTest, json_parse_arguments) {
     // Read the JSON file
     std::string json_path = get_project_path("test/test_files/input_test.json");
     std::ifstream file(json_path);
@@ -141,41 +142,44 @@ TEST_F(InputTest, boost_json_parse_arguments) {
     buffer << file.rdbuf();
     std::string json_str = buffer.str();
 
-    // Parse JSON using Boost.JSON
-    boost::json::error_code ec;
-    boost::json::value jv = boost::json::parse(json_str, ec);
-    ASSERT_FALSE(ec) << "JSON parsing failed: " << ec.message();
+    // Parse JSON using nlohmann/json
+    json jv;
+    try {
+        jv = json::parse(json_str);
+    } catch (json::parse_error& e) {
+        FAIL() << "JSON parsing failed: " << e.what();
+    }
 
     // Access and verify JSON values
-    boost::json::object const& obj = jv.as_object();
+    json const& obj = jv;
     
     // Check file paths
-    EXPECT_EQ(obj.at("system file path").as_string(), "test/test_files/test.cif");
-    EXPECT_EQ(obj.at("psp file path").as_string(), "test/test_files/test.gpsp");
-    EXPECT_EQ(obj.at("output file path").as_string(), "output.dat");
+    EXPECT_EQ(obj["system file path"].get<std::string>(), "test/test_files/test.cif");
+    EXPECT_EQ(obj["psp file path"].get<std::string>(), "test/test_files/test.gpsp");
+    EXPECT_EQ(obj["output file path"].get<std::string>(), "output.dat");
     
     // Check arrays
-    boost::json::array const& orders = obj.at("orders").as_array();
-    boost::json::array const& sigmas = obj.at("sigmas").as_array();
+    json const& orders = obj["orders"];
+    json const& sigmas = obj["sigmas"];
     
     EXPECT_EQ(orders.size(), 2);
     EXPECT_EQ(sigmas.size(), 2);
-    EXPECT_EQ(orders[0].as_int64(), 0);
-    EXPECT_EQ(orders[1].as_int64(), 1);
-    EXPECT_DOUBLE_EQ(sigmas[0].as_double(), 0.1);
-    EXPECT_DOUBLE_EQ(sigmas[1].as_double(), 0.2);
+    EXPECT_EQ(orders[0].get<int64_t>(), 0);
+    EXPECT_EQ(orders[1].get<int64_t>(), 1);
+    EXPECT_DOUBLE_EQ(sigmas[0].get<double>(), 0.1);
+    EXPECT_DOUBLE_EQ(sigmas[1].get<double>(), 0.2);
     
     // Check numeric values
-    EXPECT_DOUBLE_EQ(obj.at("overlap threshold").as_double(), 1e-10);
-    EXPECT_EQ(obj.at("scaling mode").as_int64(), 0);
-    EXPECT_EQ(obj.at("square").as_int64(), 1);
+    EXPECT_DOUBLE_EQ(obj["overlap threshold"].get<double>(), 1e-10);
+    EXPECT_EQ(obj["scaling mode"].get<int64_t>(), 0);
+    EXPECT_EQ(obj["square"].get<int64_t>(), 1);
     
     // Check array of doubles
-    boost::json::array const& tree_min_bounds = obj.at("tree min bounds").as_array();
+    json const& tree_min_bounds = obj["tree min bounds"];
     EXPECT_EQ(tree_min_bounds.size(), 3);
-    EXPECT_DOUBLE_EQ(tree_min_bounds[0].as_double(), 1.0);
-    EXPECT_DOUBLE_EQ(tree_min_bounds[1].as_double(), 1.0);
-    EXPECT_DOUBLE_EQ(tree_min_bounds[2].as_double(), 1.0);
+    EXPECT_DOUBLE_EQ(tree_min_bounds[0].get<double>(), 1.0);
+    EXPECT_DOUBLE_EQ(tree_min_bounds[1].get<double>(), 1.0);
+    EXPECT_DOUBLE_EQ(tree_min_bounds[2].get<double>(), 1.0);
 }
 
 TEST_F(InputTest, to_string_functions) {

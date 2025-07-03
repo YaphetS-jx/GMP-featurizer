@@ -2,7 +2,7 @@
 
 # Build script for GMP Featurizer with floating-point precision selection
 # Usage: 
-#   ./build.sh                    # Build with double precision (default)
+#   ./build.sh                    # Build with single precision (default)
 #   ./build.sh double             # Build with double precision
 #   ./build.sh single             # Build with single precision
 #   ./build.sh float              # Build with single precision (alias)
@@ -36,7 +36,6 @@ mkdir -p build
 cd build
 
 # Configure the project with CMake
-# install boost by apt-get install libboost-all-dev
 # change the path to the json and gemmi include directories
 # then run the following command
 
@@ -45,9 +44,12 @@ cd build
 # cmake -DBUILD_TESTS=ON -DBUILD_TYPE_RELEASE=ON \
 #   -DUSE_SINGLE_PRECISION=$USE_SINGLE_PRECISION \
 #   -DGEMMI_INCLUDE_DIR=/home/xx/Desktop/coding/gemmi/include \
+#   -DNLOHMANN_JSON_INCLUDE_DIR=/home/xx/Desktop/coding/json/single_include \
 #   ..
 
-cmake ..
+cmake -DBUILD_TESTS=ON -DBUILD_TYPE_RELEASE=ON \
+  -DUSE_SINGLE_PRECISION=$USE_SINGLE_PRECISION \
+  ..
 
 # Build the project
 make -j

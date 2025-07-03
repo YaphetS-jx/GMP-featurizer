@@ -2,7 +2,6 @@
 #include <algorithm>
 #include <vector>
 #include <cstdint>
-#include <bit>
 #include "morton_codes.hpp"
 #include "types.hpp"
 #include "math.hpp"

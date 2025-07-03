@@ -6,8 +6,8 @@ A C++ project using the foonathan memory library for efficient memory management
 
 - CMake (version 3.14 or higher)
 - C++ compiler with C++17 support
-- install boost by apt-get install libboost-all-dev
 - gemmi CIF parser from https://github.com/project-gemmi/gemmi.git
+- nlohmann json parser from https://github.com/nlohmann/json.git
 
 ### Or
 

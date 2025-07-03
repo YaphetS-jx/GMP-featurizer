@@ -41,11 +41,10 @@ set(PROJECT_ROOT ${CMAKE_SOURCE_DIR})
 # Set the output directory for executables
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
-# Find Boost
-find_package(Boost REQUIRED)
-
 # Set paths for header-only libraries
+# You can override these with -DGEMMI_INCLUDE_DIR=... and -DNLOHMANN_JSON_INCLUDE_DIR=... when running cmake
 set(GEMMI_INCLUDE_DIR "/usr/local/src/gemmi/include" CACHE PATH "Path to GEMMI include directory")
+set(NLOHMANN_JSON_INCLUDE_DIR "/usr/local/src/json/single_include" CACHE PATH "Path to nlohmann/json include directory")
 
 # Option to build tests
 option(BUILD_TESTS "Build the tests" OFF)
@@ -66,14 +65,21 @@ add_executable(gmp-featurizer src/main.cpp)
 target_link_libraries(gmp-featurizer
     PRIVATE
     gmp-featurizer-lib
+    pthread
 )
 
 # Set include directories for the library
 target_include_directories(gmp-featurizer-lib
     PUBLIC
     ${CMAKE_SOURCE_DIR}/src
-    ${Boost_INCLUDE_DIRS}
+    ${NLOHMANN_JSON_INCLUDE_DIR}
     ${GEMMI_INCLUDE_DIR}
+)
+
+# Also link pthread to the library in case it's used in tests
+target_link_libraries(gmp-featurizer-lib
+    PUBLIC
+    pthread
 )
 
 if(BUILD_TESTS)

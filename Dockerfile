@@ -17,16 +17,14 @@ RUN apt-get update && apt-get install -y \
     g++ \
     cmake \
     make \
-    # Boost libraries
-    libboost-all-dev \
     # Clean up
     && rm -rf /var/lib/apt/lists/*
 
 # Create a user with the same UID as the host user
-ARG USER_ID=1000
-ARG GROUP_ID=1000
-RUN groupadd -g $GROUP_ID appuser && \
-    useradd -u $USER_ID -g $GROUP_ID -m -s /bin/bash appuser
+ARG USER_ID=10101
+ARG GROUP_ID=10101
+RUN groupadd -f -g $GROUP_ID appuser && \
+    id -u appuser || useradd -u $USER_ID -g $GROUP_ID -m -s /bin/bash appuser
 
 # Set working directory
 WORKDIR /app
@@ -37,6 +35,10 @@ RUN mkdir -p /usr/local/src
 # Install GEMMI
 RUN cd /usr/local/src && \
     git clone https://github.com/project-gemmi/gemmi.git
+
+# Install nlohmann/json
+RUN cd /usr/local/src && \
+    git clone --depth 1 --branch v3.11.3 https://github.com/nlohmann/json.git
     
 # Configure readline for better command-line experience
 RUN echo '"\e[A": history-search-backward' >> /home/appuser/.inputrc && \

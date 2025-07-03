@@ -2,7 +2,7 @@
 #include <vector>
 #include <tuple>
 #include <fstream>
-#include <boost/json/src.hpp>
+#include <nlohmann/json.hpp>
 
 #include "input.hpp"
 #include "error.hpp"
@@ -11,6 +11,7 @@
 namespace gmp { namespace input {
 
     using namespace gmp;
+    using json = nlohmann::json;
 
     input_t::input_t(const std::string& json_file) : 
         files(std::make_unique<file_path_t>()),
@@ -51,71 +52,72 @@ namespace gmp { namespace input {
         buffer << inFile.rdbuf();
         std::string json_str = buffer.str();
 
-        boost::json::error_code ec;
-        boost::json::value jv = boost::json::parse(json_str, ec);
-        if (ec) {
+        json jv;
+        try {
+            jv = json::parse(json_str);
+        } catch (json::parse_error& e) {
             update_error(gmp::error_t::invalid_json_file);
             return;
         }
 
-        boost::json::object const& config = jv.as_object();
+        json const& config = jv;
         
         std::vector<int> orders;
         std::vector<gmp_float> sigmas;
         std::vector<std::tuple<int, gmp_float>> feature_list;
 
         // Required entries
-        this->files->set_atom_file(std::string(config.at("system file path").as_string()));
-        this->files->set_psp_file(std::string(config.at("psp file path").as_string()));
-        this->files->set_output_file(std::string(config.at("output file path").as_string()));
+        this->files->set_atom_file(config["system file path"].get<std::string>());
+        this->files->set_psp_file(config["psp file path"].get<std::string>());
+        this->files->set_output_file(config["output file path"].get<std::string>());
 
         // Optional entries
         if (config.contains("square")) {
-            this->descriptor_config->set_square(config.at("square").as_int64());
+            this->descriptor_config->set_square(config["square"].get<int64_t>());
         }
         if (config.contains("overlap threshold")) {
-            this->descriptor_config->set_overlap_threshold(static_cast<gmp_float>(config.at("overlap threshold").as_double()));
+            this->descriptor_config->set_overlap_threshold(static_cast<gmp_float>(config["overlap threshold"].get<double>()));
         }
         if (config.contains("scaling mode")) {
-            this->descriptor_config->set_scaling_mode(static_cast<scaling_mode_t>(config.at("scaling mode").as_int64()));
+            this->descriptor_config->set_scaling_mode(static_cast<scaling_mode_t>(config["scaling mode"].get<int64_t>()));
         }
         
         if (config.contains("reference grid")) {
-            auto const& ref_grid_json = config.at("reference grid").as_array();
+            json const& ref_grid_json = config["reference grid"];
             if (ref_grid_json.size() == 3) {
                 array3d_int32 ref_grid_array(
-                    ref_grid_json[0].as_int64(),
-                    ref_grid_json[1].as_int64(),
-                    ref_grid_json[2].as_int64()
+                    ref_grid_json[0].get<int64_t>(),
+                    ref_grid_json[1].get<int64_t>(),
+                    ref_grid_json[2].get<int64_t>()
                 );
                 this->descriptor_config->set_ref_grid(ref_grid_array);
             }
         }
         
         if (config.contains("num bits per dim")) {
-            this->descriptor_config->set_num_bits_per_dim(static_cast<uint8_t>(config.at("num bits per dim").as_int64()));
+            this->descriptor_config->set_num_bits_per_dim(static_cast<uint8_t>(config["num bits per dim"].get<int64_t>()));
         }
         if (config.contains("num threads")) {
-            this->descriptor_config->set_num_threads(static_cast<size_t>(config.at("num threads").as_int64()));
+            this->descriptor_config->set_num_threads(static_cast<size_t>(config["num threads"].get<int64_t>()));
         }
 
         if (config.contains("orders")) {
-            auto const& orders_json = config.at("orders").as_array();
+            json const& orders_json = config["orders"];
             for (auto const& val : orders_json) {
-                orders.push_back(val.as_int64());
+                orders.push_back(val.get<int64_t>());
             }
         }
         if (config.contains("sigmas")) {
-            auto const& sigmas_json = config.at("sigmas").as_array();
+            json const& sigmas_json = config["sigmas"];
             for (auto const& val : sigmas_json) {
-                sigmas.push_back(static_cast<gmp_float>(val.as_double()));
+                sigmas.push_back(static_cast<gmp_float>(val.get<double>()));
             }
         }
         if (config.contains("feature lists")) {
-            auto const& feature_lists_json = config.at("feature lists").as_array();
+            json const& feature_lists_json = config["feature lists"];
             for (auto const& pair : feature_lists_json) {
-                auto const& pair_array = pair.as_array();
-                feature_list.emplace_back(pair_array[0].as_int64(), static_cast<gmp_float>(pair_array[1].as_double()));
+                json const& pair_array = pair;
+                feature_list.emplace_back(pair_array[0].get<int64_t>(), static_cast<gmp_float>(pair_array[1].get<double>()));
             }
         }
         
