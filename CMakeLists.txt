@@ -12,6 +12,9 @@ option(BUILD_TYPE_PROFILE "Build in Profile mode for gprof profiling" OFF)
 # Add floating-point precision options
 option(USE_SINGLE_PRECISION "Use single precision (float) instead of double precision" OFF)
 
+# Add CUDA support option
+option(ENABLE_CUDA "Enable CUDA support for GPU acceleration" OFF)
+
 # Set floating-point precision based on options
 if(USE_SINGLE_PRECISION)
     add_compile_definitions(GMP_USE_SINGLE_PRECISION)
@@ -21,18 +24,55 @@ else()
     message(STATUS "Building with double precision (double)")
 endif()
 
+# CUDA configuration
+if(ENABLE_CUDA)
+    # Enable CUDA language
+    enable_language(CUDA)
+    
+    # Set CUDA standard
+    set(CMAKE_CUDA_STANDARD 17)
+    set(CMAKE_CUDA_STANDARD_REQUIRED ON)
+    
+    # Set CUDA architecture (adjust based on your GPU)
+    set(CMAKE_CUDA_ARCHITECTURES "60;70;75;80;86")
+    
+    # Find CUDA
+    find_package(CUDA REQUIRED)
+    
+    message(STATUS "CUDA enabled - Version: ${CUDA_VERSION}")
+    message(STATUS "CUDA architectures: ${CMAKE_CUDA_ARCHITECTURES}")
+    
+    # Add CUDA definitions
+    add_compile_definitions(GMP_ENABLE_CUDA)
+    add_compile_definitions(GMP_CUDA_VERSION=${CUDA_VERSION_MAJOR}${CUDA_VERSION_MINOR})
+else()
+    message(STATUS "CUDA disabled - building CPU-only version")
+endif()
+
 # Set release mode and flags based on the option
 if(BUILD_TYPE_PROFILE)
     set(CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING "Build type" FORCE)
     set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3 -pg -march=native" CACHE STRING "Profile flags" FORCE)
     set(CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO "-pg" CACHE STRING "Profile linker flags" FORCE)
     set(CMAKE_SHARED_LINKER_FLAGS_RELWITHDEBINFO "-pg" CACHE STRING "Profile shared linker flags" FORCE)
+    
+    if(ENABLE_CUDA)
+        set(CMAKE_CUDA_FLAGS_RELWITHDEBINFO "-O3 -pg" CACHE STRING "CUDA Profile flags" FORCE)
+    endif()
 elseif(BUILD_TYPE_RELEASE)
     set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
     set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native" CACHE STRING "Release flags" FORCE)
+    
+    if(ENABLE_CUDA)
+        set(CMAKE_CUDA_FLAGS_RELEASE "-O3" CACHE STRING "CUDA Release flags" FORCE)
+    endif()
 else()
     set(CMAKE_BUILD_TYPE Debug CACHE STRING "Build type" FORCE)
     set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g -DDEBUG -march=native" CACHE STRING "Debug flags" FORCE)
+    
+    if(ENABLE_CUDA)
+        set(CMAKE_CUDA_FLAGS_DEBUG "-O0 -g -G" CACHE STRING "CUDA Debug flags" FORCE)
+    endif()
 endif()
 
 # Define project root path
@@ -58,6 +98,41 @@ target_sources(gmp-featurizer-lib
     src/input.cpp
 )
 
+# Set include directories for the library
+target_include_directories(gmp-featurizer-lib
+    PUBLIC
+    ${CMAKE_SOURCE_DIR}/src
+    ${NLOHMANN_JSON_INCLUDE_DIR}
+    ${GEMMI_INCLUDE_DIR}
+)
+
+# Add CUDA include directories if CUDA is enabled
+if(ENABLE_CUDA)
+    target_include_directories(gmp-featurizer-lib
+        PUBLIC
+        ${CUDA_INCLUDE_DIRS}
+    )
+    
+    # Set CUDA properties for the library
+    set_target_properties(gmp-featurizer-lib PROPERTIES
+        CUDA_SEPARABLE_COMPILATION ON
+    )
+endif()
+
+# Link libraries
+target_link_libraries(gmp-featurizer-lib
+    PUBLIC
+    pthread
+)
+
+# Add CUDA libraries if CUDA is enabled
+if(ENABLE_CUDA)
+    target_link_libraries(gmp-featurizer-lib
+        PUBLIC
+        ${CUDA_LIBRARIES}
+    )
+endif()
+
 # Create the main executable
 add_executable(gmp-featurizer src/main.cpp)
 
@@ -68,19 +143,18 @@ target_link_libraries(gmp-featurizer
     pthread
 )
 
-# Set include directories for the library
-target_include_directories(gmp-featurizer-lib
-    PUBLIC
-    ${CMAKE_SOURCE_DIR}/src
-    ${NLOHMANN_JSON_INCLUDE_DIR}
-    ${GEMMI_INCLUDE_DIR}
-)
-
-# Also link pthread to the library in case it's used in tests
-target_link_libraries(gmp-featurizer-lib
-    PUBLIC
-    pthread
-)
+# Add CUDA libraries to executable if CUDA is enabled
+if(ENABLE_CUDA)
+    target_link_libraries(gmp-featurizer
+        PRIVATE
+        ${CUDA_LIBRARIES}
+    )
+    
+    # Set CUDA properties for the executable
+    set_target_properties(gmp-featurizer PROPERTIES
+        CUDA_SEPARABLE_COMPILATION ON
+    )
+endif()
 
 if(BUILD_TESTS)
     # Enable testing
@@ -145,6 +219,13 @@ if(BUILD_TESTS)
         test/gmp_cpu.cpp
     )
 
+    # Add CUDA test only when CUDA is enabled
+    if(ENABLE_CUDA)
+        add_executable(gmp-cuda-test
+            test/test-cuda.cu
+        )
+    endif()
+
     # Add project root definition to all test executables
     target_compile_definitions(gmp-resources-test PRIVATE PROJECT_ROOT="${PROJECT_ROOT}")
     target_compile_definitions(gmp-math-test PRIVATE PROJECT_ROOT="${PROJECT_ROOT}")
@@ -157,6 +238,11 @@ if(BUILD_TESTS)
     target_compile_definitions(gmp-region-query-test PRIVATE PROJECT_ROOT="${PROJECT_ROOT}")
     target_compile_definitions(gmp-cif-test PRIVATE PROJECT_ROOT="${PROJECT_ROOT}")
     target_compile_definitions(gmp-cpu-test PRIVATE PROJECT_ROOT="${PROJECT_ROOT}")
+
+    # Add CUDA test definition if CUDA is enabled
+    if(ENABLE_CUDA)
+        target_compile_definitions(gmp-cuda-test PRIVATE PROJECT_ROOT="${PROJECT_ROOT}")
+    endif()
 
     # Link against Google Test and the library
     target_link_libraries(gmp-resources-test
@@ -235,6 +321,34 @@ if(BUILD_TESTS)
         GTest::gmock_main
         gmp-featurizer-lib
     )
+
+    # Link CUDA test if CUDA is enabled
+    if(ENABLE_CUDA)
+        target_link_libraries(gmp-cuda-test
+            PRIVATE
+            GTest::gtest_main
+            GTest::gmock_main
+            gmp-featurizer-lib
+        )
+        
+        # Add CUDA include directories and libraries
+        target_include_directories(gmp-cuda-test
+            PRIVATE
+            ${CMAKE_SOURCE_DIR}/src
+            ${CUDA_INCLUDE_DIRS}
+        )
+        
+        # Set CUDA properties
+        set_target_properties(gmp-cuda-test PROPERTIES
+            CUDA_SEPARABLE_COMPILATION ON
+        )
+        
+        # Link CUDA libraries
+        target_link_libraries(gmp-cuda-test
+            PRIVATE
+            ${CUDA_LIBRARIES}
+        )
+    endif()
 
     # Include directories for tests
     target_include_directories(gmp-resources-test
@@ -337,6 +451,13 @@ if(BUILD_TESTS)
         RUNTIME_OUTPUT_DIRECTORY ${TEST_RUNTIME_OUTPUT_DIRECTORY}
     )
 
+    # Set output directory for CUDA test if enabled
+    if(ENABLE_CUDA)
+        set_target_properties(gmp-cuda-test PROPERTIES
+            RUNTIME_OUTPUT_DIRECTORY ${TEST_RUNTIME_OUTPUT_DIRECTORY}
+        )
+    endif()
+
     # Register tests
     include(GoogleTest)
     gtest_discover_tests(gmp-resources-test)
@@ -351,6 +472,11 @@ if(BUILD_TESTS)
     gtest_discover_tests(gmp-cif-test)
     gtest_discover_tests(gmp-cpu-test)
 
+    # Register CUDA test if enabled
+    if(ENABLE_CUDA)
+        gtest_discover_tests(gmp-cuda-test)
+    endif()
+
     # Add a custom target to build and run all tests
     add_custom_target(run_all_tests
         COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
@@ -358,4 +484,9 @@ if(BUILD_TESTS)
         WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
         COMMENT "Running all tests..."
     )
+
+    # Add CUDA test to dependencies if enabled
+    if(ENABLE_CUDA)
+        add_dependencies(run_all_tests gmp-cuda-test)
+    endif()
 endif()

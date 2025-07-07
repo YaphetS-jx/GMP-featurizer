@@ -1,5 +1,5 @@
-# Use GCC latest as base image (includes build tools)
-FROM gcc:latest
+# Use NVIDIA CUDA base image with Ubuntu 24.04
+FROM nvidia/cuda:12.8.0-devel-ubuntu24.04
 
 # Set maintainer label
 LABEL maintainer="jingxin.bc@gmail.com"
@@ -7,11 +7,26 @@ LABEL maintainer="jingxin.bc@gmail.com"
 # Prevent interactive prompts during package installation
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install additional tools (git and vim only, since gcc:latest has build tools)
+# Set CUDA environment variables
+ENV CUDA_HOME=/usr/local/cuda
+ENV PATH=${CUDA_HOME}/bin:${PATH}
+ENV LD_LIBRARY_PATH=${CUDA_HOME}/lib64:${LD_LIBRARY_PATH}
+
+# Install build tools and dependencies
 RUN apt-get update && apt-get install -y \
     git \
     vim \
+    wget \
+    curl \
+    # Build essentials
+    build-essential \
+    gcc \
+    g++ \
     cmake \
+    make \
+    ninja-build \
+    # Additional development tools
+    pkg-config \
     # Clean up
     && rm -rf /var/lib/apt/lists/*
 
@@ -25,7 +40,11 @@ RUN mkdir -p /usr/local/src
 RUN cd /usr/local/src && \
     git clone https://github.com/project-gemmi/gemmi.git && \
     git clone --depth 1 --branch v3.11.3 https://github.com/nlohmann/json.git
-    
+
+# Install Thrust (usually comes with CUDA, but let's make sure)
+# Thrust is header-only and should be available in CUDA installation
+RUN echo "Thrust should be available at /usr/local/cuda/include/thrust"
+
 # Configure readline for better command-line experience
 RUN echo '"\e[A": history-search-backward' >> /root/.inputrc && \
     echo '"\e[B": history-search-forward' >> /root/.inputrc && \
@@ -37,4 +56,4 @@ RUN echo '"\e[A": history-search-backward' >> /root/.inputrc && \
 COPY . .
 
 # Set default command
-CMD ["/bin/bash"]
+CMD ["/bin/bash"] 
