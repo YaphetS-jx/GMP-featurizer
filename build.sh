@@ -6,12 +6,15 @@
 #   ./build.sh double             # Build main project with double precision
 #   ./build.sh single             # Build main project with single precision
 #   ./build.sh float              # Build main project with single precision (alias)
+#   ./build.sh single gpu         # Build with GPU support
+#   ./build.sh single gpu 120     # Build with GPU support and specific architecture
 
 set -e
 
 # Parse command line arguments
 FLOAT_TYPE="${1:-single}"
 BUILD_TYPE="${2:-cpu}"
+CUDA_ARCH="${3:-120}"  # Default to sm_120 
 
 # Colors for output
 RED='\033[0;31m'
@@ -68,10 +71,27 @@ validate_build_type() {
         *)
             print_error "Invalid build type '$build_type'"
             echo "Valid options: cpu, gpu"
-            echo "Usage: ./build.sh [double|single|float] [cpu|gpu]"
+            echo "Usage: ./build.sh [double|single|float] [cpu|gpu] [architecture]"
             exit 1
             ;;
     esac
+}
+
+# Function to validate CUDA architecture
+validate_cuda_arch() {
+    local arch="$1"
+    if [ "$ENABLE_CUDA" = "ON" ]; then
+        # Common CUDA architectures
+        case "$arch" in
+            "50"|"52"|"53"|"60"|"61"|"62"|"70"|"72"|"75"|"80"|"86"|"87"|"89"|"90"|"100"|"101"|"120")
+                echo "Using CUDA architecture: sm_$arch"
+                ;;
+            *)
+                print_warning "Unknown CUDA architecture '$arch'. Proceeding anyway..."
+                echo "Common architectures: 50, 52, 53, 60, 61, 62, 70, 72, 75, 80, 86, 87, 89, 90, 100, 101, 120"
+                ;;
+        esac
+    fi
 }
 
 # Function to check CUDA availability
@@ -95,6 +115,7 @@ build_main_project() {
     
     validate_float_type "$FLOAT_TYPE"
     validate_build_type "$BUILD_TYPE"
+    validate_cuda_arch "$CUDA_ARCH"
     check_cuda
     
     BUILD_DIR="build"
@@ -108,10 +129,12 @@ build_main_project() {
     echo "  - Floating point precision: $FLOAT_TYPE"
     echo "  - Build type: $BUILD_TYPE"
     echo "  - CUDA enabled: $ENABLE_CUDA"
+    echo "  - CUDA architecture: $CUDA_ARCH"
     
     cmake -DBUILD_TESTS=ON -DBUILD_TYPE_RELEASE=ON \
       -DUSE_SINGLE_PRECISION=$USE_SINGLE_PRECISION \
       -DENABLE_CUDA=$ENABLE_CUDA \
+      -DCUDA_ARCH=$CUDA_ARCH \
       ..
     
     # Build the project
@@ -122,6 +145,7 @@ build_main_project() {
     echo "Floating-point type: $FLOAT_TYPE"
     echo "Build type: $BUILD_TYPE"
     echo "CUDA enabled: $ENABLE_CUDA"
+    echo "CUDA architecture: $CUDA_ARCH"
     
     cd ..
 }

@@ -33,18 +33,20 @@ if(ENABLE_CUDA)
     set(CMAKE_CUDA_STANDARD 17)
     set(CMAKE_CUDA_STANDARD_REQUIRED ON)
     
-    # Set CUDA architecture (adjust based on your GPU)
-    set(CMAKE_CUDA_ARCHITECTURES "60;70;75;80;86")
+    # Set CUDA architecture (configurable via command line)
+    set(CUDA_ARCH "120" CACHE STRING "CUDA architecture (e.g., 120 for RTX 5080)")
+    set(CMAKE_CUDA_ARCHITECTURES "${CUDA_ARCH}")
     
-    # Find CUDA
-    find_package(CUDA REQUIRED)
+    # Set CUDA variables manually (modern approach)
+    set(CUDA_INCLUDE_DIRS ${CMAKE_CUDA_TOOLKIT_ROOT_DIR}/include)
+    set(CUDA_LIBRARIES cuda cudart)
     
-    message(STATUS "CUDA enabled - Version: ${CUDA_VERSION}")
+    message(STATUS "CUDA enabled - Version: ${CMAKE_CUDA_COMPILER_VERSION}")
     message(STATUS "CUDA architectures: ${CMAKE_CUDA_ARCHITECTURES}")
     
     # Add CUDA definitions
     add_compile_definitions(GMP_ENABLE_CUDA)
-    add_compile_definitions(GMP_CUDA_VERSION=${CUDA_VERSION_MAJOR}${CUDA_VERSION_MINOR})
+    add_compile_definitions(GMP_CUDA_VERSION=${CMAKE_CUDA_COMPILER_VERSION_MAJOR}${CMAKE_CUDA_COMPILER_VERSION_MINOR})
 else()
     message(STATUS "CUDA disabled - building CPU-only version")
 endif()
@@ -125,36 +127,16 @@ target_link_libraries(gmp-featurizer-lib
     pthread
 )
 
-# Add CUDA libraries if CUDA is enabled
-if(ENABLE_CUDA)
-    target_link_libraries(gmp-featurizer-lib
-        PUBLIC
-        ${CUDA_LIBRARIES}
-    )
-endif()
-
 # Create the main executable
 add_executable(gmp-featurizer src/main.cpp)
 
-# Link the executable against the library
 target_link_libraries(gmp-featurizer
     PRIVATE
     gmp-featurizer-lib
     pthread
 )
 
-# Add CUDA libraries to executable if CUDA is enabled
-if(ENABLE_CUDA)
-    target_link_libraries(gmp-featurizer
-        PRIVATE
-        ${CUDA_LIBRARIES}
-    )
-    
-    # Set CUDA properties for the executable
-    set_target_properties(gmp-featurizer PROPERTIES
-        CUDA_SEPARABLE_COMPILATION ON
-    )
-endif()
+# Do NOT link CUDA libraries to gmp-featurizer since it's CPU-only
 
 if(BUILD_TESTS)
     # Enable testing
@@ -329,6 +311,7 @@ if(BUILD_TESTS)
             GTest::gtest_main
             GTest::gmock_main
             gmp-featurizer-lib
+            ${CUDA_LIBRARIES}
         )
         
         # Add CUDA include directories and libraries
