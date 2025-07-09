@@ -25,10 +25,17 @@ RUN apt-get update && apt-get install -y \
     cmake \
     make \
     ninja-build \
+    lsb-release \
     # Additional development tools
     pkg-config \
     # Clean up
     && rm -rf /var/lib/apt/lists/*
+
+# Install latest CMake from Kitware
+RUN wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | gpg --dearmor -o /usr/share/keyrings/kitware.gpg && \
+    echo "deb [signed-by=/usr/share/keyrings/kitware.gpg] https://apt.kitware.com/ubuntu/ $(lsb_release -cs) main" > /etc/apt/sources.list.d/kitware.list && \
+    apt-get update && apt-get install -y cmake && \
+    rm -rf /var/lib/apt/lists/*
 
 # Set working directory
 WORKDIR /app
@@ -40,6 +47,16 @@ RUN mkdir -p /usr/local/src
 RUN cd /usr/local/src && \
     git clone https://github.com/project-gemmi/gemmi.git && \
     git clone --depth 1 --branch v3.11.3 https://github.com/nlohmann/json.git
+
+# Install RMM (RAPIDS Memory Manager)
+RUN cd /usr/local/src && \
+    git clone https://github.com/rapidsai/rmm.git && \
+    cd rmm && \
+    mkdir build && \
+    cd build && \
+    cmake ../cpp -DCMAKE_INSTALL_PREFIX=/usr/local && \
+    make -j$(nproc) && \
+    make install
 
 # Install Thrust (usually comes with CUDA, but let's make sure)
 # Thrust is header-only and should be available in CUDA installation
