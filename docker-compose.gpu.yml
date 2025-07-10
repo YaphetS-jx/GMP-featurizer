@@ -1,11 +1,12 @@
 version: '3.8'
 
 services:
-  gmp-featurizer-gpu:
+  gmp-gpu:
     build:
       context: .
       dockerfile: Dockerfile.gpu
-    container_name: gmp-featurizer-gpu-dev
+    image: gmp-image-gpu
+    container_name: gmp-container-gpu
     volumes:
       - .:/app
     working_dir: /app

@@ -1,5 +1,5 @@
-# Use GCC latest as base image (includes build tools)
-FROM gcc:latest
+# Use Ubuntu 24.04 as base image
+FROM ubuntu:24.04
 
 # Set maintainer label
 LABEL maintainer="jingxin.bc@gmail.com"
@@ -7,8 +7,9 @@ LABEL maintainer="jingxin.bc@gmail.com"
 # Prevent interactive prompts during package installation
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install additional tools (git and vim only, since gcc:latest has build tools)
+# Install build tools and additional tools
 RUN apt-get update && apt-get install -y \
+    build-essential \
     git \
     vim \
     cmake \

@@ -1,9 +1,10 @@
 services:
-  gmp-featurizer-cpu:
+  gmp-cpu:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: gmp-featurizer-cpu
+    image: gmp-image-cpu
+    container_name: gmp-container-cpu
     volumes:
       - .:/app
     working_dir: /app
