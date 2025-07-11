@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include "../src/morton_codes.hpp"
+#include "morton_codes.hpp"
 #include <cmath>
 
 using namespace gmp::tree::morton_codes;

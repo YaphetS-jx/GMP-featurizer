@@ -97,21 +97,24 @@ add_library(gmp-featurizer-lib STATIC)
 # Add source files to the library
 target_sources(gmp-featurizer-lib
     PRIVATE
-    src/input.cpp
-    src/atom.cpp
-    src/featurizer.cpp
-    src/geometry.cpp
-    src/tree.cpp
-    src/math.cpp
-    src/mcsh.cpp
-    src/mcsh_kernel.cpp
-    src/region_query.cpp
+    src/common/input.cpp
+    src/common/atom.cpp
+    src/common/geometry.cpp
+    src/common/math.cpp
+    src/cpu/featurizer.cpp
+    src/cpu/mcsh.cpp
+    src/cpu/mcsh_kernel.cpp
+    src/cpu/tree.cpp
+    src/cpu/region_query.cpp
 )
 
 # Set include directories for the library
 target_include_directories(gmp-featurizer-lib
     PUBLIC
-    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/common
+    ${CMAKE_SOURCE_DIR}/src/cpu
+    ${CMAKE_SOURCE_DIR}/src/gpu
+    ${CMAKE_SOURCE_DIR}/src/infra
     ${NLOHMANN_JSON_INCLUDE_DIR}
     ${GEMMI_INCLUDE_DIR}
 )
@@ -127,6 +130,15 @@ if(ENABLE_CUDA)
     set_target_properties(gmp-featurizer-lib PROPERTIES
         CUDA_SEPARABLE_COMPILATION ON
     )
+    
+    # Add GPU source files when CUDA is enabled
+    # Note: These files will be created when implementing GPU functionality
+    # target_sources(gmp-featurizer-lib
+    #     PRIVATE
+    #     src/gpu/cuda/featurizer.cu
+    #     src/gpu/cuda/mcsh_kernel.cu
+    #     src/gpu/cuda/region_query.cu
+    # )
 endif()
 
 # Link libraries
