@@ -1,4 +1,3 @@
-#pragma once
 #include <cmath>
 #include <memory>
 #include <iostream>
@@ -166,4 +165,16 @@ namespace gmp { namespace geometry {
         return std::make_unique<lattice_t<T>>(abc * T_matrix);
     }
 
-}}
+    // Explicit instantiations for lattice_t (used externally)
+    template class lattice_t<float>;
+    template class lattice_t<double>;
+
+    // Explicit instantiations for cell_info_to_lattice (used externally)
+    template std::unique_ptr<lattice_t<float>> cell_info_to_lattice<float>(const array3d_t<float>&, const array3d_t<float>&);
+    template std::unique_ptr<lattice_t<double>> cell_info_to_lattice<double>(const array3d_t<double>&, const array3d_t<double>&);
+
+    // Explicit instantiations for operator<< (used externally)
+    template std::ostream& operator<<<float>(std::ostream&, const point3d_t<float>&);
+    template std::ostream& operator<<<double>(std::ostream&, const point3d_t<double>&);
+
+}} 

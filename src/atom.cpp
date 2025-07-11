@@ -1,4 +1,3 @@
-#pragma once
 #include <fstream>
 #include <sstream>
 #include <iostream>
@@ -49,6 +48,10 @@ namespace gmp { namespace atom {
 
     template <typename T>
     inline void atom_t<T>::set_id(const atom_type_id_t type_id) { type_id_ = type_id; }
+
+    // Explicit instantiations for atom_t
+    template class atom_t<float>;
+    template class atom_t<double>;
 
     // unit_cell_t implementations
     template <typename T>
@@ -111,9 +114,17 @@ namespace gmp { namespace atom {
         }        
     }
 
+    // Explicit instantiations for unit_cell_t
+    template class unit_cell_t<float>;
+    template class unit_cell_t<double>;
+
     // gaussian_t implementations
     template <typename T>
     inline gaussian_t<T>::gaussian_t(T B, T beta) : B(B), beta(beta) {}
+
+    // Explicit instantiations for gaussian_t
+    template struct gaussian_t<float>;
+    template struct gaussian_t<double>;
 
     // psp_config_t implementations
     template <typename T>
@@ -150,6 +161,10 @@ namespace gmp { namespace atom {
         }
         std::cout << std::endl;
     }
+
+    // Explicit instantiations for psp_config_t
+    template class psp_config_t<float>;
+    template class psp_config_t<double>;
 
     // read cif file 
     template <typename T>
@@ -202,6 +217,10 @@ namespace gmp { namespace atom {
 
         return;
     }
+
+    // Explicit instantiations for read_atom_file
+    template void read_atom_file<float>(const std::string&, std::unique_ptr<gmp::geometry::lattice_t<float>>&, vector<atom_t<float>>&, atom_type_map_t&);
+    template void read_atom_file<double>(const std::string&, std::unique_ptr<gmp::geometry::lattice_t<double>>&, vector<atom_t<double>>&, atom_type_map_t&);
 
     // read psp file 
     template <typename T>
@@ -275,6 +294,10 @@ namespace gmp { namespace atom {
         return;
     }
 
+    // Explicit instantiations for read_psp_file
+    template void read_psp_file<float>(const std::string&, const atom_type_map_t&, vector<gaussian_t<float>>&, vector<int>&);
+    template void read_psp_file<double>(const std::string&, const atom_type_map_t&, vector<gaussian_t<double>>&, vector<int>&);
+
     template <typename T>
     inline vector<point3d_t<T>> set_ref_positions(const array3d_int32& ref_grid, const vector<atom_t<T>>& atoms)
     {
@@ -299,5 +322,9 @@ namespace gmp { namespace atom {
         }
         return ref_positions;
     }
+
+    // Explicit instantiations for set_ref_positions
+    template vector<point3d_t<float>> set_ref_positions<float>(const array3d_int32&, const vector<atom_t<float>>&);
+    template vector<point3d_t<double>> set_ref_positions<double>(const array3d_int32&, const vector<atom_t<double>>&);
 
 }} 

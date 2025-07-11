@@ -6,6 +6,7 @@ namespace gmp { namespace mcsh {
 
     using gmp::math::array3d_t;
     using gmp::containers::vector;
+    using gmp::math::weighted_square_sum;
 
     // solid mcsh function registry
     template <typename T>
@@ -22,10 +23,4 @@ namespace gmp { namespace mcsh {
         solid_gmp_t functions_[10];
         int num_values_[10];
     };
-    
-    // functions 
-    template <typename T>
-    T weighted_square_sum(const int mcsh_order, const vector<T>& v);
 }}
-
-#include "mcsh.hxx"

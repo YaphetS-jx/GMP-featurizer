@@ -1,6 +1,8 @@
 #pragma once
+#include <memory>
 #include <string>
 #include <unordered_map>
+#include <array>
 #include "geometry.hpp"
 #include "types.hpp"
 #include "resources.hpp"
@@ -124,5 +126,3 @@ namespace gmp { namespace atom {
     using gaussian_flt = gaussian_t<gmp::gmp_float>;
     using psp_config_flt = psp_config_t<gmp::gmp_float>;
 }}
-
-#include "atom.hxx"

@@ -9,6 +9,7 @@
 #include "region_query.hpp"
 #include "mcsh.hpp"
 #include "resources.hpp"
+#include "featurizer.hpp"
 
 namespace gmp { namespace featurizer {
 
@@ -312,4 +313,9 @@ namespace gmp { namespace featurizer {
         
         return feature_collection;
     }
+
+    // Explicit instantiations for featurizer_t (only the class that's used externally)
+    template class featurizer_t<float>;
+    template class featurizer_t<double>;
+
 }} 

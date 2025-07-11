@@ -1,6 +1,4 @@
-#pragma once
-#include "types.hpp"
-#include "math.hpp"
+#include "mcsh_kernel.hpp"
 
 namespace gmp { namespace mcsh {
 
@@ -12,17 +10,23 @@ namespace gmp { namespace mcsh {
     constexpr T P1(const T lambda_x0) {
         return lambda_x0;
     }
+    template double P1(const double lambda_x0);
+    template float P1(const float lambda_x0);
     
     template <typename T>
     constexpr T P2(const T lambda_x0_2, const T inv_gamma) {        
         return (0.5 * inv_gamma) + lambda_x0_2;
     }
+    template double P2(const double lambda_x0_2, const double inv_gamma);
+    template float P2(const float lambda_x0_2, const float inv_gamma);
     
     template <typename T>
     constexpr T P3(const T lambda_x0, const T lambda_x0_3, 
                                    const T inv_gamma) {
         return (1.5 * lambda_x0 * inv_gamma) + lambda_x0_3;
     }
+    template double P3(const double lambda_x0, const double lambda_x0_3, const double inv_gamma);
+    template float P3(const float lambda_x0, const float lambda_x0_3, const float inv_gamma);
     
     template <typename T>
     constexpr T P4(const T lambda_x0_2, const T lambda_x0_4,
@@ -31,6 +35,8 @@ namespace gmp { namespace mcsh {
         const T term2 = 3.0 * lambda_x0_2 * inv_gamma;
         return term1 + term2 + lambda_x0_4;
     }
+    template double P4(const double lambda_x0_2, const double lambda_x0_4, const double inv_gamma, const double inv_gamma_2);
+    template float P4(const float lambda_x0_2, const float lambda_x0_4, const float inv_gamma, const float inv_gamma_2);
     
     template <typename T>
     constexpr T P5(const T lambda_x0, const T lambda_x0_3,
@@ -40,6 +46,8 @@ namespace gmp { namespace mcsh {
         const T term2 = 5.0 * lambda_x0_3 * inv_gamma;
         return term1 + term2 + lambda_x0_5;
     }
+    template double P5(const double lambda_x0, const double lambda_x0_3, const double lambda_x0_5, const double inv_gamma, const double inv_gamma_2);
+    template float P5(const float lambda_x0, const float lambda_x0_3, const float lambda_x0_5, const float inv_gamma, const float inv_gamma_2);
     
     template <typename T>
     constexpr T P6(const T lambda_x0_2, const T lambda_x0_4,
@@ -50,6 +58,8 @@ namespace gmp { namespace mcsh {
         const T term3 = 7.5 * lambda_x0_4 * inv_gamma;
         return term1 + term2 + term3 + lambda_x0_6;
     }
+    template double P6(const double lambda_x0_2, const double lambda_x0_4, const double lambda_x0_6, const double inv_gamma, const double inv_gamma_2, const double inv_gamma_3);
+    template float P6(const float lambda_x0_2, const float lambda_x0_4, const float lambda_x0_6, const float inv_gamma, const float inv_gamma_2, const float inv_gamma_3);
     
     template <typename T>
     constexpr T P7(const T lambda_x0, const T lambda_x0_3,
@@ -61,6 +71,8 @@ namespace gmp { namespace mcsh {
         const T term3 = 10.5 * lambda_x0_5 * inv_gamma;
         return term1 + term2 + term3 + lambda_x0_7;
     }
+    template double P7(const double lambda_x0, const double lambda_x0_3, const double lambda_x0_5, const double lambda_x0_7, const double inv_gamma, const double inv_gamma_2, const double inv_gamma_3);
+    template float P7(const float lambda_x0, const float lambda_x0_3, const float lambda_x0_5, const float lambda_x0_7, const float inv_gamma, const float inv_gamma_2, const float inv_gamma_3);
     
     template <typename T>
     constexpr T P8(const T lambda_x0_2, const T lambda_x0_4, 
@@ -73,6 +85,8 @@ namespace gmp { namespace mcsh {
         const T term4 = 14.0 * lambda_x0_6 * inv_gamma;
         return term1 + term2 + term3 + term4 + lambda_x0_8;
     }
+    template double P8(const double lambda_x0_2, const double lambda_x0_4, const double lambda_x0_6, const double lambda_x0_8, const double inv_gamma, const double inv_gamma_2, const double inv_gamma_3, const double inv_gamma_4);
+    template float P8(const float lambda_x0_2, const float lambda_x0_4, const float lambda_x0_6, const float lambda_x0_8, const float inv_gamma, const float inv_gamma_2, const float inv_gamma_3, const float inv_gamma_4);
     
     template <typename T>
     constexpr T P9(const T lambda_x0, const T lambda_x0_3, 
@@ -86,6 +100,8 @@ namespace gmp { namespace mcsh {
         const T term4 = 18.0 * lambda_x0_7 * inv_gamma;
         return term1 + term2 + term3 + term4 + lambda_x0_9;
     }
+    template double P9(const double lambda_x0, const double lambda_x0_3, const double lambda_x0_5, const double lambda_x0_7, const double lambda_x0_9, const double inv_gamma, const double inv_gamma_2, const double inv_gamma_3, const double inv_gamma_4);
+    template float P9(const float lambda_x0, const float lambda_x0_3, const float lambda_x0_5, const float lambda_x0_7, const float lambda_x0_9, const float inv_gamma, const float inv_gamma_2, const float inv_gamma_3, const float inv_gamma_4);
 
     template <typename T>
     void solid_mcsh_0(const array3d_t<T>& dr, const T r_sqr, const T temp, const T lambda, const T gamma, vector<T>& value) 
@@ -93,6 +109,8 @@ namespace gmp { namespace mcsh {
         assert(value.size() == 1);
         value[0] += temp;
     }
+    template void solid_mcsh_0(const array3d_t<double>& dr, const double r_sqr, const double temp, const double lambda, const double gamma, vector<double>& value);
+    template void solid_mcsh_0(const array3d_t<float>& dr, const float r_sqr, const float temp, const float lambda, const float gamma, vector<float>& value);
 
     template <typename T>
     void solid_mcsh_1(const array3d_t<T>& dr, const T r_sqr, const T temp, const T lambda, const T gamma, vector<T>& value) 
@@ -110,7 +128,8 @@ namespace gmp { namespace mcsh {
         value[1] += miu_1_1_2;
         value[2] += miu_1_1_3;
     }
-
+    template void solid_mcsh_1(const array3d_t<double>& dr, const double r_sqr, const double temp, const double lambda, const double gamma, vector<double>& value);
+    template void solid_mcsh_1(const array3d_t<float>& dr, const float r_sqr, const float temp, const float lambda, const float gamma, vector<float>& value);
 
     template <typename T>
     void solid_mcsh_2(const array3d_t<T>& dr, const T r_sqr, const T temp, const T lambda, const T gamma, vector<T>& value) 
@@ -150,6 +169,8 @@ namespace gmp { namespace mcsh {
         value[4] += gp2_miu_2_2_2;
         value[5] += gp2_miu_2_2_3;
     }
+    template void solid_mcsh_2(const array3d_t<double>& dr, const double r_sqr, const double temp, const double lambda, const double gamma, vector<double>& value);
+    template void solid_mcsh_2(const array3d_t<float>& dr, const float r_sqr, const float temp, const float lambda, const float gamma, vector<float>& value);
 
     template <typename T>
     void solid_mcsh_3(const array3d_t<T>& dr, const T r_sqr, const T temp, const T lambda, const T gamma, vector<T>& value) 
@@ -218,6 +239,8 @@ namespace gmp { namespace mcsh {
         const T gp3_m_3_3 = 15.0 * temp * lambda_x0 * lambda_y0 * lambda_z0; 
         value[9] += gp3_m_3_3;
     }
+    template void solid_mcsh_3(const array3d_t<double>& dr, const double r_sqr, const double temp, const double lambda, const double gamma, vector<double>& value);
+    template void solid_mcsh_3(const array3d_t<float>& dr, const float r_sqr, const float temp, const float lambda, const float gamma, vector<float>& value);
 
     template <typename T>
     void solid_mcsh_4(const array3d_t<T>& dr, const T r_sqr, const T temp, const T lambda, const T gamma, vector<T>& value) 
@@ -318,6 +341,8 @@ namespace gmp { namespace mcsh {
         value[13] += gp4_miu_2;
         value[14] += gp4_miu_3;
     }
+    template void solid_mcsh_4(const array3d_t<double>& dr, const double r_sqr, const double temp, const double lambda, const double gamma, vector<double>& value);
+    template void solid_mcsh_4(const array3d_t<float>& dr, const float r_sqr, const float temp, const float lambda, const float gamma, vector<float>& value);
 
     template <typename T>
     void solid_mcsh_5(const array3d_t<T>& dr, const T r_sqr, const T temp, const T lambda, const T gamma, vector<T>& value) 
@@ -449,6 +474,8 @@ namespace gmp { namespace mcsh {
         value[19] += gp5_miu_2;
         value[20] += gp5_miu_3;
     }
+    template void solid_mcsh_5(const array3d_t<double>& dr, const double r_sqr, const double temp, const double lambda, const double gamma, vector<double>& value);
+    template void solid_mcsh_5(const array3d_t<float>& dr, const float r_sqr, const float temp, const float lambda, const float gamma, vector<float>& value);
 
     template <typename T>
     void solid_mcsh_6(const array3d_t<T>& dr, const T r_sqr, const T temp, const T lambda, const T gamma, vector<T>& value) 
@@ -615,6 +642,8 @@ namespace gmp { namespace mcsh {
         value[27] += gp7_m;
 
     }
+    template void solid_mcsh_6(const array3d_t<double>& dr, const double r_sqr, const double temp, const double lambda, const double gamma, vector<double>& value);
+    template void solid_mcsh_6(const array3d_t<float>& dr, const float r_sqr, const float temp, const float lambda, const float gamma, vector<float>& value);
 
     template <typename T>
     void solid_mcsh_7(const array3d_t<T>& dr, const T r_sqr, const T temp, const T lambda, const T gamma, vector<T>& value) 
@@ -823,7 +852,9 @@ namespace gmp { namespace mcsh {
         value[35] += gp8_miu_3;
 
     }
-
+    template void solid_mcsh_7(const array3d_t<double>& dr, const double r_sqr, const double temp, const double lambda, const double gamma, vector<double>& value);
+    template void solid_mcsh_7(const array3d_t<float>& dr, const float r_sqr, const float temp, const float lambda, const float gamma, vector<float>& value);
+    
     template <typename T>
     void solid_mcsh_8(const array3d_t<T>& dr, const T r_sqr, const T temp, const T lambda, const T gamma, vector<T>& value) 
     {
@@ -1076,7 +1107,8 @@ namespace gmp { namespace mcsh {
         value[44] += gp10_miu_3;
 
     }
-
+    template void solid_mcsh_8(const array3d_t<double>& dr, const double r_sqr, const double temp, const double lambda, const double gamma, vector<double>& value);
+    template void solid_mcsh_8(const array3d_t<float>& dr, const float r_sqr, const float temp, const float lambda, const float gamma, vector<float>& value);
 
     template <typename T>
     void solid_mcsh_9(const array3d_t<T>& dr, const T r_sqr, const T temp, const T lambda, const T gamma, vector<T>& value) 
@@ -1373,4 +1405,7 @@ namespace gmp { namespace mcsh {
         const T gp12_m = temp * gp12_term;
         value[54] += gp12_m;
     }
+    template void solid_mcsh_9(const array3d_t<double>& dr, const double r_sqr, const double temp, const double lambda, const double gamma, vector<double>& value);
+    template void solid_mcsh_9(const array3d_t<float>& dr, const float r_sqr, const float temp, const float lambda, const float gamma, vector<float>& value);
+
 }}

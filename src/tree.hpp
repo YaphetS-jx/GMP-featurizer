@@ -59,5 +59,3 @@ namespace gmp { namespace tree {
     };
 
 }} // namespace gmp::tree
-
-#include "tree.hxx"

@@ -98,6 +98,14 @@ add_library(gmp-featurizer-lib STATIC)
 target_sources(gmp-featurizer-lib
     PRIVATE
     src/input.cpp
+    src/atom.cpp
+    src/featurizer.cpp
+    src/geometry.cpp
+    src/tree.cpp
+    src/math.cpp
+    src/mcsh.cpp
+    src/mcsh_kernel.cpp
+    src/region_query.cpp
 )
 
 # Set include directories for the library

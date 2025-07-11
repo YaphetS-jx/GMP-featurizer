@@ -2,6 +2,7 @@
 #include <vector>
 #include <stack>
 #include <unordered_map>
+#include <string>
 #include <cstdint>
 
 namespace gmp { namespace containers {

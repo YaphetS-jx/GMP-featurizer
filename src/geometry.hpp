@@ -87,5 +87,3 @@ namespace gmp { namespace geometry {
     using lattice_flt = lattice_t<gmp::gmp_float>;
 
 }}
-
-#include "geometry.hxx"

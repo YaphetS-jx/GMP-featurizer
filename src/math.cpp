@@ -1,5 +1,3 @@
-#pragma once
-#include "error.hpp"
 #include "math.hpp"
 
 namespace gmp { namespace math {
@@ -329,7 +327,7 @@ namespace gmp { namespace math {
     sym_matrix3d_t<T>::sym_matrix3d_t() : diag_{array3d_t<T>{}}, off_diag_{array3d_t<T>{}} {}
 
     template <typename T>
-    sym_matrix3d_t<T>::sym_matrix3d_t(T a, T b, T c, T d, T e, T f) : diag_{array3d_t<T>{a, b, c}}, off_diag_{array3d_t<T>{d, e, f}} {}
+    sym_matrix3d_t<T>::sym_matrix3d_t(T a, T b, T c, T d, T e, T f) : diag_{array3d_t<T>{a, b, c}}, off_diag_{array3d_t<T>{d, e, f}} {}        
 
     template <typename T>
     sym_matrix3d_t<T>::sym_matrix3d_t(const array3d_t<T>& diag, const array3d_t<T>& off_diag) : diag_{diag}, off_diag_{off_diag} {}        
@@ -475,4 +473,37 @@ namespace gmp { namespace math {
         }
     }
 
-}}
+    // Explicit template instantiations
+    template class array_2d_t<float>;
+    template class array_2d_t<double>;
+
+    template class array3d_t<float>;
+    template class array3d_t<double>;
+    template class array3d_t<uint32_t>;
+    template class array3d_t<int32_t>;
+
+    template class matrix3d_t<float>;
+    template class matrix3d_t<double>;
+
+    template class sym_matrix3d_t<float>;
+    template class sym_matrix3d_t<double>;
+
+    // Standalone operator instantiations
+    template array3d_t<float> operator*(const float scalar, const array3d_t<float>& arr);
+    template array3d_t<double> operator*(const double scalar, const array3d_t<double>& arr);
+
+    template array3d_t<float> operator/(const float scalar, const array3d_t<float>& arr);
+    template array3d_t<double> operator/(const double scalar, const array3d_t<double>& arr);
+
+    // Function template instantiations
+    template float weighted_square_sum(const int mcsh_order, const vector<float>& v);
+    template double weighted_square_sum(const int mcsh_order, const vector<double>& v);
+
+    template float round_to_0_1(const float x);
+    template double round_to_0_1(const double x);
+
+    // Explicit template instantiations for isZero
+    template bool isZero<float>(float);
+    template bool isZero<double>(double);
+
+}} 

@@ -5,7 +5,7 @@
 #include "input.hpp"
 #include "region_query.hpp"
 #include "atom.hpp"
-#include "mcsh_kernel.hxx"
+#include "mcsh_kernel.hpp"
 #include "gmp_float.hpp"
 
 namespace gmp { namespace featurizer {
@@ -106,5 +106,3 @@ namespace gmp { namespace featurizer {
     using cutoff_list_flt = cutoff_list_t<gmp::gmp_float>;
     using featurizer_flt = featurizer_t<gmp::gmp_float>;
 }}
-
-#include "featurizer.hxx"

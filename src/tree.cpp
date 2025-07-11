@@ -1,4 +1,3 @@
-#pragma once
 #include "tree.hpp"
 
 namespace gmp { namespace tree {
@@ -160,5 +159,8 @@ namespace gmp { namespace tree {
         }
         return result;
     }
+
+    // Explicit instantiations for binary_radix_tree_t (used in tests)
+    template class binary_radix_tree_t<uint32_t, int32_t>;
 
 }} // namespace gmp::tree 

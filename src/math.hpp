@@ -106,7 +106,7 @@ namespace gmp { namespace math {
     using array3d_uint32 = array3d_t<uint32_t>;
     using array3d_int32 = array3d_t<int32_t>;
     using array3d_int8 = array3d_t<int8_t>;
-    using array3d_bool = array3d_t<bool>;
+    using array3d_bool = std::array<bool, 3>;
 
     template <typename T>
     class matrix3d_t {
@@ -194,5 +194,3 @@ namespace gmp { namespace math {
     template <typename T>
     T weighted_square_sum(const int mcsh_order, const vector<T>& v);
 }}
-
-#include "math.hxx"

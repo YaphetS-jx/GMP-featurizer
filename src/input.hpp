@@ -130,5 +130,3 @@ namespace gmp { namespace input {
         void print_help() const;
     };
 }}
-
-#include "input.hxx"
