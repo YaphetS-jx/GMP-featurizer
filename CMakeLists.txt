@@ -26,29 +26,31 @@ endif()
 
 # CUDA configuration
 if(ENABLE_CUDA)
-    # Enable CUDA language
-    enable_language(CUDA)
-    
-    # Set CUDA standard
-    set(CMAKE_CUDA_STANDARD 17)
-    set(CMAKE_CUDA_STANDARD_REQUIRED ON)
-    
-    # Set CUDA architecture (configurable via command line)
-    set(CUDA_ARCH "120" CACHE STRING "CUDA architecture (e.g., 120 for RTX 5080)")
-    set(CMAKE_CUDA_ARCHITECTURES "${CUDA_ARCH}")
-    
-    # Set CUDA variables manually (modern approach)
-    set(CUDA_INCLUDE_DIRS ${CMAKE_CUDA_TOOLKIT_ROOT_DIR}/include)
-    set(CUDA_LIBRARIES cuda cudart)
-    
+    # Find CUDA Toolkit (modern CMake)
+    find_package(CUDAToolkit REQUIRED)
+
+    # Set CUDA include and library directories from CUDAToolkit
+    set(CUDA_INCLUDE_DIRS ${CUDAToolkit_INCLUDE_DIRS})
+    set(CUDA_LIBRARY_DIRS ${CUDAToolkit_LIBRARY_DIR})
+    set(CUDA_LIBRARIES CUDA::cudart CUDA::cuda_driver)
+
     message(STATUS "CUDA enabled - Version: ${CMAKE_CUDA_COMPILER_VERSION}")
-    message(STATUS "CUDA architectures: ${CMAKE_CUDA_ARCHITECTURES}")
-    
+    message(STATUS "CUDA include dirs: ${CUDA_INCLUDE_DIRS}")
+    message(STATUS "CUDA library dirs: ${CUDA_LIBRARY_DIRS}")
+    message(STATUS "CUDA libraries: ${CUDA_LIBRARIES}")
+
     # Add CUDA definitions
     add_compile_definitions(GMP_ENABLE_CUDA)
     add_compile_definitions(GMP_CUDA_VERSION=${CMAKE_CUDA_COMPILER_VERSION_MAJOR}${CMAKE_CUDA_COMPILER_VERSION_MINOR})
 else()
     message(STATUS "CUDA disabled - building CPU-only version")
+endif()
+
+# Find and configure RMM if CUDA is enabled
+if(ENABLE_CUDA)
+    find_package(rmm REQUIRED CONFIG)
+    message(STATUS "RMM found: ${rmm_FOUND}")
+    message(STATUS "RMM version: ${RMM_VERSION}")
 endif()
 
 # Set release mode and flags based on the option
@@ -124,6 +126,7 @@ if(ENABLE_CUDA)
     target_include_directories(gmp-featurizer-lib
         PUBLIC
         ${CUDA_INCLUDE_DIRS}
+        /usr/local/cuda/include
     )
     
     # Set CUDA properties for the library
@@ -131,21 +134,44 @@ if(ENABLE_CUDA)
         CUDA_SEPARABLE_COMPILATION ON
     )
     
+
+    
+    # Set CUDA compilation flags for math.cpp to enable GPU qualifiers
+    set_source_files_properties(src/common/math.cpp PROPERTIES
+        CUDA_SEPARABLE_COMPILATION ON
+    )
+    
     # Add GPU source files when CUDA is enabled
-    # Note: These files will be created when implementing GPU functionality
-    # target_sources(gmp-featurizer-lib
-    #     PRIVATE
-    #     src/gpu/cuda/featurizer.cu
-    #     src/gpu/cuda/mcsh_kernel.cu
-    #     src/gpu/cuda/region_query.cu
-    # )
+    target_sources(gmp-featurizer-lib
+        PRIVATE
+        src/infra/memory_manager.cpp
+        src/infra/rmm_pool.cpp
+    )
+    
+    # Set CUDA compilation flags for GPU-specific files
+    set_source_files_properties(src/infra/memory_manager.cpp PROPERTIES
+        CUDA_SEPARABLE_COMPILATION ON
+    )
+    set_source_files_properties(src/infra/rmm_pool.cpp PROPERTIES
+        CUDA_SEPARABLE_COMPILATION ON
+    )
 endif()
 
-# Link libraries
+    # Link libraries
 target_link_libraries(gmp-featurizer-lib
     PUBLIC
     pthread
 )
+
+# Link RMM if CUDA is enabled
+if(ENABLE_CUDA)
+    target_link_libraries(gmp-featurizer-lib
+        PUBLIC
+        rmm::rmm
+    )
+endif()
+    
+
 
 # Create the main executable
 add_executable(gmp-featurizer src/main.cpp)
@@ -226,6 +252,10 @@ if(BUILD_TESTS)
         add_executable(gmp-cuda-test
             test/test-cuda.cu
         )
+        
+        add_executable(gmp-rmm-test
+            test/rmm_test.cpp
+        )
     endif()
 
     # Add project root definition to all test executables
@@ -244,6 +274,7 @@ if(BUILD_TESTS)
     # Add CUDA test definition if CUDA is enabled
     if(ENABLE_CUDA)
         target_compile_definitions(gmp-cuda-test PRIVATE PROJECT_ROOT="${PROJECT_ROOT}")
+        target_compile_definitions(gmp-rmm-test PRIVATE PROJECT_ROOT="${PROJECT_ROOT}")
     endif()
 
     # Link against Google Test and the library
@@ -351,6 +382,33 @@ if(BUILD_TESTS)
             PRIVATE
             ${CUDA_LIBRARIES}
         )
+        
+
+        
+        # Link RMM test
+        target_link_libraries(gmp-rmm-test
+            PRIVATE
+            GTest::gtest_main
+            GTest::gmock_main
+            gmp-featurizer-lib
+            ${CUDA_LIBRARIES}
+        )
+        
+
+        
+        # Add CUDA include directories and libraries for RMM test
+        target_include_directories(gmp-rmm-test
+            PRIVATE
+            ${CMAKE_SOURCE_DIR}/src
+            ${CUDA_INCLUDE_DIRS}
+        )
+        
+        # Set CUDA properties for RMM test
+        set_target_properties(gmp-rmm-test PROPERTIES
+            CUDA_SEPARABLE_COMPILATION ON
+        )
+        
+
     endif()
 
     # Include directories for tests
@@ -459,6 +517,10 @@ if(BUILD_TESTS)
         set_target_properties(gmp-cuda-test PROPERTIES
             RUNTIME_OUTPUT_DIRECTORY ${TEST_RUNTIME_OUTPUT_DIRECTORY}
         )
+        
+        set_target_properties(gmp-rmm-test PROPERTIES
+            RUNTIME_OUTPUT_DIRECTORY ${TEST_RUNTIME_OUTPUT_DIRECTORY}
+        )
     endif()
 
     # Register tests
@@ -478,6 +540,7 @@ if(BUILD_TESTS)
     # Register CUDA test if enabled
     if(ENABLE_CUDA)
         gtest_discover_tests(gmp-cuda-test)
+        gtest_discover_tests(gmp-rmm-test)
     endif()
 
     # Add a custom target to build and run all tests
@@ -491,5 +554,6 @@ if(BUILD_TESTS)
     # Add CUDA test to dependencies if enabled
     if(ENABLE_CUDA)
         add_dependencies(run_all_tests gmp-cuda-test)
+        add_dependencies(run_all_tests gmp-rmm-test)
     endif()
 endif()

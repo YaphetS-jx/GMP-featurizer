@@ -4,20 +4,20 @@ namespace gmp { namespace math {
 
     // check if a value is close to zero
     template <typename T>
-    bool isZero(T value) {
+    GPU_HOST_DEVICE bool isZero(T value) {
         return std::abs(value) < std::numeric_limits<T>::epsilon();
     }
 
     // check if two values are equal
     template<typename T>
-    typename std::enable_if<!std::is_floating_point<T>::value, bool>::type
+    GPU_HOST_DEVICE typename std::enable_if<!std::is_floating_point<T>::value, bool>::type
     isEqual(const T& a, const T& b) {
         return a == b; // exact comparison for non-floating-point types
     }
 
     // Floating-point specialization with relative+absolute tolerance
     template<typename T>
-    typename std::enable_if<std::is_floating_point<T>::value, bool>::type
+    GPU_HOST_DEVICE typename std::enable_if<std::is_floating_point<T>::value, bool>::type
     isEqual(const T& a, const T& b,
             T absTol, T relTol) {
         return std::fabs(a - b) <= std::max(absTol, relTol * std::max(std::fabs(a), std::fabs(b)));
@@ -25,26 +25,26 @@ namespace gmp { namespace math {
 
     // array_2d_t implementations
     template <typename T>
-    array_2d_t<T>::array_2d_t() : data_{0, 0} {}
+    GPU_HOST_DEVICE array_2d_t<T>::array_2d_t() : data_{0, 0} {}
 
     template <typename T>
-    array_2d_t<T>::array_2d_t(T x, T y) : data_{x, y} {}
+    GPU_HOST_DEVICE array_2d_t<T>::array_2d_t(T x, T y) : data_{x, y} {}
 
     template <typename T>
-    array_2d_t<T>::array_2d_t(const array_2d_t<T>& other) : data_{other.data_[0], other.data_[1]} {}
+    GPU_HOST_DEVICE array_2d_t<T>::array_2d_t(const array_2d_t<T>& other) : data_{other.data_[0], other.data_[1]} {}
 
     template <typename T>
-    array_2d_t<T>::array_2d_t(array_2d_t<T>&& other) noexcept : data_{other.data_[0], other.data_[1]} {}
+    GPU_HOST_DEVICE array_2d_t<T>::array_2d_t(array_2d_t<T>&& other) noexcept : data_{other.data_[0], other.data_[1]} {}
 
     template <typename T>
-    array_2d_t<T>& array_2d_t<T>::operator=(const array_2d_t<T>& other) {
+    GPU_HOST_DEVICE array_2d_t<T>& array_2d_t<T>::operator=(const array_2d_t<T>& other) {
         data_[0] = other.data_[0];
         data_[1] = other.data_[1];
         return *this;
     }
 
     template <typename T>
-    array_2d_t<T>& array_2d_t<T>::operator=(array_2d_t<T>&& other) noexcept {
+    GPU_HOST_DEVICE array_2d_t<T>& array_2d_t<T>::operator=(array_2d_t<T>&& other) noexcept {
         if (this != &other) {
             data_[0] = other.data_[0];
             data_[1] = other.data_[1];
@@ -53,32 +53,32 @@ namespace gmp { namespace math {
     }
 
     template <typename T>
-    T& array_2d_t<T>::operator[](size_t i) { 
+    GPU_HOST_DEVICE T& array_2d_t<T>::operator[](size_t i) { 
         assert(i < 2); 
         return data_[i]; 
     }
 
     template <typename T>
-    const T& array_2d_t<T>::operator[](size_t i) const { 
+    GPU_HOST_DEVICE const T& array_2d_t<T>::operator[](size_t i) const { 
         assert(i < 2); 
         return data_[i]; 
     }
 
     // array3d_t implementations
     template <typename T>
-    array3d_t<T>::array3d_t() : data_{0, 0, 0} {}
+    GPU_HOST_DEVICE array3d_t<T>::array3d_t() : data_{0, 0, 0} {}
 
     template <typename T>
-    array3d_t<T>::array3d_t(T x, T y, T z) : data_{x, y, z} {}
+    GPU_HOST_DEVICE array3d_t<T>::array3d_t(T x, T y, T z) : data_{x, y, z} {}
 
     template <typename T>
-    array3d_t<T>::array3d_t(const array3d_t<T>& other) : data_{other.data_[0], other.data_[1], other.data_[2]} {}
+    GPU_HOST_DEVICE array3d_t<T>::array3d_t(const array3d_t<T>& other) : data_{other.data_[0], other.data_[1], other.data_[2]} {}
 
     template <typename T>
-    array3d_t<T>::array3d_t(array3d_t<T>&& other) noexcept : data_{other.data_[0], other.data_[1], other.data_[2]} {}
+    GPU_HOST_DEVICE array3d_t<T>::array3d_t(array3d_t<T>&& other) noexcept : data_{other.data_[0], other.data_[1], other.data_[2]} {}
 
     template <typename T>
-    array3d_t<T>& array3d_t<T>::operator=(const array3d_t<T>& other) {
+    GPU_HOST_DEVICE array3d_t<T>& array3d_t<T>::operator=(const array3d_t<T>& other) {
         data_[0] = other.data_[0];
         data_[1] = other.data_[1];
         data_[2] = other.data_[2];
@@ -86,7 +86,7 @@ namespace gmp { namespace math {
     }
 
     template <typename T>
-    array3d_t<T>& array3d_t<T>::operator=(array3d_t<T>&& other) noexcept {
+    GPU_HOST_DEVICE array3d_t<T>& array3d_t<T>::operator=(array3d_t<T>&& other) noexcept {
         if (this != &other) {
             data_[0] = other.data_[0];
             data_[1] = other.data_[1];
@@ -96,22 +96,22 @@ namespace gmp { namespace math {
     }
 
     template <typename T>
-    T& array3d_t<T>::operator[](size_t i) { 
+    GPU_HOST_DEVICE T& array3d_t<T>::operator[](size_t i) { 
         return data_[i]; 
     }
 
     template <typename T>
-    const T& array3d_t<T>::operator[](size_t i) const { 
+    GPU_HOST_DEVICE const T& array3d_t<T>::operator[](size_t i) const { 
         return data_[i]; 
     }
 
     template <typename T>
-    array3d_t<T> array3d_t<T>::operator+(const array3d_t<T>& other) const {
+    GPU_HOST_DEVICE array3d_t<T> array3d_t<T>::operator+(const array3d_t<T>& other) const {
         return {data_[0] + other.data_[0], data_[1] + other.data_[1], data_[2] + other.data_[2]};
     }
 
     template <typename T>
-    array3d_t<T>& array3d_t<T>::operator+=(const array3d_t<T>& other) {
+    GPU_HOST_DEVICE array3d_t<T>& array3d_t<T>::operator+=(const array3d_t<T>& other) {
         data_[0] += other.data_[0];
         data_[1] += other.data_[1];
         data_[2] += other.data_[2];
@@ -119,12 +119,12 @@ namespace gmp { namespace math {
     }
 
     template <typename T>
-    array3d_t<T> array3d_t<T>::operator-(const array3d_t<T>& other) const {
+    GPU_HOST_DEVICE array3d_t<T> array3d_t<T>::operator-(const array3d_t<T>& other) const {
         return {data_[0] - other.data_[0], data_[1] - other.data_[1], data_[2] - other.data_[2]};
     }
 
     template <typename T>
-    array3d_t<T>& array3d_t<T>::operator-=(const array3d_t<T>& other) {
+    GPU_HOST_DEVICE array3d_t<T>& array3d_t<T>::operator-=(const array3d_t<T>& other) {
         data_[0] -= other.data_[0];
         data_[1] -= other.data_[1];
         data_[2] -= other.data_[2];
@@ -132,37 +132,37 @@ namespace gmp { namespace math {
     }
 
     template <typename T>
-    array3d_t<T> array3d_t<T>::operator*(const T scalar) const {
+    GPU_HOST_DEVICE array3d_t<T> array3d_t<T>::operator*(const T scalar) const {
         return {data_[0] * scalar, data_[1] * scalar, data_[2] * scalar};
     }
     
     template <typename T>
-    array3d_t<T> array3d_t<T>::operator*(const array3d_t<T>& arr) const {
+    GPU_HOST_DEVICE array3d_t<T> array3d_t<T>::operator*(const array3d_t<T>& arr) const {
         return {data_[0] * arr[0], data_[1] * arr[1], data_[2] * arr[2]};
     }
 
     template <typename T>
-    array3d_t<T> array3d_t<T>::operator/(const T scalar) const {
+    GPU_HOST_DEVICE array3d_t<T> array3d_t<T>::operator/(const T scalar) const {
         return {data_[0] / scalar, data_[1] / scalar, data_[2] / scalar};
     }
 
     template <typename T>
-    bool array3d_t<T>::operator==(const array3d_t<T>& other) const {
+    GPU_HOST_DEVICE bool array3d_t<T>::operator==(const array3d_t<T>& other) const {
         return isEqual(data_[0], other.data_[0]) && isEqual(data_[1], other.data_[1]) && isEqual(data_[2], other.data_[2]);
     }
 
     template <typename T>
-    bool array3d_t<T>::operator!=(const array3d_t<T>& other) const {
+    GPU_HOST_DEVICE bool array3d_t<T>::operator!=(const array3d_t<T>& other) const {
         return !(*this == other);
     }
 
     template <typename T>
-    T array3d_t<T>::dot(const array3d_t<T>& other) const {
+    GPU_HOST_DEVICE T array3d_t<T>::dot(const array3d_t<T>& other) const {
         return data_[0] * other.data_[0] + data_[1] * other.data_[1] + data_[2] * other.data_[2];
     }
 
     template <typename T>
-    array3d_t<T> array3d_t<T>::cross(const array3d_t<T>& other) const {
+    GPU_HOST_DEVICE array3d_t<T> array3d_t<T>::cross(const array3d_t<T>& other) const {
         return {
             data_[1] * other.data_[2] - data_[2] * other.data_[1],
             data_[2] * other.data_[0] - data_[0] * other.data_[2],
@@ -171,23 +171,23 @@ namespace gmp { namespace math {
     }
 
     template <typename T>
-    T array3d_t<T>::norm() const {
+    GPU_HOST_DEVICE T array3d_t<T>::norm() const {
         return std::sqrt(data_[0] * data_[0] + data_[1] * data_[1] + data_[2] * data_[2]);
     }
 
     template <typename T>
-    T array3d_t<T>::prod() const {
+    GPU_HOST_DEVICE T array3d_t<T>::prod() const {
         return data_[0] * data_[1] * data_[2];
     }
 
     // Standalone array3d_t operators
     template <typename T>
-    array3d_t<T> operator*(const T scalar, const array3d_t<T>& arr) {
+    GPU_HOST_DEVICE array3d_t<T> operator*(const T scalar, const array3d_t<T>& arr) {
         return arr * scalar;
     }
 
     template <typename T>
-    array3d_t<T> operator/(const T scalar, const array3d_t<T>& arr) {
+    GPU_HOST_DEVICE array3d_t<T> operator/(const T scalar, const array3d_t<T>& arr) {
         return {scalar / arr[0], scalar / arr[1], scalar / arr[2]};
     }
 
