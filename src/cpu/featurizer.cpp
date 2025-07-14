@@ -289,7 +289,7 @@ namespace gmp { namespace featurizer {
                             const auto temp = C1 * std::exp(C2 * distance2) * occ;
                             const auto shift = result.difference;
 
-                            mcsh_func(shift, distance2, temp, lambda, gamma, desc_values);
+                            mcsh_func(shift, distance2, temp, lambda, gamma, desc_values.data());
                         }
                     }
 

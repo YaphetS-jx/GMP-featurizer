@@ -103,9 +103,9 @@ target_sources(gmp-featurizer-lib
     src/common/atom.cpp
     src/common/geometry.cpp
     src/common/math.cpp
+    src/common/mcsh_kernel.cpp
+    src/common/mcsh.cpp
     src/cpu/featurizer.cpp
-    src/cpu/mcsh.cpp
-    src/cpu/mcsh_kernel.cpp
     src/cpu/tree.cpp
     src/cpu/region_query.cpp
 )

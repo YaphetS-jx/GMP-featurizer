@@ -5,7 +5,7 @@
 #include "input.hpp"
 #include "region_query.hpp"
 #include "atom.hpp"
-#include "mcsh_kernel.hpp"
+#include "mcsh.hpp"
 #include "gmp_float.hpp"
 
 namespace gmp { namespace featurizer {

@@ -12,7 +12,7 @@ namespace gmp { namespace mcsh {
     template <typename T>
     class mcsh_registry_t {
     public: 
-        using solid_gmp_t = void (*)(const array3d_t<T>&, const T, const T, const T, const T, vector<T>&);
+        using solid_gmp_t = void (*)(const array3d_t<T>&, const T, const T, const T, const T, T*);
 
         mcsh_registry_t();
         static mcsh_registry_t& get_instance();
