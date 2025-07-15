@@ -240,75 +240,94 @@ namespace gmp { namespace featurizer {
         // Get thread pool for parallel processing
         auto& thread_pool = gmp::resources::gmp_resource::instance().get_thread_pool(descriptor_config->get_num_threads());
         
-        // Create futures to store results
-        std::vector<std::future<vector<T>>> futures;
-        futures.reserve(ref_positions.size());
-        
-        // Submit tasks to thread pool
-        for (size_t i = 0; i < ref_positions.size(); ++i) {
-            futures.emplace_back(thread_pool.enqueue([&, i]() -> vector<T> {
-                const auto& ref_position = ref_positions[i];
+        // Create futures to store results for each chunk
+        const size_t num_threads = thread_pool.get_thread_count();
+        const size_t chunk_size = (ref_positions.size() + num_threads - 1) / num_threads;
+        std::vector<std::future<vector<std::pair<size_t, vector<T>>>>> futures;
+        futures.reserve(num_threads);
+
+        // Submit chunked tasks to thread pool
+        for (auto thread_idx = 0; thread_idx < num_threads; ++thread_idx) {
+            const auto start_idx = thread_idx * chunk_size;
+            const auto end_idx = std::min(start_idx + chunk_size, ref_positions.size());
+            
+            if (start_idx >= end_idx) break;
+            
+            futures.push_back(thread_pool.enqueue([&, start_idx, end_idx]() -> vector<std::pair<size_t, vector<T>>> {
+                vector<std::pair<size_t, vector<T>>> chunk_results;
+                chunk_results.reserve(end_idx - start_idx);
                 
-                // find neighbors
-                auto query_results = region_query->query(ref_position, cutoff_list_->cutoff_max_, unit_cell);
+                // Process each reference position in this chunk
+                for (size_t i = start_idx; i < end_idx; ++i) {
+                    const auto& ref_position = ref_positions[i];
+                    
+                    // find neighbors
+                    auto query_results = region_query->query(ref_position, cutoff_list_->cutoff_max_, unit_cell);
 
-                // calculate GMP features
-                vector<T> feature(feature_list.size(), 0.0);
-                for (auto feature_idx = 0; feature_idx < feature_list.size(); ++feature_idx) {
-                    auto order = feature_list[feature_idx].order;
-                    auto sigma = feature_list[feature_idx].sigma;
+                    // calculate GMP features
+                    vector<T> feature(feature_list.size(), 0.0);
+                    for (auto feature_idx = 0; feature_idx < feature_list.size(); ++feature_idx) {
+                        auto order = feature_list[feature_idx].order;
+                        auto sigma = feature_list[feature_idx].sigma;
 
-                    // Get the function for the specified order
-                    const auto& mcsh_func = registry.get_function(order);
-                    const auto& num_values = registry.get_num_values(order);
-                    vector<T> desc_values(num_values, 0.0);
+                        // Get the function for the specified order
+                        const auto& mcsh_func = registry.get_function(order);
+                        const auto& num_values = registry.get_num_values(order);
+                        vector<T> desc_values(num_values, 0.0);
 
-                    for (const auto& result : query_results) {
-                        const auto distance2 = result.distance_squared;
-                        const auto& atom = unit_cell->get_atoms()[result.neighbor_index];
-                        const auto occ = atom.occ();
+                        for (const auto& result : query_results) {
+                            const auto distance2 = result.distance_squared;
+                            const auto& atom = unit_cell->get_atoms()[result.neighbor_index];
+                            const auto occ = atom.occ();
 
-                        int start, end;
-                        cutoff_list_->get_range(feature_idx, atom.id(), start, end);
+                            int start, end;
+                            cutoff_list_->get_range(feature_idx, atom.id(), start, end);
 
-                        for (auto idx = start; idx < end; ++idx) {
-                            const auto gaussian_cutoff = cutoff_list_->cutoff_list_[idx];
-                            if (distance2 > gaussian_cutoff * gaussian_cutoff) break;
+                            for (auto idx = start; idx < end; ++idx) {
+                                const auto gaussian_cutoff = cutoff_list_->cutoff_list_[idx];
+                                if (distance2 > gaussian_cutoff * gaussian_cutoff) break;
 
-                            const auto gaussian_idx = cutoff_list_->cutoff_info_[idx];
-                            const auto gaussian = (*psp_config)[gaussian_idx];
-                            const auto B = gaussian.B;
-                            if (gmp::math::isZero(B)) continue;
+                                const auto gaussian_idx = cutoff_list_->cutoff_info_[idx];
+                                const auto gaussian = (*psp_config)[gaussian_idx];
+                                const auto B = gaussian.B;
+                                if (gmp::math::isZero(B)) continue;
 
-                            const auto kernel_params = (*kernel_params_table_)(feature_idx, gaussian_idx);
-                            const auto lambda = kernel_params.lambda;
-                            const auto gamma = kernel_params.gamma;
-                            const auto C1 = kernel_params.C1;
-                            const auto C2 = kernel_params.C2;
+                                const auto kernel_params = (*kernel_params_table_)(feature_idx, gaussian_idx);
+                                const auto lambda = kernel_params.lambda;
+                                const auto gamma = kernel_params.gamma;
+                                const auto C1 = kernel_params.C1;
+                                const auto C2 = kernel_params.C2;
 
-                            const auto temp = C1 * std::exp(C2 * distance2) * occ;
-                            const auto shift = result.difference;
+                                const auto temp = C1 * std::exp(C2 * distance2) * occ;
+                                const auto shift = result.difference;
 
-                            mcsh_func(shift, distance2, temp, lambda, gamma, desc_values.data());
+                                mcsh_func(shift, distance2, temp, lambda, gamma, desc_values.data());
+                            }
+                        }
+
+                        // weighted square sum of the values
+                        T squareSum = gmp::mcsh::weighted_square_sum(order, desc_values);
+                        if (descriptor_config->get_square()) {
+                            feature[feature_idx] = squareSum;
+                        } else {
+                            feature[feature_idx] = std::sqrt(squareSum);
                         }
                     }
-
-                    // weighted square sum of the values
-                    T squareSum = gmp::mcsh::weighted_square_sum(order, desc_values);
-                    if (descriptor_config->get_square()) {
-                        feature[feature_idx] = squareSum;
-                    } else {
-                        feature[feature_idx] = std::sqrt(squareSum);
-                    }
+                    
+                    // Store result with its original index
+                    chunk_results.emplace_back(i, std::move(feature));
                 }
                 
-                return feature;
+                return chunk_results;
             }));
         }
         
-        // Collect results
-        for (size_t i = 0; i < futures.size(); ++i) {
-            feature_collection[i] = futures[i].get();
+        // Collect results from all chunks
+        for (auto& future : futures) {
+            auto chunk_results = future.get();
+            for (const auto& [index, feature] : chunk_results) {
+                feature_collection[index] = std::move(feature);
+            }
         }
         
         return feature_collection;
