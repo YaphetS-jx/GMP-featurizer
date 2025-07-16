@@ -144,15 +144,11 @@ if(ENABLE_CUDA)
     # Add GPU source files when CUDA is enabled
     target_sources(gmp-featurizer-lib
         PRIVATE
-        src/infra/memory_manager.cpp
-        src/infra/rmm_pool.cpp
+        src/infra/pinned_memory_pool.cpp
     )
     
     # Set CUDA compilation flags for GPU-specific files
-    set_source_files_properties(src/infra/memory_manager.cpp PROPERTIES
-        CUDA_SEPARABLE_COMPILATION ON
-    )
-    set_source_files_properties(src/infra/rmm_pool.cpp PROPERTIES
+    set_source_files_properties(src/infra/pinned_memory_pool.cpp PROPERTIES
         CUDA_SEPARABLE_COMPILATION ON
     )
 endif()
@@ -391,6 +387,7 @@ if(BUILD_TESTS)
             GTest::gtest_main
             GTest::gmock_main
             gmp-featurizer-lib
+            rmm::rmm
             ${CUDA_LIBRARIES}
         )
         
