@@ -2,6 +2,8 @@
 
 namespace gmp { namespace tree {
 
+    using gmp::containers::stack;
+
     // binary_radix_tree_t implementation
     template <typename MortonCodeType, typename IndexType, template<typename, typename...> class Container, typename map_t>
     binary_radix_tree_t<MortonCodeType, IndexType, Container, map_t>::binary_radix_tree_t() {}
