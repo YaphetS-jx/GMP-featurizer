@@ -252,6 +252,8 @@ if(BUILD_TESTS)
         add_executable(gmp-rmm-test
             test/rmm_test.cpp
         )
+        
+
     endif()
 
     # Add project root definition to all test executables
@@ -271,6 +273,7 @@ if(BUILD_TESTS)
     if(ENABLE_CUDA)
         target_compile_definitions(gmp-cuda-test PRIVATE PROJECT_ROOT="${PROJECT_ROOT}")
         target_compile_definitions(gmp-rmm-test PRIVATE PROJECT_ROOT="${PROJECT_ROOT}")
+
     endif()
 
     # Link against Google Test and the library
@@ -404,6 +407,8 @@ if(BUILD_TESTS)
         set_target_properties(gmp-rmm-test PROPERTIES
             CUDA_SEPARABLE_COMPILATION ON
         )
+        
+
         
 
     endif()

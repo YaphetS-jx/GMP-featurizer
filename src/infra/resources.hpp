@@ -6,7 +6,12 @@
 #include <thread>
 #include "error.hpp"
 #include "thread_pool.hpp"
+#ifdef GMP_ENABLE_CUDA
 #include "pinned_memory_pool.hpp"
+#include <rmm/mr/device/cuda_async_memory_resource.hpp>
+#include <rmm/mr/device/pool_memory_resource.hpp>
+#include <rmm/mr/pinned_host_memory_resource.hpp>
+#endif
 
 namespace gmp { namespace resources {
 
@@ -33,14 +38,52 @@ namespace gmp { namespace resources {
             return *thread_pool_;
         }
 
+        #ifdef GMP_ENABLE_CUDA
         // get host memory pool
-        PinnedMemoryPool& get_pinned_memory_pool() const {
-            return PinnedMemoryPool::instance();
+        PinnedMemoryPool* get_pinned_memory_pool() const {
+            if (!pinned_memory_pool_) {
+                pinned_memory_pool_ = std::make_unique<PinnedMemoryPool>(1<<30); // 1GB pinned memory 
+            }
+            return pinned_memory_pool_.get();
         }
+
+        // get gpu device memory pool
+        rmm::mr::cuda_async_memory_resource* get_gpu_device_memory_pool() const {
+            if (!gpu_device_memory_pool_) {
+                auto [free_memory, total_memory] = rmm::available_device_memory();
+                // Use a reasonable initial pool size (1GB) instead of all available memory
+                size_t initial_pool_size = std::min(free_memory / 4, size_t(1 << 30)); // 1GB or 25% of free memory, whichever is smaller
+                gpu_device_memory_pool_ = std::make_unique<rmm::mr::cuda_async_memory_resource>(initial_pool_size);
+            }
+            return gpu_device_memory_pool_.get();
+        }
+
+        // get pinned host memory pool
+        rmm::mr::pool_memory_resource<rmm::mr::pinned_host_memory_resource>* get_pinned_host_memory_pool() const {
+            if (!upstream_resource_) {
+                upstream_resource_ = std::make_unique<rmm::mr::pinned_host_memory_resource>();
+            }
+            if (!pinned_pool_) {
+                auto [free_memory, total_memory] = rmm::available_device_memory();
+                pinned_pool_ = std::make_unique<rmm::mr::pool_memory_resource<rmm::mr::pinned_host_memory_resource>>(
+                    *upstream_resource_,
+                    1 << 27, // 128MB initial pool size
+                    total_memory // maximum pool size
+                );
+            }
+            return pinned_pool_.get();
+        }
+        #endif
 
     private:
         mutable std::unique_ptr<ThreadPool> thread_pool_;
         mutable std::mutex pool_mutex_;
+        #ifdef GMP_ENABLE_CUDA
+        mutable std::unique_ptr<PinnedMemoryPool> pinned_memory_pool_;
+        mutable std::unique_ptr<rmm::mr::cuda_async_memory_resource> gpu_device_memory_pool_;
+        mutable std::unique_ptr<rmm::mr::pinned_host_memory_resource> upstream_resource_;
+        mutable std::unique_ptr<rmm::mr::pool_memory_resource<rmm::mr::pinned_host_memory_resource>> pinned_pool_;
+        #endif
 
         gmp_resource() = default;
         ~gmp_resource() = default;

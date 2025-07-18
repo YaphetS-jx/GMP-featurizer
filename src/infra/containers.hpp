@@ -4,6 +4,10 @@
 #include <unordered_map>
 #include <string>
 #include <cstdint>
+#ifdef GMP_ENABLE_CUDA
+#include "allocator.hpp"
+#include <rmm/device_uvector.hpp>
+#endif
 
 namespace gmp { namespace containers {
 
@@ -42,6 +46,13 @@ namespace gmp { namespace containers {
         // Inherit all vector operations
         using base::operator=;
     };    
+    #ifdef GMP_ENABLE_CUDA
+    template <typename T>
+    using vector_host = vector<T, gmp::resources::pinned_host_allocator2<T>>;
+    
+    template <typename T>
+    using vector_device = rmm::device_uvector<T>;
+    #endif
 
     template <typename T, typename Allocator = std::allocator<T>>
     class deque : public std::deque<T, Allocator> {

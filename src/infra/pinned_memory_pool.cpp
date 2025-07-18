@@ -9,15 +9,6 @@
 #include "util.hpp"
 
 namespace gmp { namespace resources {
-    
-    PinnedMemoryPool& PinnedMemoryPool::instance(size_t initial_size)
-    {
-        static PinnedMemoryPool instance(initial_size);
-    #ifdef DEBUG
-        instance.get_total_size();
-    #endif
-        return instance;
-    }
 
     PinnedMemoryPool::PinnedMemoryPool(size_t initial_size)
     {
