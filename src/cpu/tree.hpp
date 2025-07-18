@@ -45,12 +45,7 @@ namespace gmp { namespace tree {
         binary_radix_tree_t();
         binary_radix_tree_t(const morton_container_t& morton_codes, const IndexType num_bits = 30);
         const node_container_t& get_internal_nodes() const;
-        const morton_container_t& get_leaf_nodes() const;
-        IndexType count_leading_zeros(MortonCodeType x, IndexType num_bits) const;
-        IndexType delta(const morton_container_t& morton_codes, IndexType i, IndexType j, IndexType num_bits = 30) const;
-        void determine_range(const morton_container_t& morton_codes, IndexType i, IndexType& first, IndexType& last, IndexType num_bits = 30) const;
-        IndexType find_split(const morton_container_t& morton_codes, IndexType delta_node, IndexType first, IndexType last, IndexType num_bits) const;
-        void find_lower_upper_bounds(MortonCodeType prefix, IndexType num_bits_prefix, MortonCodeType& lower_bound, MortonCodeType& upper_bound, IndexType num_bits = 30) const;
+        const morton_container_t& get_leaf_nodes() const;        
         void build_tree(const morton_container_t& morton_codes, const IndexType num_bits = 30);
         map_t traverse(const compare_op_t<MortonCodeType> &check_method) const;
     private:

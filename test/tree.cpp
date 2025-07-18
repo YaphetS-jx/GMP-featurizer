@@ -6,6 +6,7 @@
 #include <tuple>
 
 using namespace gmp::tree;
+using namespace gmp::tree::morton_codes;
 using namespace gmp::containers;
 
 // Helper function to compare two internal nodes
@@ -54,13 +55,13 @@ TEST(BinaryRadixTreeTest, BasicConstruction) {
 
 TEST(BinaryRadixTreeTest, DeltaFunction) {
     vector<uint32_t> morton_codes = {1, 2, 4, 5, 19, 24, 25, 30};
-    binary_radix_tree_t<uint32_t, int32_t> tree;
     
-    EXPECT_EQ(tree.delta(morton_codes, 0, -1), -1); // out of bounds
-    EXPECT_EQ(tree.delta(morton_codes, 0, -1, 10), -1); // out of bounds
+    // Test out of bounds - should return -1 for out-of-bounds indices
+    EXPECT_EQ(delta(morton_codes, 0, -1, 32), -1); // out of bounds
+    EXPECT_EQ(delta(morton_codes, 0, -1, 10), -1); // out of bounds
 
-    EXPECT_EQ(tree.delta(morton_codes, 3, 5, 32), 27); // 5 and 24 differ 5 bits
-    EXPECT_EQ(tree.delta(morton_codes, 3, 5, 10), 5); // 5 and 24 differ 5 bits
+    EXPECT_EQ(delta(morton_codes, 3, 5, 32), 27); // 5 and 24 differ 5 bits
+    EXPECT_EQ(delta(morton_codes, 3, 5, 10), 5); // 5 and 24 differ 5 bits
 }
 
 template <typename MortonCodeType, typename VecType = vector<array3d_int32>>
