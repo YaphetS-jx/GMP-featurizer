@@ -2,7 +2,7 @@
 #include "error.hpp"
 #include "atom.hpp"
 #include "geometry.hpp"
-#include "types.hpp"
+#include "containers.hpp"
 #include "featurizer.hpp"
 #include "util.hpp"
 #include <chrono>

@@ -3,7 +3,7 @@
 #include <vector>
 #include <cstdint>
 #include "morton_codes.hpp"
-#include "types.hpp"
+#include "containers.hpp"
 #include "math.hpp"
 
 namespace gmp { namespace tree {

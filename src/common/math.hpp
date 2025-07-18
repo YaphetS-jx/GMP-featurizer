@@ -5,7 +5,7 @@
 #include <functional>
 #include <cassert>
 #include "error.hpp"
-#include "types.hpp"
+#include "containers.hpp"
 #include "gmp_float.hpp"
 #include "gpu_qualifiers.hpp"
 
