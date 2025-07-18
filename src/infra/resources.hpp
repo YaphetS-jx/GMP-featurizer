@@ -64,6 +64,16 @@ namespace gmp { namespace resources {
             }
             return pinned_pool_.get();
         }
+
+        cudaStream_t get_stream() const {
+            if (!stream_) {
+                cudaError_t status = cudaStreamCreate(&stream_);
+                if (status != cudaSuccess) {
+                    throw std::runtime_error("Failed to create CUDA stream");
+                }
+            }
+            return stream_;
+        }
         #endif
 
     private:
@@ -73,6 +83,7 @@ namespace gmp { namespace resources {
         mutable std::unique_ptr<rmm::mr::cuda_async_memory_resource> gpu_device_memory_pool_;
         mutable std::unique_ptr<rmm::mr::pinned_host_memory_resource> upstream_resource_;
         mutable std::unique_ptr<rmm::mr::pool_memory_resource<rmm::mr::pinned_host_memory_resource>> pinned_pool_;
+        mutable cudaStream_t stream_;
         #endif
 
         gmp_resource() = default;

@@ -23,10 +23,7 @@ protected:
     void SetUp() override {
         // Initialize CUDA
         cudaError_t cuda_status = cudaSetDevice(0);
-        ASSERT_EQ(cuda_status, cudaSuccess) << "Failed to set CUDA device: " << cudaGetErrorString(cuda_status);
-
-        // Create CUDA stream for testing
-        stream = rmm::cuda_stream{};
+        ASSERT_EQ(cuda_status, cudaSuccess) << "Failed to set CUDA device: " << cudaGetErrorString(cuda_status);        
         
         // Get initial GPU memory information
         auto [free_memory, total_memory] = rmm::available_device_memory();
@@ -79,9 +76,7 @@ protected:
         
         std::cout << "\n=== " << pool_name << " Information ===" << std::endl;
         std::cout << "Pool size: " << gmp::util::format_bytes(singleton_pool->pool_size()) << std::endl;        
-    }
-    
-    rmm::cuda_stream stream;
+    }    
     size_t initial_free_memory;
     size_t initial_total_memory;
 };
@@ -147,6 +142,7 @@ TEST_F(RMMTest, DeviceVectorAllocation) {
     auto* gpu_pool = gmp::resources::gmp_resource::instance().get_gpu_device_memory_pool();
     
     // Allocate from CUDA async pool
+    cudaStream_t stream = gmp::resources::gmp_resource::instance().get_stream();
     vector_device<int> device_vec_async(test_size, stream, *gpu_pool);    
     std::cout << "Allocated " << gmp::util::format_bytes(test_size * sizeof(int)) << " from CUDA async pool" << std::endl;
     
@@ -173,6 +169,7 @@ TEST_F(RMMTest, DataTransferHostToDevice) {
     auto* gpu_pool = gmp::resources::gmp_resource::instance().get_gpu_device_memory_pool();
     
     // Create device vector
+    cudaStream_t stream = gmp::resources::gmp_resource::instance().get_stream();
     vector_device<int> device_vec(test_size, stream, *gpu_pool);
     
     // Copy data from host to device
@@ -181,7 +178,7 @@ TEST_F(RMMTest, DataTransferHostToDevice) {
         host_vec.data(), 
         test_size * sizeof(int), 
         cudaMemcpyHostToDevice, 
-        stream.value()
+        stream
     );
     ASSERT_EQ(cuda_status, cudaSuccess) << "Host to device copy failed: " << cudaGetErrorString(cuda_status);
     
@@ -194,12 +191,12 @@ TEST_F(RMMTest, DataTransferHostToDevice) {
         device_vec.data(), 
         test_size * sizeof(int), 
         cudaMemcpyDeviceToHost, 
-        stream.value()
+        stream
     );
     ASSERT_EQ(cuda_status, cudaSuccess) << "Device to host copy failed: " << cudaGetErrorString(cuda_status);
     
     // Synchronize and verify
-    stream.synchronize();
+    cudaStreamSynchronize(stream);
     
     // Verify data integrity
     for (size_t i = 0; i < test_size; ++i) {
