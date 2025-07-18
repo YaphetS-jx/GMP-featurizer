@@ -140,17 +140,6 @@ if(ENABLE_CUDA)
     set_source_files_properties(src/common/math.cpp PROPERTIES
         CUDA_SEPARABLE_COMPILATION ON
     )
-    
-    # Add GPU source files when CUDA is enabled
-    target_sources(gmp-featurizer-lib
-        PRIVATE
-        src/infra/pinned_memory_pool.cpp
-    )
-    
-    # Set CUDA compilation flags for GPU-specific files
-    set_source_files_properties(src/infra/pinned_memory_pool.cpp PROPERTIES
-        CUDA_SEPARABLE_COMPILATION ON
-    )
 endif()
 
     # Link libraries

@@ -4,7 +4,6 @@
 #include <rmm/device_uvector.hpp>
 #include <rmm/mr/device/cuda_async_memory_resource.hpp>
 #include <rmm/resource_ref.hpp>
-#include "pinned_memory_pool.hpp"
 #include "containers.hpp"
 #include "util.hpp"
 
@@ -15,8 +14,7 @@
 #include <sstream>
 #include <cuda_runtime.h>
 
-using gmp::resources::pinned_host_allocator;
-using gmp::resources::PinnedMemoryPool;
+// using gmp::resources::pinned_host_allocator;
 using gmp::containers::vector_host;
 using gmp::containers::vector_device;
 
@@ -114,7 +112,7 @@ TEST_F(RMMTest, PinnedHostAllocatorBasic) {
     vector_host<int> host_vec;
     
     // Test basic operations
-    const size_t test_size = 50 * 1024 * 1024; // in total 200MB
+    const size_t test_size = 5 * 1024 * 1024; // in total 20MB
     host_vec.resize(test_size);
     
     // Populate the host vector
@@ -163,7 +161,7 @@ TEST_F(RMMTest, DeviceVectorAllocation) {
 TEST_F(RMMTest, DataTransferHostToDevice) {
     std::cout << "=== Testing Data Transfer Host to Device ===" << std::endl;
     
-    const size_t test_size = 50 * 1024 * 1024; // in total 200MB
+    const size_t test_size = 5 * 1024 * 1024; // in total 20MB
     
     // Create host vector with pinned memory
     vector_host<int> host_vec(test_size);

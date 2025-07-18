@@ -48,7 +48,7 @@ namespace gmp { namespace containers {
     };    
     #ifdef GMP_ENABLE_CUDA
     template <typename T>
-    using vector_host = vector<T, gmp::resources::pinned_host_allocator2<T>>;
+    using vector_host = vector<T, gmp::resources::pinned_host_allocator<T>>;
     
     template <typename T>
     using vector_device = rmm::device_uvector<T>;
