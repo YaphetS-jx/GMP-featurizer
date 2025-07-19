@@ -37,9 +37,9 @@ namespace gmp { namespace tree {
 
         for (IndexType i = 0; i < n - 1; ++i) {
             IndexType first, last;
-            morton_codes::determine_range(morton_codes, i, first, last, num_bits);
-            IndexType delta_node = morton_codes::delta(morton_codes, first, last, num_bits);
-            IndexType split = morton_codes::find_split(morton_codes, delta_node, first, last, num_bits);
+            morton_codes::determine_range(morton_codes.data(), n, i, first, last, num_bits);
+            IndexType delta_node = morton_codes::delta(morton_codes.data(), n, first, last, num_bits);
+            IndexType split = morton_codes::find_split(morton_codes.data(), n, delta_node, first, last, num_bits);
             MortonCodeType lower_bound, upper_bound;
             morton_codes::find_lower_upper_bounds(morton_codes[split], delta_node, lower_bound, upper_bound, num_bits);
 

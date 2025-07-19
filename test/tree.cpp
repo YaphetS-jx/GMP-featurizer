@@ -57,11 +57,11 @@ TEST(BinaryRadixTreeTest, DeltaFunction) {
     vector<uint32_t> morton_codes = {1, 2, 4, 5, 19, 24, 25, 30};
     
     // Test out of bounds - should return -1 for out-of-bounds indices
-    EXPECT_EQ(delta(morton_codes, 0, -1, 32), -1); // out of bounds
-    EXPECT_EQ(delta(morton_codes, 0, -1, 10), -1); // out of bounds
+    EXPECT_EQ(delta(morton_codes.data(), static_cast<int>(morton_codes.size()), 0, -1, 32), -1); // out of bounds
+    EXPECT_EQ(delta(morton_codes.data(), static_cast<int>(morton_codes.size()), 0, -1, 10), -1); // out of bounds
 
-    EXPECT_EQ(delta(morton_codes, 3, 5, 32), 27); // 5 and 24 differ 5 bits
-    EXPECT_EQ(delta(morton_codes, 3, 5, 10), 5); // 5 and 24 differ 5 bits
+    EXPECT_EQ(delta(morton_codes.data(), static_cast<int>(morton_codes.size()), 3, 5, 32), 27); // 5 and 24 differ 5 bits
+    EXPECT_EQ(delta(morton_codes.data(), static_cast<int>(morton_codes.size()), 3, 5, 10), 5); // 5 and 24 differ 5 bits
 }
 
 template <typename MortonCodeType, typename VecType = vector<array3d_int32>>

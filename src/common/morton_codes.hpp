@@ -132,33 +132,33 @@ namespace gmp { namespace tree { namespace morton_codes {
         return num_bits - (sizeof(MortonCodeType) * 8 - __builtin_clz(x));
     }
 
-    template <typename morton_container_t, typename IndexType>
+    template <typename MortonCodeType, typename IndexType>
     GPU_HOST_DEVICE
-    IndexType delta(const morton_container_t& morton_codes, IndexType i, IndexType j, IndexType num_bits = 30)
+    IndexType delta(const MortonCodeType* morton_codes, IndexType num_mc, IndexType i, IndexType j, IndexType num_bits = 30)
     {
-        if (i < 0 || i >= morton_codes.size()) {
+        if (i < 0 || i >= num_mc) {
             return static_cast<IndexType>(-1);
         }
-        if (j < 0 || j >= morton_codes.size()) {
+        if (j < 0 || j >= num_mc) {
             return static_cast<IndexType>(-1);
         }
         return count_leading_zeros(morton_codes[i] ^ morton_codes[j], num_bits);
     }
 
-    template <typename morton_container_t, typename IndexType>
+    template <typename MortonCodeType, typename IndexType>
     GPU_HOST_DEVICE
-    void determine_range(const morton_container_t& morton_codes, IndexType i, IndexType& first, IndexType& last, IndexType num_bits = 30)
+    void determine_range(const MortonCodeType* morton_codes, IndexType num_mc, IndexType i, IndexType& first, IndexType& last, IndexType num_bits = 30)
     {
-        assert(i >= 0 && i < morton_codes.size());
+        assert(i >= 0 && i < num_mc);
         // Calculate direction based on delta differences         
-        IndexType delta_prev = delta(morton_codes, i, i - 1, num_bits);
-        IndexType delta_next = delta(morton_codes, i, i + 1, num_bits);
+        IndexType delta_prev = delta(morton_codes, num_mc, i, i - 1, num_bits);
+        IndexType delta_next = delta(morton_codes, num_mc, i, i + 1, num_bits);
         IndexType d = (delta_next > delta_prev) ? 1 : -1;
-        IndexType delta_min = delta(morton_codes, i, i - d, num_bits);            
+        IndexType delta_min = delta(morton_codes, num_mc, i, i - d, num_bits);            
 
         // Exponential search to find other end
         IndexType lmax = 2;
-        while (delta(morton_codes, i, i + lmax * d, num_bits) > delta_min) {
+        while (delta(morton_codes, num_mc, i, i + lmax * d, num_bits) > delta_min) {
             lmax *= 2;
         }
 
@@ -167,7 +167,7 @@ namespace gmp { namespace tree { namespace morton_codes {
         IndexType t = lmax / 2;
         while (t >= 1) {
             IndexType next = i + (l + t) * d;
-            if (delta(morton_codes, i, next, num_bits) > delta_min) {
+            if (delta(morton_codes, num_mc, i, next, num_bits) > delta_min) {
                 l += t;
             }
             t /= 2;
@@ -178,12 +178,12 @@ namespace gmp { namespace tree { namespace morton_codes {
         last = std::max(i, j);
     }
 
-    template <typename morton_container_t, typename IndexType>
+    template <typename MortonCodeType, typename IndexType>
     GPU_HOST_DEVICE
-    IndexType find_split(const morton_container_t& morton_codes, IndexType delta_node, IndexType first, IndexType last, IndexType num_bits = 30)
+    IndexType find_split(const MortonCodeType* morton_codes, IndexType num_mc, IndexType delta_node, IndexType first, IndexType last, IndexType num_bits = 30)
     {
-        assert(first >= 0 && first < morton_codes.size());
-        assert(last >= 0 && last < morton_codes.size());                         
+        assert(first >= 0 && first < num_mc);
+        assert(last >= 0 && last < num_mc);                         
         
         // Binary search for the split point
         IndexType split = first;
@@ -193,7 +193,7 @@ namespace gmp { namespace tree { namespace morton_codes {
             stride = (stride + 1) / 2;
             IndexType mid = split + stride;
             
-            if (mid < last && delta(morton_codes, first, mid, num_bits) > delta_node) {
+            if (mid < last && delta(morton_codes, num_mc, first, mid, num_bits) > delta_node) {
                 split = mid;
             }
         }
