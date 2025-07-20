@@ -6,6 +6,7 @@
 #include <iostream>
 #include "math.hpp"
 #include "gmp_float.hpp"
+#include "gpu_qualifiers.hpp"
 
 namespace gmp { namespace geometry {
 
