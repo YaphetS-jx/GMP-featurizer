@@ -76,6 +76,22 @@ namespace gmp { namespace resources {
         }
         #endif
 
+        // Explicit cleanup function to be called before program exit
+        void cleanup() {
+            #ifdef GMP_ENABLE_CUDA
+            if (stream_) {
+                cudaStreamSynchronize(stream_);
+                cudaStreamDestroy(stream_);
+                stream_ = nullptr;
+            }
+            
+            // Explicitly clean up RMM resources
+            pinned_pool_.reset();
+            upstream_resource_.reset();
+            gpu_device_memory_pool_.reset();
+            #endif
+        }
+
     private:
         mutable std::unique_ptr<ThreadPool> thread_pool_;
         mutable std::mutex pool_mutex_;
@@ -87,7 +103,9 @@ namespace gmp { namespace resources {
         #endif
 
         gmp_resource() = default;
-        ~gmp_resource() = default;
+        ~gmp_resource() {
+            cleanup();
+        }
         gmp_resource(const gmp_resource&) = delete;
         gmp_resource& operator=(const gmp_resource&) = delete;
     };

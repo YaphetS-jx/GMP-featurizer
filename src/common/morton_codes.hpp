@@ -174,8 +174,8 @@ namespace gmp { namespace tree { namespace morton_codes {
         }
 
         IndexType j = i + l * d;
-        first = std::min(i, j);
-        last = std::max(i, j);
+        first = (i < j) ? i : j;
+        last = (i > j) ? i : j;
     }
 
     template <typename MortonCodeType, typename IndexType>

@@ -7,6 +7,7 @@
 #include <thrust/execution_policy.h>
 #include <thrust/random.h>
 #include <thrust/generate.h>
+#include "resources.hpp"
 
 // Test fixture for CUDA tests
 class CUDATest : public ::testing::Test {
@@ -213,5 +214,10 @@ TEST_F(CUDATest, PerformanceTest) {
 // Main function for Google Test
 int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv);
-    return RUN_ALL_TESTS();
+    int result = RUN_ALL_TESTS();
+    
+    // Explicitly cleanup CUDA resources before exit
+    gmp::resources::gmp_resource::instance().cleanup();
+    
+    return result;
 } 

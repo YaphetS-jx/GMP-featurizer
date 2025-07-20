@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.14)
-project(gmp-featurizer LANGUAGES CXX)
+project(gmp-featurizer LANGUAGES CXX CUDA)
 
 # Set C++ standard
 set(CMAKE_CXX_STANDARD 17)
@@ -39,6 +39,16 @@ if(ENABLE_CUDA)
     message(STATUS "CUDA library dirs: ${CUDA_LIBRARY_DIRS}")
     message(STATUS "CUDA libraries: ${CUDA_LIBRARIES}")
 
+    # Set CUDA architecture if specified
+    if(DEFINED CUDA_ARCH)
+        set(CUDA_ARCH_VALUE "${CUDA_ARCH}")
+        message(STATUS "CUDA architecture set to: sm_${CUDA_ARCH}")
+    else()
+        # Default to 120 if not specified
+        set(CUDA_ARCH_VALUE "120")
+        message(STATUS "CUDA architecture defaulting to: sm_120")
+    endif()
+
     # Add CUDA definitions
     add_compile_definitions(GMP_ENABLE_CUDA)
     add_compile_definitions(GMP_CUDA_VERSION=${CMAKE_CUDA_COMPILER_VERSION_MAJOR}${CMAKE_CUDA_COMPILER_VERSION_MINOR})
@@ -52,6 +62,15 @@ if(ENABLE_CUDA)
     message(STATUS "RMM found: ${rmm_FOUND}")
     message(STATUS "RMM version: ${RMM_VERSION}")
 endif()
+
+# Function to set CUDA_ARCHITECTURES for targets
+function(set_cuda_architectures_for_target target_name)
+    if(ENABLE_CUDA AND DEFINED CUDA_ARCH_VALUE)
+        set_target_properties(${target_name} PROPERTIES
+            CUDA_ARCHITECTURES ${CUDA_ARCH_VALUE}
+        )
+    endif()
+endfunction()
 
 # Set release mode and flags based on the option
 if(BUILD_TYPE_PROFILE)
@@ -95,6 +114,7 @@ option(BUILD_TESTS "Build the tests" OFF)
 
 # Create a library target with header files
 add_library(gmp-featurizer-lib STATIC)
+set_cuda_architectures_for_target(gmp-featurizer-lib)
 
 # Add source files to the library
 target_sources(gmp-featurizer-lib
@@ -109,6 +129,14 @@ target_sources(gmp-featurizer-lib
     src/cpu/tree.cpp
     src/cpu/region_query.cpp
 )
+
+# Add CUDA source files when CUDA is enabled
+if(ENABLE_CUDA)
+    target_sources(gmp-featurizer-lib
+        PRIVATE
+        src/gpu/cuda_tree.cu
+    )
+endif()
 
 # Set include directories for the library
 target_include_directories(gmp-featurizer-lib
@@ -148,11 +176,12 @@ target_link_libraries(gmp-featurizer-lib
     pthread
 )
 
-# Link RMM if CUDA is enabled
+# Link CUDA and RMM libraries if CUDA is enabled
 if(ENABLE_CUDA)
     target_link_libraries(gmp-featurizer-lib
         PUBLIC
         rmm::rmm
+        ${CUDA_LIBRARIES}
     )
 endif()
     
@@ -160,6 +189,7 @@ endif()
 
 # Create the main executable
 add_executable(gmp-featurizer src/main.cpp)
+set_cuda_architectures_for_target(gmp-featurizer)
 
 target_link_libraries(gmp-featurizer
     PRIVATE
@@ -191,56 +221,74 @@ if(BUILD_TESTS)
     add_executable(gmp-resources-test
         test/resources.cpp
     )
+    set_cuda_architectures_for_target(gmp-resources-test)
 
     add_executable(gmp-math-test
         test/math.cpp
     )
+    set_cuda_architectures_for_target(gmp-math-test)
 
     add_executable(gmp-geometry-test
         test/geometry.cpp
     )
+    set_cuda_architectures_for_target(gmp-geometry-test)
 
     add_executable(gmp-atom-test
         test/atom.cpp
     )
+    set_cuda_architectures_for_target(gmp-atom-test)
 
     add_executable(gmp-util-test
         test/util.cpp
     )
+    set_cuda_architectures_for_target(gmp-util-test)
 
     add_executable(gmp-input-test
         test/input.cpp
     )
+    set_cuda_architectures_for_target(gmp-input-test)
 
     add_executable(gmp-morton-test
         test/morton_codes.cpp
     )
+    set_cuda_architectures_for_target(gmp-morton-test)
 
     add_executable(gmp-tree-test
         test/tree.cpp
     )
+    set_cuda_architectures_for_target(gmp-tree-test)
 
     add_executable(gmp-region-query-test
         test/region_query.cpp
     )
+    set_cuda_architectures_for_target(gmp-region-query-test)
 
     add_executable(gmp-cif-test
         test/cif_test.cpp
     )
+    set_cuda_architectures_for_target(gmp-cif-test)
 
     add_executable(gmp-cpu-test
         test/gmp_cpu.cpp
     )
+    set_cuda_architectures_for_target(gmp-cpu-test)
 
     # Add CUDA test only when CUDA is enabled
     if(ENABLE_CUDA)
         add_executable(gmp-cuda-test
             test/test-cuda.cu
         )
+        set_cuda_architectures_for_target(gmp-cuda-test)
         
         add_executable(gmp-rmm-test
             test/rmm_test.cpp
         )
+        set_cuda_architectures_for_target(gmp-rmm-test)
+        
+        add_executable(gmp-cuda-tree-test
+            test/cuda_tree_test.cu
+        )
+        set_cuda_architectures_for_target(gmp-cuda-tree-test)
         
 
     endif()
@@ -262,6 +310,7 @@ if(BUILD_TESTS)
     if(ENABLE_CUDA)
         target_compile_definitions(gmp-cuda-test PRIVATE PROJECT_ROOT="${PROJECT_ROOT}")
         target_compile_definitions(gmp-rmm-test PRIVATE PROJECT_ROOT="${PROJECT_ROOT}")
+        target_compile_definitions(gmp-cuda-tree-test PRIVATE PROJECT_ROOT="${PROJECT_ROOT}")
 
     endif()
 
@@ -397,6 +446,27 @@ if(BUILD_TESTS)
             CUDA_SEPARABLE_COMPILATION ON
         )
         
+        # Link CUDA tree test
+        target_link_libraries(gmp-cuda-tree-test
+            PRIVATE
+            GTest::gtest_main
+            GTest::gmock_main
+            gmp-featurizer-lib
+            ${CUDA_LIBRARIES}
+        )
+        
+        # Add CUDA include directories and libraries for CUDA tree test
+        target_include_directories(gmp-cuda-tree-test
+            PRIVATE
+            ${CMAKE_SOURCE_DIR}/src
+            ${CUDA_INCLUDE_DIRS}
+        )
+        
+        # Set CUDA properties for CUDA tree test
+        set_target_properties(gmp-cuda-tree-test PROPERTIES
+            CUDA_SEPARABLE_COMPILATION ON
+        )
+        
 
         
 
@@ -512,6 +582,10 @@ if(BUILD_TESTS)
         set_target_properties(gmp-rmm-test PROPERTIES
             RUNTIME_OUTPUT_DIRECTORY ${TEST_RUNTIME_OUTPUT_DIRECTORY}
         )
+        
+        set_target_properties(gmp-cuda-tree-test PROPERTIES
+            RUNTIME_OUTPUT_DIRECTORY ${TEST_RUNTIME_OUTPUT_DIRECTORY}
+        )
     endif()
 
     # Register tests
@@ -532,6 +606,7 @@ if(BUILD_TESTS)
     if(ENABLE_CUDA)
         gtest_discover_tests(gmp-cuda-test)
         gtest_discover_tests(gmp-rmm-test)
+        gtest_discover_tests(gmp-cuda-tree-test)
     endif()
 
     # Add a custom target to build and run all tests
@@ -546,5 +621,6 @@ if(BUILD_TESTS)
     if(ENABLE_CUDA)
         add_dependencies(run_all_tests gmp-cuda-test)
         add_dependencies(run_all_tests gmp-rmm-test)
+        add_dependencies(run_all_tests gmp-cuda-tree-test)
     endif()
 endif()

@@ -11,7 +11,14 @@ namespace gmp { namespace tree {
     using gmp::containers::vector;
     using gmp::math::array3d_int32;
     using namespace morton_codes;
-    
+
+    template <typename MortonCodeType, typename VecType = vector<array3d_int32>>
+    class compare_op_t {
+    public: 
+        virtual bool operator()(MortonCodeType query_lower_bound, MortonCodeType query_upper_bound) const = 0;
+        virtual VecType operator()(MortonCodeType morton_code) const = 0;
+    };
+
     template <
         typename MortonCodeType = std::uint32_t, 
         typename IndexType = std::int32_t,

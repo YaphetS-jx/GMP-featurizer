@@ -14,15 +14,9 @@ namespace gmp { namespace tree {
     struct internal_node_t {
         IndexType left, right;
         MortonCodeType lower_bound, upper_bound;
+        
+        GPU_HOST_DEVICE
         internal_node_t(IndexType left, IndexType right, MortonCodeType lower_bound, MortonCodeType upper_bound)
             : left(left), right(right), lower_bound(lower_bound), upper_bound(upper_bound) {}
-    };
-
-    template <typename MortonCodeType, typename VecType = vector<array3d_int32>>
-    GPU_HOST_DEVICE
-    class compare_op_t {
-    public: 
-        virtual bool operator()(MortonCodeType query_lower_bound, MortonCodeType query_upper_bound) const = 0;
-        virtual VecType operator()(MortonCodeType morton_code) const = 0;
     };
 }}

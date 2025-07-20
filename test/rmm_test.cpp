@@ -244,5 +244,10 @@ TEST_F(RMMTest, FinalMemoryState) {
 
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
-    return RUN_ALL_TESTS();
+    int result = RUN_ALL_TESTS();
+    
+    // Explicitly cleanup CUDA resources before exit
+    gmp::resources::gmp_resource::instance().cleanup();
+    
+    return result;
 } 
