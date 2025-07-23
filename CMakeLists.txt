@@ -135,7 +135,6 @@ if(ENABLE_CUDA)
     target_sources(gmp-featurizer-lib
         PRIVATE
         src/gpu/cuda_tree.cu
-        src/gpu/cuda_region_query.cu
     )
 endif()
 
@@ -291,11 +290,6 @@ if(BUILD_TESTS)
         )
         set_cuda_architectures_for_target(gmp-cuda-tree-test)
         
-        add_executable(gmp-cuda-region-query-test
-            test/cuda_region_query_test.cu
-        )
-        set_cuda_architectures_for_target(gmp-cuda-region-query-test)
-        
 
     endif()
 
@@ -317,7 +311,6 @@ if(BUILD_TESTS)
         target_compile_definitions(gmp-cuda-test PRIVATE PROJECT_ROOT="${PROJECT_ROOT}")
         target_compile_definitions(gmp-rmm-test PRIVATE PROJECT_ROOT="${PROJECT_ROOT}")
         target_compile_definitions(gmp-cuda-tree-test PRIVATE PROJECT_ROOT="${PROJECT_ROOT}")
-        target_compile_definitions(gmp-cuda-region-query-test PRIVATE PROJECT_ROOT="${PROJECT_ROOT}")
 
     endif()
 
@@ -474,27 +467,6 @@ if(BUILD_TESTS)
             CUDA_SEPARABLE_COMPILATION ON
         )
         
-        # Link CUDA region query test
-        target_link_libraries(gmp-cuda-region-query-test
-            PRIVATE
-            GTest::gtest_main
-            GTest::gmock_main
-            gmp-featurizer-lib
-            ${CUDA_LIBRARIES}
-        )
-        
-        # Add CUDA include directories and libraries for CUDA region query test
-        target_include_directories(gmp-cuda-region-query-test
-            PRIVATE
-            ${CMAKE_SOURCE_DIR}/src
-            ${CUDA_INCLUDE_DIRS}
-        )
-        
-        # Set CUDA properties for CUDA region query test
-        set_target_properties(gmp-cuda-region-query-test PROPERTIES
-            CUDA_SEPARABLE_COMPILATION ON
-        )
-        
 
         
 
@@ -611,13 +583,9 @@ if(BUILD_TESTS)
             RUNTIME_OUTPUT_DIRECTORY ${TEST_RUNTIME_OUTPUT_DIRECTORY}
         )
         
-            set_target_properties(gmp-cuda-tree-test PROPERTIES
-        RUNTIME_OUTPUT_DIRECTORY ${TEST_RUNTIME_OUTPUT_DIRECTORY}
-    )
-
-    set_target_properties(gmp-cuda-region-query-test PROPERTIES
-        RUNTIME_OUTPUT_DIRECTORY ${TEST_RUNTIME_OUTPUT_DIRECTORY}
-    )
+        set_target_properties(gmp-cuda-tree-test PROPERTIES
+            RUNTIME_OUTPUT_DIRECTORY ${TEST_RUNTIME_OUTPUT_DIRECTORY}
+        )
     endif()
 
     # Register tests
@@ -639,7 +607,6 @@ if(BUILD_TESTS)
         gtest_discover_tests(gmp-cuda-test)
         gtest_discover_tests(gmp-rmm-test)
         gtest_discover_tests(gmp-cuda-tree-test)
-        gtest_discover_tests(gmp-cuda-region-query-test)
     endif()
 
     # Add a custom target to build and run all tests
@@ -655,6 +622,5 @@ if(BUILD_TESTS)
         add_dependencies(run_all_tests gmp-cuda-test)
         add_dependencies(run_all_tests gmp-rmm-test)
         add_dependencies(run_all_tests gmp-cuda-tree-test)
-        add_dependencies(run_all_tests gmp-cuda-region-query-test)
     endif()
 endif()
