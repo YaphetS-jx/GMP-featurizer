@@ -5,7 +5,7 @@
 #include <string>
 #include <cstdint>
 #ifdef GMP_ENABLE_CUDA
-#include "allocator.hpp"
+#include "resources.hpp"
 #include <rmm/device_uvector.hpp>
 #endif
 

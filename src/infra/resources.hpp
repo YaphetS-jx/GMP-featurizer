@@ -14,6 +14,10 @@
 
 namespace gmp { namespace resources {
 
+    // foward declare the resource classes
+    template <typename T> class pinned_host_allocator;
+    class streamed_device_allocator;
+
     // collection of all resources
     class gmp_resource {
     public:
@@ -74,6 +78,14 @@ namespace gmp { namespace resources {
             }
             return stream_;
         }
+
+        // get allocator for streamed device memory 
+        streamed_device_allocator* get_streamed_device_allocator() const {
+            if (!streamed_device_allocator_) {
+                streamed_device_allocator_ = std::make_unique<streamed_device_allocator>();
+            }
+            return streamed_device_allocator_.get();
+        }
         #endif
 
         // Explicit cleanup function to be called before program exit
@@ -99,6 +111,7 @@ namespace gmp { namespace resources {
         mutable std::unique_ptr<rmm::mr::cuda_async_memory_resource> gpu_device_memory_pool_;
         mutable std::unique_ptr<rmm::mr::pinned_host_memory_resource> upstream_resource_;
         mutable std::unique_ptr<rmm::mr::pool_memory_resource<rmm::mr::pinned_host_memory_resource>> pinned_pool_;
+        mutable std::unique_ptr<streamed_device_allocator> streamed_device_allocator_;
         mutable cudaStream_t stream_;
         #endif
 
@@ -108,6 +121,58 @@ namespace gmp { namespace resources {
         }
         gmp_resource(const gmp_resource&) = delete;
         gmp_resource& operator=(const gmp_resource&) = delete;
+    };
+
+
+    // Custom allocator that wraps pinned_host_memory_resource
+    template <typename T>
+    class pinned_host_allocator {
+    public:
+        using value_type = T;
+        pinned_host_allocator() noexcept 
+            : _pool(gmp::resources::gmp_resource::instance().get_pinned_host_memory_pool()) 
+        {}
+
+        // Allow rebinding to other types
+        template <typename U>
+        pinned_host_allocator(const pinned_host_allocator<U>&) noexcept {}
+
+        T* allocate(size_t n) {
+            if (n == 0) return nullptr;
+            return static_cast<T*>(_pool->allocate(n * sizeof(T)));
+        }
+
+        void deallocate(T* p, size_t n) noexcept {
+            if (p != nullptr) {
+                _pool->deallocate(p, n);
+            }
+        }
+
+        // All instances of this allocator are interchangeable:
+        bool operator==(const pinned_host_allocator&) const noexcept { return true; }
+        bool operator!=(const pinned_host_allocator& a) const noexcept { return !(*this == a); }
+    private:
+        rmm::mr::pool_memory_resource<rmm::mr::pinned_host_memory_resource>* _pool;
+    };
+
+    class streamed_device_allocator {
+    public:
+        streamed_device_allocator() noexcept 
+            : _pool(gmp::resources::gmp_resource::instance().get_gpu_device_memory_pool()) 
+        {}
+
+        void* allocate(size_t n, cudaStream_t stream) {
+            if (n == 0) return nullptr;
+            return _pool->allocate(n, rmm::cuda_stream_view(stream));
+        }
+
+        void deallocate(void* p, cudaStream_t stream) noexcept {
+            if (p != nullptr) {
+                _pool->deallocate(p, 0, rmm::cuda_stream_view(stream));
+            }
+        }
+    private: 
+        rmm::mr::cuda_async_memory_resource* _pool;
     };
 }}
 
