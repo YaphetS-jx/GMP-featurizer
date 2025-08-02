@@ -10,7 +10,6 @@ namespace gmp { namespace tree {
     using gmp::math::array3d_int32;
 
     template <typename MortonCodeType = std::uint32_t, typename IndexType = std::int32_t>
-    GPU_HOST_DEVICE
     struct internal_node_t {
         IndexType left, right;
         MortonCodeType lower_bound, upper_bound;

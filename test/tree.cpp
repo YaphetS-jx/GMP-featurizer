@@ -128,7 +128,7 @@ TEST(BinaryRadixTreeTest, Traverse_general_case) {
 
     // Generate random points
     const int num_bits = 4;
-    const int max_coord = (1 << num_bits) - 1;
+    // const int max_coord = (1 << num_bits) - 1;
     const int num_points = 5000;
 
     // Generate points and morton codes

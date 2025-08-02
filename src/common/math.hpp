@@ -36,61 +36,129 @@ namespace gmp { namespace math {
     private: 
         T data_[2];
     public: 
-        GPU_HOST_DEVICE array_2d_t();
-        GPU_HOST_DEVICE array_2d_t(T x, T y);
-        GPU_HOST_DEVICE array_2d_t(const array_2d_t<T>& other);
-        GPU_HOST_DEVICE array_2d_t(array_2d_t<T>&& other) noexcept;
+        GPU_HOST_DEVICE array_2d_t() : data_{0, 0} {}
+        GPU_HOST_DEVICE array_2d_t(T x, T y) : data_{x, y} {}
+        GPU_HOST_DEVICE array_2d_t(const array_2d_t<T>& other) : data_{other.data_[0], other.data_[1]} {}
+        GPU_HOST_DEVICE array_2d_t(array_2d_t<T>&& other) noexcept : data_{other.data_[0], other.data_[1]} {}
 
         // assignment operator
-        GPU_HOST_DEVICE array_2d_t<T>& operator=(const array_2d_t<T>& other);
-        GPU_HOST_DEVICE array_2d_t<T>& operator=(array_2d_t<T>&& other) noexcept;
+        GPU_HOST_DEVICE array_2d_t<T>& operator=(const array_2d_t<T>& other) {
+            data_[0] = other.data_[0];
+            data_[1] = other.data_[1];
+            return *this;
+        }
+        GPU_HOST_DEVICE array_2d_t<T>& operator=(array_2d_t<T>&& other) noexcept {
+            if (this != &other) {
+                data_[0] = other.data_[0];
+                data_[1] = other.data_[1];
+            }
+            return *this;
+        }
 
         // Array access
-        GPU_HOST_DEVICE T& operator[](size_t i);
-        GPU_HOST_DEVICE const T& operator[](size_t i) const;
+        GPU_HOST_DEVICE T& operator[](size_t i) { 
+            assert(i < 2); 
+            return data_[i]; 
+        }
+        GPU_HOST_DEVICE const T& operator[](size_t i) const { 
+            assert(i < 2); 
+            return data_[i]; 
+        }
     };
 
     template <typename T>
     class array3d_t {
     public: 
         // constructor
-        GPU_HOST_DEVICE array3d_t();
-        GPU_HOST_DEVICE array3d_t(T x, T y, T z);
-        GPU_HOST_DEVICE array3d_t(const array3d_t<T>& other);
-        GPU_HOST_DEVICE array3d_t(array3d_t<T>&& other) noexcept;
+        GPU_HOST_DEVICE array3d_t() : data_{0, 0, 0} {}
+        GPU_HOST_DEVICE array3d_t(T x, T y, T z) : data_{x, y, z} {}
+        GPU_HOST_DEVICE array3d_t(const array3d_t<T>& other) : data_{other.data_[0], other.data_[1], other.data_[2]} {}
+        GPU_HOST_DEVICE array3d_t(array3d_t<T>&& other) noexcept : data_{other.data_[0], other.data_[1], other.data_[2]} {}
 
         // assignment operator
-        GPU_HOST_DEVICE array3d_t<T>& operator=(const array3d_t<T>& other);
-        GPU_HOST_DEVICE array3d_t<T>& operator=(array3d_t<T>&& other) noexcept;
+        GPU_HOST_DEVICE array3d_t<T>& operator=(const array3d_t<T>& other) {
+            data_[0] = other.data_[0];
+            data_[1] = other.data_[1];
+            data_[2] = other.data_[2];
+            return *this;
+        }
+        GPU_HOST_DEVICE array3d_t<T>& operator=(array3d_t<T>&& other) noexcept {
+            if (this != &other) {
+                data_[0] = other.data_[0];
+                data_[1] = other.data_[1];
+                data_[2] = other.data_[2];
+            }
+            return *this;
+        }
 
         // Array access
-        GPU_HOST_DEVICE T& operator[](size_t i);
-        GPU_HOST_DEVICE const T& operator[](size_t i) const;
+        GPU_HOST_DEVICE T& operator[](size_t i) { 
+            return data_[i]; 
+        }
+        GPU_HOST_DEVICE const T& operator[](size_t i) const { 
+            return data_[i]; 
+        }
 
         // Basic arithmetic operations
-        GPU_HOST_DEVICE array3d_t<T> operator+(const array3d_t<T>& other) const;
-        GPU_HOST_DEVICE array3d_t<T>& operator+=(const array3d_t<T>& other);
-        GPU_HOST_DEVICE array3d_t<T> operator-(const array3d_t<T>& other) const;
-        GPU_HOST_DEVICE array3d_t<T>& operator-=(const array3d_t<T>& other);
-        GPU_HOST_DEVICE array3d_t<T> operator*(const T scalar) const;
-        GPU_HOST_DEVICE array3d_t<T> operator*(const array3d_t<T>& arr) const;
-        GPU_HOST_DEVICE array3d_t<T> operator/(const T scalar) const;
+        GPU_HOST_DEVICE array3d_t<T> operator+(const array3d_t<T>& other) const {
+            return {data_[0] + other.data_[0], data_[1] + other.data_[1], data_[2] + other.data_[2]};
+        }
+        GPU_HOST_DEVICE array3d_t<T>& operator+=(const array3d_t<T>& other) {
+            data_[0] += other.data_[0];
+            data_[1] += other.data_[1];
+            data_[2] += other.data_[2];
+            return *this;
+        }
+        GPU_HOST_DEVICE array3d_t<T> operator-(const array3d_t<T>& other) const {
+            return {data_[0] - other.data_[0], data_[1] - other.data_[1], data_[2] - other.data_[2]};
+        }
+        GPU_HOST_DEVICE array3d_t<T>& operator-=(const array3d_t<T>& other) {
+            data_[0] -= other.data_[0];
+            data_[1] -= other.data_[1];
+            data_[2] -= other.data_[2];
+            return *this;
+        }
+        GPU_HOST_DEVICE array3d_t<T> operator*(const T scalar) const {
+            return {data_[0] * scalar, data_[1] * scalar, data_[2] * scalar};
+        }
+        GPU_HOST_DEVICE array3d_t<T> operator*(const array3d_t<T>& arr) const {
+            return {data_[0] * arr[0], data_[1] * arr[1], data_[2] * arr[2]};
+        }
+        GPU_HOST_DEVICE array3d_t<T> operator/(const T scalar) const {
+            return {data_[0] / scalar, data_[1] / scalar, data_[2] / scalar};
+        }
 
         // comparison operator
-        GPU_HOST_DEVICE bool operator==(const array3d_t<T>& other) const;
-        GPU_HOST_DEVICE bool operator!=(const array3d_t<T>& other) const;
+        GPU_HOST_DEVICE bool operator==(const array3d_t<T>& other) const {
+            return data_[0] == other.data_[0] && data_[1] == other.data_[1] && data_[2] == other.data_[2];
+        }
+        GPU_HOST_DEVICE bool operator!=(const array3d_t<T>& other) const {
+            return !(*this == other);
+        }
 
         // Dot product
-        GPU_HOST_DEVICE T dot(const array3d_t<T>& other) const;
+        GPU_HOST_DEVICE T dot(const array3d_t<T>& other) const {
+            return data_[0] * other.data_[0] + data_[1] * other.data_[1] + data_[2] * other.data_[2];
+        }
 
         // Cross product
-        GPU_HOST_DEVICE array3d_t<T> cross(const array3d_t<T>& other) const;
+        GPU_HOST_DEVICE array3d_t<T> cross(const array3d_t<T>& other) const {
+            return {
+                data_[1] * other.data_[2] - data_[2] * other.data_[1],
+                data_[2] * other.data_[0] - data_[0] * other.data_[2],
+                data_[0] * other.data_[1] - data_[1] * other.data_[0]
+            };
+        }
 
         // norm
-        GPU_HOST_DEVICE T norm() const;
+        GPU_HOST_DEVICE T norm() const {
+            return std::sqrt(data_[0] * data_[0] + data_[1] * data_[1] + data_[2] * data_[2]);
+        }
 
         // product
-        GPU_HOST_DEVICE T prod() const;
+        GPU_HOST_DEVICE T prod() const {
+            return data_[0] * data_[1] * data_[2];
+        }
 
     private:
         T data_[3];
@@ -101,6 +169,17 @@ namespace gmp { namespace math {
 
     template <typename T>
     GPU_HOST_DEVICE array3d_t<T> operator/(const T scalar, const array3d_t<T>& arr);
+
+    // Standalone array3d_t operators
+    template <typename T>
+    GPU_HOST_DEVICE array3d_t<T> operator*(const T scalar, const array3d_t<T>& arr) {
+        return arr * scalar;
+    }
+
+    template <typename T>
+    GPU_HOST_DEVICE array3d_t<T> operator/(const T scalar, const array3d_t<T>& arr) {
+        return {scalar / arr[0], scalar / arr[1], scalar / arr[2]};
+    }
 
     // type aliases using configured floating-point type
     using array3d_flt = array3d_t<gmp::gmp_float>;
@@ -113,40 +192,122 @@ namespace gmp { namespace math {
     class matrix3d_t {
     public:
         // constructor
-        GPU_HOST_DEVICE matrix3d_t();
-        GPU_HOST_DEVICE matrix3d_t(const array3d_t<T>& row0, const array3d_t<T>& row1, const array3d_t<T>& row2);
-        GPU_HOST_DEVICE matrix3d_t(const matrix3d_t<T>& other);
-        GPU_HOST_DEVICE matrix3d_t(matrix3d_t<T>&& other) noexcept;
+        GPU_HOST_DEVICE matrix3d_t() : data_{array3d_t<T>{}, array3d_t<T>{}, array3d_t<T>{}} {}
+        GPU_HOST_DEVICE matrix3d_t(const array3d_t<T>& row0, const array3d_t<T>& row1, const array3d_t<T>& row2) 
+            : data_{row0, row1, row2} {}
+        GPU_HOST_DEVICE matrix3d_t(const matrix3d_t<T>& other)
+            : data_{other.data_[0], other.data_[1], other.data_[2]} {}
+        GPU_HOST_DEVICE matrix3d_t(matrix3d_t<T>&& other) noexcept 
+            : data_{other.data_[0], other.data_[1], other.data_[2]} {}
 
         // assignment operator
-        GPU_HOST_DEVICE matrix3d_t<T>& operator=(const matrix3d_t<T>& other);
-        GPU_HOST_DEVICE matrix3d_t<T>& operator=(matrix3d_t<T>&& other) noexcept;
+        GPU_HOST_DEVICE matrix3d_t<T>& operator=(const matrix3d_t<T>& other) {
+            data_[0] = other.data_[0];
+            data_[1] = other.data_[1];
+            data_[2] = other.data_[2];
+            return *this;
+        }
+        GPU_HOST_DEVICE matrix3d_t<T>& operator=(matrix3d_t<T>&& other) noexcept {
+            if (this != &other) {
+                data_[0] = other.data_[0];
+                data_[1] = other.data_[1];
+                data_[2] = other.data_[2];
+            }
+            return *this;
+        }
 
         // matrix access
-        GPU_HOST_DEVICE array3d_t<T>& operator[](size_t i);
-        GPU_HOST_DEVICE const array3d_t<T>& operator[](size_t i) const;
+        GPU_HOST_DEVICE array3d_t<T>& operator[](size_t i) { 
+            return data_[i]; 
+        }
+        GPU_HOST_DEVICE const array3d_t<T>& operator[](size_t i) const { 
+            return data_[i]; 
+        }
 
         // comparison operator
-        GPU_HOST_DEVICE bool operator==(const matrix3d_t<T>& other) const;
-        GPU_HOST_DEVICE bool operator!=(const matrix3d_t<T>& other) const;
+        GPU_HOST_DEVICE bool operator==(const matrix3d_t<T>& other) const {
+            return data_[0] == other.data_[0] && data_[1] == other.data_[1] && data_[2] == other.data_[2];
+        }
+        GPU_HOST_DEVICE bool operator!=(const matrix3d_t<T>& other) const {
+            return !(*this == other);
+        }
 
         // matrix multiplication
-        GPU_HOST_DEVICE matrix3d_t<T> operator*(const matrix3d_t<T>& other) const;
+        GPU_HOST_DEVICE matrix3d_t<T> operator*(const matrix3d_t<T>& other) const {
+            matrix3d_t<T> result;
+            for (int i = 0; i < 3; i++) {
+                for (int j = 0; j < 3; j++) {
+                    T sum = 0;
+                    for (int k = 0; k < 3; k++) {
+                        sum += data_[i][k] * other[k][j];
+                    }                    
+                    result[i][j] = sum;
+                }
+            }
+            return result;
+        }
         
         // matrix vector multiplication
-        GPU_HOST_DEVICE array3d_t<T> operator*(const array3d_t<T>& other) const;
+        GPU_HOST_DEVICE array3d_t<T> operator*(const array3d_t<T>& other) const {
+            array3d_t<T> result;
+            for (int i = 0; i < 3; i++) {
+                result[i] = data_[i].dot(other);
+            }
+            return result;
+        }
 
         // transpose matrix vector multiplication
-        GPU_HOST_DEVICE array3d_t<T> transpose_mult(const array3d_t<T>& other) const;
+        GPU_HOST_DEVICE array3d_t<T> transpose_mult(const array3d_t<T>& other) const {
+            array3d_t<T> result;
+            for (int i = 0; i < 3; i++) {
+                result[i] = data_[0][i] * other[0] + data_[1][i] * other[1] + data_[2][i] * other[2];
+            }
+            return result;
+        }
 
         // matrix transpose
-        GPU_HOST_DEVICE matrix3d_t<T> transpose() const;
+        GPU_HOST_DEVICE matrix3d_t<T> transpose() const {
+            matrix3d_t<T> result;
+            for (int i = 0; i < 3; i++) {
+                for (int j = 0; j < 3; j++) {
+                    result[j][i] = data_[i][j];
+                }
+            }
+            return result;
+        }
         
         // matrix determinant
-        GPU_HOST_DEVICE T det() const;
+        GPU_HOST_DEVICE T det() const {
+            return data_[0][0]*(data_[1][1]*data_[2][2] - data_[1][2]*data_[2][1])
+                   - data_[0][1]*(data_[1][0]*data_[2][2] - data_[1][2]*data_[2][0])
+                   + data_[0][2]*(data_[1][0]*data_[2][1] - data_[1][1]*data_[2][0]);
+        }
 
         // matrix inverse - optimized version
-        GPU_HOST_DEVICE matrix3d_t<T> inverse() const;
+        GPU_HOST_DEVICE matrix3d_t<T> inverse() const {
+            // Calculate determinant directly
+            T det = this->det();
+            if (isZero(det)) {
+                update_error(error_t::matrix_singular);
+                return matrix3d_t<T>();  // Return zero matrix for singular case
+            }
+            
+            // Calculate inverse in-place
+            matrix3d_t<T> result;
+            T inv_det = 1.0/det;  // Single division
+            
+            result[0][0] = (data_[1][1]*data_[2][2] - data_[1][2]*data_[2][1]) * inv_det;
+            result[0][1] = (data_[0][2]*data_[2][1] - data_[0][1]*data_[2][2]) * inv_det;
+            result[0][2] = (data_[0][1]*data_[1][2] - data_[0][2]*data_[1][1]) * inv_det;
+            result[1][0] = (data_[1][2]*data_[2][0] - data_[1][0]*data_[2][2]) * inv_det;
+            result[1][1] = (data_[0][0]*data_[2][2] - data_[0][2]*data_[2][0]) * inv_det;
+            result[1][2] = (data_[0][2]*data_[1][0] - data_[0][0]*data_[1][2]) * inv_det;
+            result[2][0] = (data_[1][0]*data_[2][1] - data_[1][1]*data_[2][0]) * inv_det;
+            result[2][1] = (data_[0][1]*data_[2][0] - data_[0][0]*data_[2][1]) * inv_det;
+            result[2][2] = (data_[0][0]*data_[1][1] - data_[0][1]*data_[1][0]) * inv_det;
+            
+            return result;
+        }
 
     private:
         array3d_t<T> data_[3];
@@ -159,25 +320,46 @@ namespace gmp { namespace math {
     class sym_matrix3d_t {
     public:
         // constructor
-        GPU_HOST_DEVICE sym_matrix3d_t();
-        GPU_HOST_DEVICE sym_matrix3d_t(T a, T b, T c, T d, T e, T f);
-        GPU_HOST_DEVICE sym_matrix3d_t(const array3d_t<T>& diag, const array3d_t<T>& off_diag);
-        GPU_HOST_DEVICE sym_matrix3d_t(const sym_matrix3d_t<T>& other);
-        GPU_HOST_DEVICE sym_matrix3d_t(sym_matrix3d_t<T>&& other) noexcept;
+        GPU_HOST_DEVICE sym_matrix3d_t() : diag_{array3d_t<T>{}}, off_diag_{array3d_t<T>{}} {}
+        GPU_HOST_DEVICE sym_matrix3d_t(T a, T b, T c, T d, T e, T f) : diag_{array3d_t<T>{a, b, c}}, off_diag_{array3d_t<T>{d, e, f}} {}        
+        GPU_HOST_DEVICE sym_matrix3d_t(const array3d_t<T>& diag, const array3d_t<T>& off_diag) : diag_{diag}, off_diag_{off_diag} {}        
+        GPU_HOST_DEVICE sym_matrix3d_t(const sym_matrix3d_t<T>& other) : diag_{other.diag_}, off_diag_{other.off_diag_} {}
+        GPU_HOST_DEVICE sym_matrix3d_t(sym_matrix3d_t<T>&& other) noexcept : diag_{std::move(other.diag_)}, off_diag_{std::move(other.off_diag_)} {}
         
         // assignment operator
-        GPU_HOST_DEVICE sym_matrix3d_t<T>& operator=(const sym_matrix3d_t<T>& other);
+        GPU_HOST_DEVICE sym_matrix3d_t<T>& operator=(const sym_matrix3d_t<T>& other) {
+            diag_ = other.diag_;
+            off_diag_ = other.off_diag_;
+            return *this;
+        }
 
         // matrix access - returns diagonal elements for i=0,1,2 and off-diagonal for i=3,4,5
-        GPU_HOST_DEVICE T& operator[](size_t i);
-        GPU_HOST_DEVICE const T& operator[](size_t i) const;
+        GPU_HOST_DEVICE T& operator[](size_t i) { 
+            if(i < 3) return diag_[i];
+            return off_diag_[i-3];
+        }
+        GPU_HOST_DEVICE const T& operator[](size_t i) const { 
+            if(i < 3) return diag_[i];
+            return off_diag_[i-3];
+        }
 
         // comparison operator
-        GPU_HOST_DEVICE bool operator==(const sym_matrix3d_t<T>& other) const;
-        GPU_HOST_DEVICE bool operator!=(const sym_matrix3d_t<T>& other) const;
+        GPU_HOST_DEVICE bool operator==(const sym_matrix3d_t<T>& other) const {
+            return diag_ == other.diag_ && off_diag_ == other.off_diag_;
+        }
+        GPU_HOST_DEVICE bool operator!=(const sym_matrix3d_t<T>& other) const {
+            return !(*this == other);
+        }
 
         // matrix vector multiplication
-        GPU_HOST_DEVICE array3d_t<T> operator*(const array3d_t<T>& vec) const;
+        GPU_HOST_DEVICE array3d_t<T> operator*(const array3d_t<T>& vec) const {            
+            array3d_t<T> result = { 
+                diag_[0]*vec[0] + off_diag_[0]*vec[1] + off_diag_[1]*vec[2],
+                off_diag_[0]*vec[0] + diag_[1]*vec[1] + off_diag_[2]*vec[2],
+                off_diag_[1]*vec[0] + off_diag_[2]*vec[1] + diag_[2]*vec[2]
+            };
+            return result;
+        }
 
     private: 
         array3d_t<T> diag_;

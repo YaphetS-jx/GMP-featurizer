@@ -117,11 +117,13 @@ namespace gmp { namespace tree { namespace morton_codes {
     GPU_HOST_DEVICE
     void create_masks(MortonCodeType& x_mask, MortonCodeType& y_mask, MortonCodeType& z_mask)
     {
+        constexpr int B = sizeof(MortonCodeType) * 8;
+
         x_mask = y_mask = z_mask = 0;
-        for (auto i = 0; i < sizeof(MortonCodeType) * 8; i += 3) {
-            x_mask |= static_cast<MortonCodeType>(1) << i;
-            y_mask |= static_cast<MortonCodeType>(1) << (i + 1);
-            z_mask |= static_cast<MortonCodeType>(1) << (i + 2);
+        for (int i = 0; i < B; i += 3) {
+            if (i < B)           x_mask |= (MortonCodeType{1} << i);
+            if (i + 1 < B)       y_mask |= (MortonCodeType{1} << (i + 1));
+            if (i + 2 < B)       z_mask |= (MortonCodeType{1} << (i + 2));
         }
     }
 

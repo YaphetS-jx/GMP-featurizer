@@ -14,9 +14,12 @@
 
 namespace gmp { namespace resources {
 
+    #ifdef GMP_ENABLE_CUDA
     // foward declare the resource classes
     template <typename T> class pinned_host_allocator;
-    class streamed_device_allocator;
+    class pinned_memory_manager;
+    class device_memory_manager;
+    #endif
 
     // collection of all resources
     class gmp_resource {
@@ -79,13 +82,22 @@ namespace gmp { namespace resources {
             return stream_;
         }
 
-        // get allocator for streamed device memory 
-        streamed_device_allocator* get_streamed_device_allocator() const {
-            if (!streamed_device_allocator_) {
-                streamed_device_allocator_ = std::make_unique<streamed_device_allocator>();
+        // get device memory manager
+        device_memory_manager* get_device_memory_manager() const {
+            if (!device_memory_manager_) {
+                device_memory_manager_ = std::make_unique<device_memory_manager>();
             }
-            return streamed_device_allocator_.get();
+            return device_memory_manager_.get();
         }
+
+        // get pinned memory manager
+        pinned_memory_manager* get_pinned_memory_manager() const {
+            if (!pinned_memory_manager_) {
+                pinned_memory_manager_ = std::make_unique<pinned_memory_manager>();
+            }
+            return pinned_memory_manager_.get();
+        }
+        
         #endif
 
         // Explicit cleanup function to be called before program exit
@@ -111,7 +123,8 @@ namespace gmp { namespace resources {
         mutable std::unique_ptr<rmm::mr::cuda_async_memory_resource> gpu_device_memory_pool_;
         mutable std::unique_ptr<rmm::mr::pinned_host_memory_resource> upstream_resource_;
         mutable std::unique_ptr<rmm::mr::pool_memory_resource<rmm::mr::pinned_host_memory_resource>> pinned_pool_;
-        mutable std::unique_ptr<streamed_device_allocator> streamed_device_allocator_;
+        mutable std::unique_ptr<device_memory_manager> device_memory_manager_;
+        mutable std::unique_ptr<pinned_memory_manager> pinned_memory_manager_;
         mutable cudaStream_t stream_;
         #endif
 
@@ -155,9 +168,29 @@ namespace gmp { namespace resources {
         rmm::mr::pool_memory_resource<rmm::mr::pinned_host_memory_resource>* _pool;
     };
 
-    class streamed_device_allocator {
+    class pinned_memory_manager {
     public:
-        streamed_device_allocator() noexcept 
+        pinned_memory_manager() noexcept 
+            : _pool(gmp::resources::gmp_resource::instance().get_pinned_host_memory_pool()) 
+        {}
+
+        void* allocate(size_t n) {
+            if (n == 0) return nullptr;
+            return _pool->allocate(n);
+        }
+
+        void deallocate(void* p) noexcept {
+            if (p != nullptr) {
+                _pool->deallocate(p, 0);
+            }
+        }
+    private:
+        rmm::mr::pool_memory_resource<rmm::mr::pinned_host_memory_resource>* _pool;
+    };
+
+    class device_memory_manager {
+    public:
+        device_memory_manager() noexcept 
             : _pool(gmp::resources::gmp_resource::instance().get_gpu_device_memory_pool()) 
         {}
 
