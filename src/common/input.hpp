@@ -63,7 +63,7 @@ namespace gmp { namespace input {
     public: 
         descriptor_config_t() : feature_list_(), 
             scaling_mode_(scaling_mode_t::radial), 
-            ref_grid_(0, 0, 0),
+            ref_grid_({0, 0, 0}),
             overlap_threshold_(1e-11), square_(false),
             num_bits_per_dim_(5), num_threads_(0) {}
         ~descriptor_config_t() = default;

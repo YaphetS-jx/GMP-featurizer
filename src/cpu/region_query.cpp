@@ -147,7 +147,11 @@ namespace gmp { namespace region_query {
                     };
                     auto distance_squared = lattice->calculate_distance_squared(difference);
                     if (distance_squared <= radius2) {
-                        result.emplace_back(shift_x, shift_y, shift_z);
+                        array3d_t<IndexType> shift;
+                        shift[0] = shift_x;
+                        shift[1] = shift_y;
+                        shift[2] = shift_z;
+                        result.emplace_back(shift);
                     }
                 }
             }

@@ -73,38 +73,38 @@ namespace gmp { namespace input {
 
         // Optional entries
         if (config.contains("square")) {
-            this->descriptor_config->set_square(config["square"].get<int64_t>());
+            this->descriptor_config->set_square(config["square"].get<int32_t>());
         }
         if (config.contains("overlap threshold")) {
             this->descriptor_config->set_overlap_threshold(static_cast<gmp_float>(config["overlap threshold"].get<double>()));
         }
         if (config.contains("scaling mode")) {
-            this->descriptor_config->set_scaling_mode(static_cast<scaling_mode_t>(config["scaling mode"].get<int64_t>()));
+            this->descriptor_config->set_scaling_mode(static_cast<scaling_mode_t>(config["scaling mode"].get<int32_t>()));
         }
         
         if (config.contains("reference grid")) {
             json const& ref_grid_json = config["reference grid"];
             if (ref_grid_json.size() == 3) {
-                array3d_int32 ref_grid_array(
-                    ref_grid_json[0].get<int64_t>(),
-                    ref_grid_json[1].get<int64_t>(),
-                    ref_grid_json[2].get<int64_t>()
-                );
+                array3d_int32 ref_grid_array{
+                    ref_grid_json[0].get<int32_t>(),
+                    ref_grid_json[1].get<int32_t>(),
+                    ref_grid_json[2].get<int32_t>()
+                };
                 this->descriptor_config->set_ref_grid(ref_grid_array);
             }
         }
         
         if (config.contains("num bits per dim")) {
-            this->descriptor_config->set_num_bits_per_dim(static_cast<uint8_t>(config["num bits per dim"].get<int64_t>()));
+            this->descriptor_config->set_num_bits_per_dim(static_cast<uint8_t>(config["num bits per dim"].get<int32_t>()));
         }
         if (config.contains("num threads")) {
-            this->descriptor_config->set_num_threads(static_cast<size_t>(config["num threads"].get<int64_t>()));
+            this->descriptor_config->set_num_threads(static_cast<size_t>(config["num threads"].get<int32_t>()));
         }
 
         if (config.contains("orders")) {
             json const& orders_json = config["orders"];
             for (auto const& val : orders_json) {
-                orders.push_back(val.get<int64_t>());
+                orders.push_back(val.get<int32_t>());
             }
         }
         if (config.contains("sigmas")) {
@@ -117,7 +117,7 @@ namespace gmp { namespace input {
             json const& feature_lists_json = config["feature lists"];
             for (auto const& pair : feature_lists_json) {
                 json const& pair_array = pair;
-                feature_list.emplace_back(pair_array[0].get<int64_t>(), static_cast<gmp_float>(pair_array[1].get<double>()));
+                feature_list.emplace_back(pair_array[0].get<int32_t>(), static_cast<gmp_float>(pair_array[1].get<double>()));
             }
         }
         

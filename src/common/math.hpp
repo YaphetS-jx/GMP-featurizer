@@ -32,28 +32,8 @@ namespace gmp { namespace math {
             T relTol = static_cast<T>(1e-14));
 
     template <typename T>
-    class array_2d_t {
-    private: 
+    struct array_2d_t {
         T data_[2];
-    public: 
-        GPU_HOST_DEVICE array_2d_t() : data_{0, 0} {}
-        GPU_HOST_DEVICE array_2d_t(T x, T y) : data_{x, y} {}
-        GPU_HOST_DEVICE array_2d_t(const array_2d_t<T>& other) : data_{other.data_[0], other.data_[1]} {}
-        GPU_HOST_DEVICE array_2d_t(array_2d_t<T>&& other) noexcept : data_{other.data_[0], other.data_[1]} {}
-
-        // assignment operator
-        GPU_HOST_DEVICE array_2d_t<T>& operator=(const array_2d_t<T>& other) {
-            data_[0] = other.data_[0];
-            data_[1] = other.data_[1];
-            return *this;
-        }
-        GPU_HOST_DEVICE array_2d_t<T>& operator=(array_2d_t<T>&& other) noexcept {
-            if (this != &other) {
-                data_[0] = other.data_[0];
-                data_[1] = other.data_[1];
-            }
-            return *this;
-        }
 
         // Array access
         GPU_HOST_DEVICE T& operator[](size_t i) { 
@@ -67,29 +47,8 @@ namespace gmp { namespace math {
     };
 
     template <typename T>
-    class array3d_t {
-    public: 
-        // constructor
-        GPU_HOST_DEVICE array3d_t() : data_{0, 0, 0} {}
-        GPU_HOST_DEVICE array3d_t(T x, T y, T z) : data_{x, y, z} {}
-        GPU_HOST_DEVICE array3d_t(const array3d_t<T>& other) : data_{other.data_[0], other.data_[1], other.data_[2]} {}
-        GPU_HOST_DEVICE array3d_t(array3d_t<T>&& other) noexcept : data_{other.data_[0], other.data_[1], other.data_[2]} {}
-
-        // assignment operator
-        GPU_HOST_DEVICE array3d_t<T>& operator=(const array3d_t<T>& other) {
-            data_[0] = other.data_[0];
-            data_[1] = other.data_[1];
-            data_[2] = other.data_[2];
-            return *this;
-        }
-        GPU_HOST_DEVICE array3d_t<T>& operator=(array3d_t<T>&& other) noexcept {
-            if (this != &other) {
-                data_[0] = other.data_[0];
-                data_[1] = other.data_[1];
-                data_[2] = other.data_[2];
-            }
-            return *this;
-        }
+    struct array3d_t {
+        T data_[3];
 
         // Array access
         GPU_HOST_DEVICE T& operator[](size_t i) { 
@@ -158,17 +117,8 @@ namespace gmp { namespace math {
         // product
         GPU_HOST_DEVICE T prod() const {
             return data_[0] * data_[1] * data_[2];
-        }
-
-    private:
-        T data_[3];
+        }        
     };
-
-    template <typename T>
-    GPU_HOST_DEVICE array3d_t<T> operator*(const T scalar, const array3d_t<T>& arr);
-
-    template <typename T>
-    GPU_HOST_DEVICE array3d_t<T> operator/(const T scalar, const array3d_t<T>& arr);
 
     // Standalone array3d_t operators
     template <typename T>
@@ -189,32 +139,9 @@ namespace gmp { namespace math {
     using array3d_bool = std::array<bool, 3>;
 
     template <typename T>
-    class matrix3d_t {
-    public:
-        // constructor
-        GPU_HOST_DEVICE matrix3d_t() : data_{array3d_t<T>{}, array3d_t<T>{}, array3d_t<T>{}} {}
-        GPU_HOST_DEVICE matrix3d_t(const array3d_t<T>& row0, const array3d_t<T>& row1, const array3d_t<T>& row2) 
-            : data_{row0, row1, row2} {}
-        GPU_HOST_DEVICE matrix3d_t(const matrix3d_t<T>& other)
-            : data_{other.data_[0], other.data_[1], other.data_[2]} {}
-        GPU_HOST_DEVICE matrix3d_t(matrix3d_t<T>&& other) noexcept 
-            : data_{other.data_[0], other.data_[1], other.data_[2]} {}
-
-        // assignment operator
-        GPU_HOST_DEVICE matrix3d_t<T>& operator=(const matrix3d_t<T>& other) {
-            data_[0] = other.data_[0];
-            data_[1] = other.data_[1];
-            data_[2] = other.data_[2];
-            return *this;
-        }
-        GPU_HOST_DEVICE matrix3d_t<T>& operator=(matrix3d_t<T>&& other) noexcept {
-            if (this != &other) {
-                data_[0] = other.data_[0];
-                data_[1] = other.data_[1];
-                data_[2] = other.data_[2];
-            }
-            return *this;
-        }
+    struct matrix3d_t {
+        // data
+        array3d_t<T> data_[3];
 
         // matrix access
         GPU_HOST_DEVICE array3d_t<T>& operator[](size_t i) { 
@@ -308,30 +235,16 @@ namespace gmp { namespace math {
             
             return result;
         }
-
-    private:
-        array3d_t<T> data_[3];
     };
 
     // type aliases using configured floating-point type
     using matrix3d_flt = matrix3d_t<gmp::gmp_float>;
 
     template <typename T>
-    class sym_matrix3d_t {
-    public:
-        // constructor
-        GPU_HOST_DEVICE sym_matrix3d_t() : diag_{array3d_t<T>{}}, off_diag_{array3d_t<T>{}} {}
-        GPU_HOST_DEVICE sym_matrix3d_t(T a, T b, T c, T d, T e, T f) : diag_{array3d_t<T>{a, b, c}}, off_diag_{array3d_t<T>{d, e, f}} {}        
-        GPU_HOST_DEVICE sym_matrix3d_t(const array3d_t<T>& diag, const array3d_t<T>& off_diag) : diag_{diag}, off_diag_{off_diag} {}        
-        GPU_HOST_DEVICE sym_matrix3d_t(const sym_matrix3d_t<T>& other) : diag_{other.diag_}, off_diag_{other.off_diag_} {}
-        GPU_HOST_DEVICE sym_matrix3d_t(sym_matrix3d_t<T>&& other) noexcept : diag_{std::move(other.diag_)}, off_diag_{std::move(other.off_diag_)} {}
-        
-        // assignment operator
-        GPU_HOST_DEVICE sym_matrix3d_t<T>& operator=(const sym_matrix3d_t<T>& other) {
-            diag_ = other.diag_;
-            off_diag_ = other.off_diag_;
-            return *this;
-        }
+    struct sym_matrix3d_t {
+        // data
+        array3d_t<T> diag_;
+        array3d_t<T> off_diag_;
 
         // matrix access - returns diagonal elements for i=0,1,2 and off-diagonal for i=3,4,5
         GPU_HOST_DEVICE T& operator[](size_t i) { 
@@ -360,10 +273,6 @@ namespace gmp { namespace math {
             };
             return result;
         }
-
-    private: 
-        array3d_t<T> diag_;
-        array3d_t<T> off_diag_;
     };
 
     // type aliases using configured floating-point type

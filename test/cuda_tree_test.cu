@@ -107,7 +107,9 @@ public:
             count[num_indexes] = 1;
             num_indexes++;  
             if (cell_shifts) {
-                cell_shifts[num_results] = array3d_int32(0, 0, 0);
+                array3d_int32 zero_shift;
+                zero_shift[0] = 0; zero_shift[1] = 0; zero_shift[2] = 0;
+                cell_shifts[num_results] = zero_shift;
             }
             num_results++;
         }

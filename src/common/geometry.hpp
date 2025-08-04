@@ -42,9 +42,6 @@ namespace gmp { namespace geometry {
 
         lattice_t(matrix3d_type lattice_vectors);
         
-        // copy constructor
-        lattice_t(const lattice_t& other);
-        
         // Access lattice vectors
         const array3d_type& operator[](size_t i) const;
         array3d_type& operator[](size_t i);

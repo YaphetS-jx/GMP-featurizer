@@ -136,7 +136,7 @@ namespace gmp { namespace resources {
         gmp_resource& operator=(const gmp_resource&) = delete;
     };
 
-
+    #ifdef GMP_ENABLE_CUDA
     // Custom allocator that wraps pinned_host_memory_resource
     template <typename T>
     class pinned_host_allocator {
@@ -207,5 +207,6 @@ namespace gmp { namespace resources {
     private: 
         rmm::mr::cuda_async_memory_resource* _pool;
     };
+    #endif
 }}
 

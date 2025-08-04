@@ -19,13 +19,6 @@ namespace gmp { namespace geometry {
         update_metric();
     }
     
-    // copy constructor
-    template <typename T>
-    inline lattice_t<T>::lattice_t(const lattice_t& other) : lattice_vectors_(other.lattice_vectors_), metric_(other.metric_) 
-    {
-        update_metric();
-    }
-    
     // Access lattice vectors
     template <typename T>
     inline const typename lattice_t<T>::array3d_type& lattice_t<T>::operator[](size_t i) const { 
@@ -40,12 +33,12 @@ namespace gmp { namespace geometry {
     // get lattice metric
     template <typename T>
     inline void lattice_t<T>::update_metric() {
-        metric_ = sym_matrix3d_type(lattice_vectors_[0].dot(lattice_vectors_[0]),
+        metric_ = sym_matrix3d_type{{lattice_vectors_[0].dot(lattice_vectors_[0]),
                               lattice_vectors_[1].dot(lattice_vectors_[1]),
-                              lattice_vectors_[2].dot(lattice_vectors_[2]),
-                              lattice_vectors_[0].dot(lattice_vectors_[1]),
+                              lattice_vectors_[2].dot(lattice_vectors_[2])},
+                              {lattice_vectors_[0].dot(lattice_vectors_[1]),
                               lattice_vectors_[0].dot(lattice_vectors_[2]),
-                              lattice_vectors_[1].dot(lattice_vectors_[2]));
+                              lattice_vectors_[1].dot(lattice_vectors_[2])}};
     }
 
     // get volume of cell
@@ -71,17 +64,17 @@ namespace gmp { namespace geometry {
         array3d_type b1 = lattice_vectors_[1].cross(lattice_vectors_[2]) / volume;
         array3d_type b2 = lattice_vectors_[2].cross(lattice_vectors_[0]) / volume;
         array3d_type b3 = lattice_vectors_[0].cross(lattice_vectors_[1]) / volume;
-        return array3d_type(static_cast<T>(1.0) / b1.norm(), static_cast<T>(1.0) / b2.norm(), static_cast<T>(1.0) / b3.norm());
+        return array3d_type{static_cast<T>(1.0) / b1.norm(), static_cast<T>(1.0) / b2.norm(), static_cast<T>(1.0) / b3.norm()};
     }
 
     template <typename T>
     inline typename lattice_t<T>::array3d_type lattice_t<T>::get_cell_lengths() const {
-        return array3d_type(lattice_vectors_[0].norm(), lattice_vectors_[1].norm(), lattice_vectors_[2].norm());
+        return array3d_type{lattice_vectors_[0].norm(), lattice_vectors_[1].norm(), lattice_vectors_[2].norm()};
     }
 
     template <typename T>
     inline T lattice_t<T>::calculate_distance_squared(const point_type& p1, const point_type& p2, const array3d_type& cell_shift, array3d_type& difference) const {
-        difference = array3d_type(p1.x - p2.x, p1.y - p2.y, p1.z - p2.z);
+        difference = array3d_type{p1.x - p2.x, p1.y - p2.y, p1.z - p2.z};
         difference += cell_shift;
         return difference.dot(metric_ * difference);
     }
@@ -156,10 +149,10 @@ namespace gmp { namespace geometry {
         array3d_t<T> vc{cell_lengths[2] * cx, cell_lengths[2] * cy, cell_lengths[2] * cz};
 
         // Build transformation matrix T from basis vectors X, Y, Z
-        matrix3d_t<T> T_matrix(X, Y, Z);
+        matrix3d_t<T> T_matrix{X, Y, Z};
 
         // Build intermediate matrix with rows va, vb, vc
-        matrix3d_t<T> abc(va, vb, vc);
+        matrix3d_t<T> abc{va, vb, vc};
 
         // Multiply abc and T to obtain final cell matrix        
         return std::make_unique<lattice_t<T>>(abc * T_matrix);
