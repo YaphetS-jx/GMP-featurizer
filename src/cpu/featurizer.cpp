@@ -27,7 +27,7 @@ namespace gmp { namespace featurizer {
         for (const auto& feature : feature_list) {
             const T A = get_scaling_const(feature.order, feature.sigma, scaling_mode);
             const T alpha = (feature.order == -1) ? 0. : (1.0 / (2.0 * feature.sigma * feature.sigma));
-            for (atom_type_id_t atom_type_idx = 0; atom_type_idx < num_atom_types; ++atom_type_idx) {
+            for (uint32_t atom_type_idx = 0; atom_type_idx < num_atom_types; ++atom_type_idx) {
                 // get the ranges of gaussians for the current atom type
                 auto start = psp_config->get_offset()[atom_type_idx];
                 auto end = psp_config->get_offset()[atom_type_idx + 1];

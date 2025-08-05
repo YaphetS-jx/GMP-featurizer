@@ -131,6 +131,16 @@ namespace gmp { namespace math {
         return {scalar / arr[0], scalar / arr[1], scalar / arr[2]};
     }
 
+    template<typename T>
+    GPU_HOST_DEVICE
+    array3d_t<T> make_array3d(T x, T y, T z) {
+        array3d_t<T> result;
+        result[0] = x;
+        result[1] = y;
+        result[2] = z;
+        return result;
+    }
+
     // type aliases using configured floating-point type
     using array3d_flt = array3d_t<gmp::gmp_float>;
     using array3d_uint32 = array3d_t<uint32_t>;
@@ -236,6 +246,16 @@ namespace gmp { namespace math {
             return result;
         }
     };
+
+    template<typename T>
+    GPU_HOST_DEVICE
+    matrix3d_t<T> make_matrix3d(array3d_t<T> row0, array3d_t<T> row1, array3d_t<T> row2) {
+        matrix3d_t<T> result;
+        result[0] = row0;
+        result[1] = row1;
+        result[2] = row2;
+        return result;
+    }
 
     // type aliases using configured floating-point type
     using matrix3d_flt = matrix3d_t<gmp::gmp_float>;

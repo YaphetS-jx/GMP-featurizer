@@ -18,4 +18,6 @@ namespace gmp { namespace tree {
         internal_node_t(IndexType left, IndexType right, MortonCodeType lower_bound, MortonCodeType upper_bound)
             : left(left), right(right), lower_bound(lower_bound), upper_bound(upper_bound) {}
     };
+
+    template struct internal_node_t<uint32_t, int32_t>;
 }}

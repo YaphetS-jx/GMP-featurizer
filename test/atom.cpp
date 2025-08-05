@@ -15,7 +15,7 @@ TEST(atom_system, atom_constructors) {
     EXPECT_DOUBLE_EQ(atom1.y(), 2.0);
     EXPECT_DOUBLE_EQ(atom1.z(), 3.0);
     EXPECT_DOUBLE_EQ(atom1.occ(), 1.0);
-    EXPECT_EQ(atom1.id(), std::numeric_limits<uint8_t>::max());
+    EXPECT_EQ(atom1.id(), std::numeric_limits<uint32_t>::max());
 
     // Constructor with point and custom values
     point3d_t<double> pos{4.0, 5.0, 6.0};

@@ -11,10 +11,6 @@
 
 namespace gmp { namespace containers {
 
-    // type aliases 
-    using atom_type_id_t = std::uint8_t;
-    using atom_type_map_t = std::unordered_map<std::string, atom_type_id_t>;    
-
     template <typename T, typename Allocator = std::allocator<T>>
     class vector : public std::vector<T, Allocator> {
         using base = std::vector<T, Allocator>;

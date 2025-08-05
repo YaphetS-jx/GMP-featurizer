@@ -17,8 +17,8 @@ namespace gmp { namespace atom {
     using gmp::math::array3d_bool;
     using gmp::math::array3d_int32;
     using gmp::containers::vector;
-    using gmp::containers::atom_type_map_t;
-    using gmp::containers::atom_type_id_t;
+
+    using atom_type_map_t = std::unordered_map<std::string, uint32_t>;    
 
     template <typename T>
     class atom_t {
@@ -26,28 +26,23 @@ namespace gmp { namespace atom {
         using point_type = gmp::geometry::point3d_t<T>;
         
         // ctor
-        atom_t(const T x, const T y, const T z, const T occupancy = static_cast<T>(1.0), const atom_type_id_t type_id = std::numeric_limits<atom_type_id_t>::max());
-        atom_t(const point_type position, const T occupancy = static_cast<T>(1.0), const atom_type_id_t type_id = std::numeric_limits<atom_type_id_t>::max());
+        atom_t(const T x, const T y, const T z, const T occupancy = static_cast<T>(1.0), const uint32_t type_id = std::numeric_limits<uint32_t>::max());
+        atom_t(const point_type position, const T occupancy = static_cast<T>(1.0), const uint32_t type_id = std::numeric_limits<uint32_t>::max());
         // destructor
         ~atom_t() = default;
 
         // accessors
         const point_type& pos() const;
         T occ() const;
-        atom_type_id_t id() const;
+        uint32_t id() const;
         T x() const;
         T y() const;
         T z() const;
 
-        // mutators
-        void set_pos(const point_type& position);
-        void set_occ(const T occupancy);
-        void set_id(const atom_type_id_t type_id);
-
     private:
         point_type position_;
         T occupancy_;
-        atom_type_id_t type_id_;
+        uint32_t type_id_;
     };
     
     template <typename T>

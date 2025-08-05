@@ -6,26 +6,6 @@
 using namespace gmp::math;
 using namespace gmp::resources;
 
-// Helper function to create array3d_t with values
-template<typename T>
-array3d_t<T> make_array3d(T x, T y, T z) {
-    array3d_t<T> result;
-    result[0] = x;
-    result[1] = y;
-    result[2] = z;
-    return result;
-}
-
-// Helper function to create matrix3d_t with values
-template<typename T>
-matrix3d_t<T> make_matrix3d(array3d_t<T> row0, array3d_t<T> row1, array3d_t<T> row2) {
-    matrix3d_t<T> result;
-    result[0] = row0;
-    result[1] = row1;
-    result[2] = row2;
-    return result;
-}
-
 TEST(math, array3d_t) {
     // Test constructors
     array3d_t<double> zero;  // default constructor

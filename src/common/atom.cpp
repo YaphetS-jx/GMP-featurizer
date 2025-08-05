@@ -15,11 +15,11 @@ namespace gmp { namespace atom {
 
     // atom_t implementations
     template <typename T>
-    inline atom_t<T>::atom_t(const T x, const T y, const T z, const T occupancy, const atom_type_id_t type_id)
+    inline atom_t<T>::atom_t(const T x, const T y, const T z, const T occupancy, const uint32_t type_id)
         : position_{x, y, z}, occupancy_(occupancy), type_id_(type_id) {}
 
     template <typename T>
-    inline atom_t<T>::atom_t(const point_type position, const T occupancy, const atom_type_id_t type_id)
+    inline atom_t<T>::atom_t(const point_type position, const T occupancy, const uint32_t type_id)
         : position_(position), occupancy_(occupancy), type_id_(type_id) {}
 
     template <typename T>
@@ -29,7 +29,7 @@ namespace gmp { namespace atom {
     inline T atom_t<T>::occ() const { return occupancy_; }
 
     template <typename T>
-    inline atom_type_id_t atom_t<T>::id() const { return type_id_; }
+    inline uint32_t atom_t<T>::id() const { return type_id_; }
 
     template <typename T>
     inline T atom_t<T>::x() const { return position_.x; }
@@ -39,15 +39,6 @@ namespace gmp { namespace atom {
 
     template <typename T>
     inline T atom_t<T>::z() const { return position_.z; }
-
-    template <typename T>
-    inline void atom_t<T>::set_pos(const point_type& position) { position_ = position; }
-
-    template <typename T>
-    inline void atom_t<T>::set_occ(const T occupancy) { occupancy_ = occupancy; }
-
-    template <typename T>
-    inline void atom_t<T>::set_id(const atom_type_id_t type_id) { type_id_ = type_id; }
 
     // Explicit instantiations for atom_t
     template class atom_t<float>;
@@ -210,7 +201,7 @@ namespace gmp { namespace atom {
             T fract_z = static_cast<T>(std::stod(row[3]));
             T occupancy = static_cast<T>(std::stod(row[4]));
             if (atom_type_map.find(type_symbol) == atom_type_map.end()) {
-                atom_type_map[type_symbol] = static_cast<atom_type_id_t>(atom_type_map.size());
+                atom_type_map[type_symbol] = static_cast<uint32_t>(atom_type_map.size());
             }
             atoms.emplace_back(point3d_t<T>{fract_x, fract_y, fract_z}, occupancy, atom_type_map[type_symbol]);
         }
