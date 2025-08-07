@@ -278,10 +278,10 @@ namespace gmp { namespace featurizer {
                         for (const auto& result : query_results) {
                             const auto distance2 = result.distance_squared;
                             const auto& atom = unit_cell->get_atoms()[result.neighbor_index];
-                            const auto occ = atom.occ();
+                            const auto occ = atom.occ;
 
                             int start, end;
-                            cutoff_list_->get_range(feature_idx, atom.id(), start, end);
+                            cutoff_list_->get_range(feature_idx, atom.type_id, start, end);
 
                             for (auto idx = start; idx < end; ++idx) {
                                 const auto gaussian_cutoff = cutoff_list_->cutoff_list_[idx];

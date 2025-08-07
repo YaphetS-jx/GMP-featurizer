@@ -8,40 +8,15 @@ using namespace gmp::geometry;
 using namespace gmp::containers;
 
 // Test atom_t class
-TEST(atom_system, atom_constructors) {
-    // Default constructor with values
-    atom_t<double> atom1(1.0, 2.0, 3.0);
-    EXPECT_DOUBLE_EQ(atom1.x(), 1.0);
-    EXPECT_DOUBLE_EQ(atom1.y(), 2.0);
-    EXPECT_DOUBLE_EQ(atom1.z(), 3.0);
-    EXPECT_DOUBLE_EQ(atom1.occ(), 1.0);
-    EXPECT_EQ(atom1.id(), std::numeric_limits<uint32_t>::max());
-
-    // Constructor with point and custom values
-    point3d_t<double> pos{4.0, 5.0, 6.0};
-    atom_t<double> atom2(pos, 0.5, 2);
-    EXPECT_DOUBLE_EQ(atom2.x(), 4.0);
-    EXPECT_DOUBLE_EQ(atom2.y(), 5.0);
-    EXPECT_DOUBLE_EQ(atom2.z(), 6.0);
-    EXPECT_DOUBLE_EQ(atom2.occ(), 0.5);
-    EXPECT_EQ(atom2.id(), 2);
-
-    // Copy constructor
-    atom_t<double> atom3(atom1);
-    EXPECT_DOUBLE_EQ(atom3.x(), 1.0);
-    EXPECT_DOUBLE_EQ(atom3.y(), 2.0);
-    EXPECT_DOUBLE_EQ(atom3.z(), 3.0);
-}
-
 TEST(atom_system, atom_assignment) {
-    atom_t<double> atom1(1.0, 2.0, 3.0);
-    atom_t<double> atom2(4.0, 5.0, 6.0);
+    atom_t<double> atom1{{1.0, 2.0, 3.0}, 1.0, 0};
+    atom_t<double> atom2{{4.0, 5.0, 6.0}, 1.0, 1};
 
     // Copy assignment
     atom1 = atom2;
-    EXPECT_DOUBLE_EQ(atom1.x(), 4.0);
-    EXPECT_DOUBLE_EQ(atom1.y(), 5.0);
-    EXPECT_DOUBLE_EQ(atom1.z(), 6.0);
+    EXPECT_DOUBLE_EQ(atom1.pos.x, 4.0);
+    EXPECT_DOUBLE_EQ(atom1.pos.y, 5.0);
+    EXPECT_DOUBLE_EQ(atom1.pos.z, 6.0);
 }
 
 TEST(atom, system_mutators) {
@@ -49,12 +24,12 @@ TEST(atom, system_mutators) {
 
     // Test set_atoms
     vector<atom_t<double>> atoms;
-    atoms.push_back(atom_t<double>(1.0, 2.0, 3.0));
+    atoms.push_back({{1.0, 2.0, 3.0}, 1.0, 0});
     system.set_atoms(std::move(atoms));
     EXPECT_EQ(system.get_atoms().size(), 1);
-    EXPECT_DOUBLE_EQ(system[0].x(), 1.0);
-    EXPECT_DOUBLE_EQ(system[0].y(), 2.0);
-    EXPECT_DOUBLE_EQ(system[0].z(), 3.0);
+    EXPECT_DOUBLE_EQ(system[0].pos.x, 1.0);
+    EXPECT_DOUBLE_EQ(system[0].pos.y, 2.0);
+    EXPECT_DOUBLE_EQ(system[0].pos.z, 3.0);
 
     // Test set_lattice
     matrix3d_t<double> mat;
@@ -76,8 +51,8 @@ TEST(atom, system_mutators) {
 TEST(atom, system_accessors) {
     // Create system with some atoms
     vector<atom_t<double>> atoms;
-    atoms.push_back(atom_t<double>(1.0, 2.0, 3.0));
-    atoms.push_back(atom_t<double>(4.0, 5.0, 6.0));
+    atoms.push_back({{1.0, 2.0, 3.0}, 1.0, 0});
+    atoms.push_back({{4.0, 5.0, 6.0}, 1.0, 1});
     
     matrix3d_t<double> mat;
     mat[0] = array3d_t<double>{1.0, 0.0, 0.0};
@@ -109,13 +84,13 @@ TEST(atom, system_accessors) {
     EXPECT_TRUE(system_periodic[2]);
 
     // Test operator[]
-    EXPECT_DOUBLE_EQ(system[0].x(), 1.0);
-    EXPECT_DOUBLE_EQ(system[1].x(), 4.0);
+    EXPECT_DOUBLE_EQ(system[0].pos.x, 1.0);
+    EXPECT_DOUBLE_EQ(system[1].pos.x, 4.0);
 
     // Test const operator[]
     const unit_cell_t<double>& const_system = system;
-    EXPECT_DOUBLE_EQ(const_system[0].x(), 1.0);
-    EXPECT_DOUBLE_EQ(const_system[1].x(), 4.0);
+    EXPECT_DOUBLE_EQ(const_system[0].pos.x, 1.0);
+    EXPECT_DOUBLE_EQ(const_system[1].pos.x, 4.0);
 }
 
 int main(int argc, char **argv) {

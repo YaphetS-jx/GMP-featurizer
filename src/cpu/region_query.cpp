@@ -181,9 +181,9 @@ namespace gmp { namespace region_query {
         auto natom = atoms.size();
         morton_codes.reserve(natom);
         for (const auto& atom : atoms) {
-            MortonCodeType mc_x = coordinate_to_morton_code<FloatType, MortonCodeType, IndexType>(atom.x(), num_bits_per_dim);
-            MortonCodeType mc_y = coordinate_to_morton_code<FloatType, MortonCodeType, IndexType>(atom.y(), num_bits_per_dim);
-            MortonCodeType mc_z = coordinate_to_morton_code<FloatType, MortonCodeType, IndexType>(atom.z(), num_bits_per_dim);
+            MortonCodeType mc_x = coordinate_to_morton_code<FloatType, MortonCodeType, IndexType>(atom.pos.x, num_bits_per_dim);
+            MortonCodeType mc_y = coordinate_to_morton_code<FloatType, MortonCodeType, IndexType>(atom.pos.y, num_bits_per_dim);
+            MortonCodeType mc_z = coordinate_to_morton_code<FloatType, MortonCodeType, IndexType>(atom.pos.z, num_bits_per_dim);
             morton_codes.push_back(interleave_bits(mc_x, mc_y, mc_z, num_bits_per_dim));
         }
 
@@ -249,7 +249,7 @@ namespace gmp { namespace region_query {
             for (const auto& shift : shifts) {
                 for (auto idx = offsets[index]; idx < offsets[index+1]; idx++) {
                     auto atom_index = sorted_indexes[idx];
-                    auto atom_position = unit_cell->get_atoms()[atom_index].pos();
+                    auto atom_position = unit_cell->get_atoms()[atom_index].pos;
                     array3d_t<FloatType> difference;
                     auto distance2 = unit_cell->get_lattice()->calculate_distance_squared(
                         atom_position, position, array3d_t<FloatType>{static_cast<FloatType>(shift[0]), 

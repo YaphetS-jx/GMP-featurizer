@@ -13,37 +13,6 @@ namespace gmp { namespace atom {
 
     using gmp::math::array3d_flt;
 
-    // atom_t implementations
-    template <typename T>
-    inline atom_t<T>::atom_t(const T x, const T y, const T z, const T occupancy, const uint32_t type_id)
-        : position_{x, y, z}, occupancy_(occupancy), type_id_(type_id) {}
-
-    template <typename T>
-    inline atom_t<T>::atom_t(const point_type position, const T occupancy, const uint32_t type_id)
-        : position_(position), occupancy_(occupancy), type_id_(type_id) {}
-
-    template <typename T>
-    inline const typename atom_t<T>::point_type& atom_t<T>::pos() const { return position_; }
-
-    template <typename T>
-    inline T atom_t<T>::occ() const { return occupancy_; }
-
-    template <typename T>
-    inline uint32_t atom_t<T>::id() const { return type_id_; }
-
-    template <typename T>
-    inline T atom_t<T>::x() const { return position_.x; }
-
-    template <typename T>
-    inline T atom_t<T>::y() const { return position_.y; }
-
-    template <typename T>
-    inline T atom_t<T>::z() const { return position_.z; }
-
-    // Explicit instantiations for atom_t
-    template class atom_t<float>;
-    template class atom_t<double>;
-
     // unit_cell_t implementations
     template <typename T>
     inline unit_cell_t<T>::unit_cell_t() : atoms_(), lattice_(), atom_type_map_(), periodicity_{true, true, true} {}
@@ -101,7 +70,7 @@ namespace gmp { namespace atom {
         }
         std::cout << "Atoms: " << std::endl;
         for (const auto& atom : atoms_) {
-            std::cout << "Atom: " << static_cast<int>(atom.id()) << ", Position: " << atom.pos() << ", Occupancy: " << atom.occ() << std::endl;            
+            std::cout << "Atom: " << static_cast<int>(atom.type_id) << ", Position: " << atom.pos << ", Occupancy: " << atom.occ << std::endl;            
         }        
     }
 
@@ -203,7 +172,7 @@ namespace gmp { namespace atom {
             if (atom_type_map.find(type_symbol) == atom_type_map.end()) {
                 atom_type_map[type_symbol] = static_cast<uint32_t>(atom_type_map.size());
             }
-            atoms.emplace_back(point3d_t<T>{fract_x, fract_y, fract_z}, occupancy, atom_type_map[type_symbol]);
+            atoms.push_back({point3d_t<T>{fract_x, fract_y, fract_z}, occupancy, atom_type_map[type_symbol]});
         }
 
         return;
@@ -295,7 +264,7 @@ namespace gmp { namespace atom {
         vector<point3d_t<T>> ref_positions;
         if (ref_grid[0] <= 0 || ref_grid[1] <= 0 || ref_grid[2] <= 0) {
             for (const auto& atom : atoms) {
-                ref_positions.emplace_back(atom.pos());
+                ref_positions.emplace_back(atom.pos);
             }
         } else {
             ref_positions.reserve(ref_grid[0] * ref_grid[1] * ref_grid[2]);

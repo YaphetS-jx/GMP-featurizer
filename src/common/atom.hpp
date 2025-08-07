@@ -21,28 +21,10 @@ namespace gmp { namespace atom {
     using atom_type_map_t = std::unordered_map<std::string, uint32_t>;    
 
     template <typename T>
-    class atom_t {
-    public:        
-        using point_type = gmp::geometry::point3d_t<T>;
-        
-        // ctor
-        atom_t(const T x, const T y, const T z, const T occupancy = static_cast<T>(1.0), const uint32_t type_id = std::numeric_limits<uint32_t>::max());
-        atom_t(const point_type position, const T occupancy = static_cast<T>(1.0), const uint32_t type_id = std::numeric_limits<uint32_t>::max());
-        // destructor
-        ~atom_t() = default;
-
-        // accessors
-        const point_type& pos() const;
-        T occ() const;
-        uint32_t id() const;
-        T x() const;
-        T y() const;
-        T z() const;
-
-    private:
-        point_type position_;
-        T occupancy_;
-        uint32_t type_id_;
+    struct atom_t {
+        point3d_t<T> pos;
+        T occ;
+        uint32_t type_id;
     };
     
     template <typename T>

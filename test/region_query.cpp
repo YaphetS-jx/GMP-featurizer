@@ -38,7 +38,7 @@ TEST(RegionQueryTest, basic_query) {
         double x = dist(gen);
         double y = dist(gen);
         double z = dist(gen);
-        atoms.emplace_back(x, y, z, 1.0, 0);
+        atoms.push_back({{x, y, z}, 1.0, 0});
     }
     unit_cell.set_atoms(std::move(atoms));
 
@@ -68,7 +68,7 @@ TEST(RegionQueryTest, basic_query) {
                 for (auto i = 0; i < num_atoms; i++) {
                     array3d_t<double> cell_shift{static_cast<double>(shift_x), static_cast<double>(shift_y), static_cast<double>(shift_z)};
                     array3d_t<double> difference;
-                    double distance2 = unit_cell.get_lattice()->calculate_distance_squared(atoms[i].pos(), query_point, cell_shift, difference);
+                    double distance2 = unit_cell.get_lattice()->calculate_distance_squared(atoms[i].pos, query_point, cell_shift, difference);
                     if (distance2 < cutoff * cutoff) {
                         array3d_t<double> difference_cartesian = unit_cell.get_lattice()->fractional_to_cartesian(difference);
                         results_benchmark.emplace_back(difference_cartesian, distance2, i);

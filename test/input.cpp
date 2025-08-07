@@ -102,11 +102,11 @@ TEST_F(InputTest, read_atom_file) {
     EXPECT_EQ(atom_type_map["O"], 2);
     
     // Check first atom position using accessors
-    EXPECT_DOUBLE_EQ(atoms[0].x(), 0.140197);
-    EXPECT_DOUBLE_EQ(atoms[3].y(), 0.421795);
-    EXPECT_DOUBLE_EQ(atoms[8].z(), 0.010882);
-    EXPECT_DOUBLE_EQ(atoms[0].occ(), 1.0);
-    EXPECT_EQ(atoms[1].id(), atom_type_map["K"]);
+    EXPECT_DOUBLE_EQ(atoms[0].pos.x, 0.140197);
+    EXPECT_DOUBLE_EQ(atoms[3].pos.y, 0.421795);
+    EXPECT_DOUBLE_EQ(atoms[8].pos.z, 0.010882);
+    EXPECT_DOUBLE_EQ(atoms[0].occ, 1.0);
+    EXPECT_EQ(atoms[1].type_id, atom_type_map["K"]);
 }
 
 TEST_F(InputTest, read_psp_file) {
