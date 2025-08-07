@@ -59,7 +59,7 @@ public:
     }
 
     bool operator()(MortonCodeType lower_bound, MortonCodeType upper_bound) const override
-    {            
+    {
         return mc_is_less_than_or_equal(query_lower_bound, upper_bound, x_mask, y_mask, z_mask) && 
                 mc_is_less_than_or_equal(lower_bound, query_upper_bound, x_mask, y_mask, z_mask);
     }
@@ -90,28 +90,21 @@ public:
     }
 
     __device__
-    bool operator()(MortonCodeType lower_bound, MortonCodeType upper_bound) const override
+    bool operator()(MortonCodeType lower_bound, MortonCodeType upper_bound, const array3d_t<IndexType>& cell_shifts) const override
     {
         return mc_is_less_than_or_equal(query_lower_bound, upper_bound, x_mask, y_mask, z_mask) && 
                 mc_is_less_than_or_equal(lower_bound, query_upper_bound, x_mask, y_mask, z_mask);
     }
 
     __device__
-    void operator()(MortonCodeType morton_code, IndexType idx, 
-        IndexType* indexes, uint32_t* count, size_t& num_indexes, array3d_int32* cell_shifts, uint32_t& num_results) const override
+    void operator()(MortonCodeType morton_code, const array3d_t<IndexType>& cell_shifts, IndexType idx, 
+        IndexType* indexes, size_t& num_indexes) const override
     {
         if (mc_is_less_than_or_equal(query_lower_bound, morton_code, x_mask, y_mask, z_mask) && 
             mc_is_less_than_or_equal(morton_code, query_upper_bound, x_mask, y_mask, z_mask)) 
         {
             indexes[num_indexes] = idx;
-            count[num_indexes] = 1;
             num_indexes++;  
-            if (cell_shifts) {
-                array3d_int32 zero_shift;
-                zero_shift[0] = 0; zero_shift[1] = 0; zero_shift[2] = 0;
-                cell_shifts[num_results] = zero_shift;
-            }
-            num_results++;
         }
     }
 };
@@ -158,14 +151,13 @@ TEST_F(CudaTreeTest, ConstructorTest) {
 
 __global__
 void traverse_check_box_kernel(cudaTextureObject_t internal_nodes_tex, cudaTextureObject_t leaf_nodes_tex, 
-    uint32_t num_leaf_nodes, uint32_t query_lower_bound, uint32_t query_upper_bound, 
-    int32_t* indexes, uint32_t* count, size_t* num_indexes, array3d_int32* cell_shifts, uint32_t* num_results)
+    uint32_t num_leaf_nodes, uint32_t query_lower_bound, uint32_t query_upper_bound, int32_t* indexes, size_t& num_indexes)
 {
-    *num_indexes = 0;
-    *num_results = 0;
+    num_indexes = 0;
     check_box_t check_method(query_lower_bound, query_upper_bound);
-    tree_traverse_kernel(internal_nodes_tex, leaf_nodes_tex, static_cast<int32_t>(num_leaf_nodes), check_method, 
-        indexes, count, *num_indexes, cell_shifts, *num_results);
+    tree_traverse_kernel(internal_nodes_tex, leaf_nodes_tex, static_cast<int32_t>(num_leaf_nodes), 
+        check_method, array3d_t<int32_t>{0, 0, 0}, 
+        indexes, num_indexes);
     return;
 }
 
@@ -197,49 +189,26 @@ TEST_F(CudaTreeTest, TraverseBasicTest) {
 
     // Allocate device memory for the counters
     size_t* d_num_indexes = static_cast<size_t*>(dm->allocate(sizeof(size_t), stream));
-    uint32_t* d_num_results = static_cast<uint32_t*>(dm->allocate(sizeof(uint32_t), stream));
 
     traverse_check_box_kernel<<<1, 1, 0, stream>>>(tree.internal_nodes_tex, tree.leaf_nodes_tex, 
         static_cast<uint32_t>(tree.num_leaf_nodes), query_lower_bound, query_upper_bound, 
-        result.indexes, result.shift, d_num_indexes, result.cell_shifts, d_num_results);
+        result.indexes, *d_num_indexes);
 
     // Copy results to host
     cudaMemcpyAsync(&result.num_indexes, d_num_indexes, sizeof(size_t), cudaMemcpyDeviceToHost, stream);
-    cudaMemcpyAsync(&result.num_results, d_num_results, sizeof(uint32_t), cudaMemcpyDeviceToHost, stream);
     cudaStreamSynchronize(stream);
-
-    result.cell_shifts = static_cast<array3d_int32*>(dm->allocate(sizeof(array3d_int32) * result.num_results, stream));
-
-    traverse_check_box_kernel<<<1, 1, 0, stream>>>(tree.internal_nodes_tex, tree.leaf_nodes_tex, 
-        static_cast<uint32_t>(tree.num_leaf_nodes), query_lower_bound, query_upper_bound, 
-        result.indexes, result.shift, d_num_indexes, result.cell_shifts, d_num_results);
 
     // Copy results to host for verification
     vector_host<int32_t> h_indexes(result.num_indexes);
-    vector_host<uint32_t> h_shifts(result.num_indexes);
-    vector_host<array3d_int32> h_cell_shifts(result.num_results);
 
     cudaMemcpyAsync(h_indexes.data(), result.indexes, result.num_indexes * sizeof(int32_t), cudaMemcpyDeviceToHost, stream);
-    cudaMemcpyAsync(h_shifts.data(), result.shift, result.num_indexes * sizeof(uint32_t), cudaMemcpyDeviceToHost, stream);
-    cudaMemcpyAsync(h_cell_shifts.data(), result.cell_shifts, result.num_results * sizeof(array3d_int32), cudaMemcpyDeviceToHost, stream);
     cudaStreamSynchronize(stream);
 
     // Basic verification
     EXPECT_EQ(result.num_indexes, 3);
-    EXPECT_EQ(result.num_results, 3);
-    EXPECT_EQ(h_indexes[0], 2);
-    EXPECT_EQ(h_indexes[1], 1);
-    EXPECT_EQ(h_indexes[2], 0);
-    EXPECT_EQ(h_shifts[0], 1);
-    EXPECT_EQ(h_shifts[1], 1);
-    EXPECT_EQ(h_shifts[2], 1);
-    EXPECT_EQ(h_cell_shifts[0], (array3d_int32{0, 0, 0}));
-    EXPECT_EQ(h_cell_shifts[1], (array3d_int32{0, 0, 0}));
-    EXPECT_EQ(h_cell_shifts[2], (array3d_int32{0, 0, 0}));
 
     // Cleanup
     dm->deallocate(d_num_indexes, stream);
-    dm->deallocate(d_num_results, stream);
 }
 
 TEST_F(CudaTreeTest, Traverse_general_case) {
@@ -321,22 +290,17 @@ TEST_F(CudaTreeTest, Traverse_general_case) {
 
     // Allocate device memory for the counters
     size_t* d_num_indexes = static_cast<size_t*>(dm->allocate(sizeof(size_t), stream));
-    uint32_t* d_num_results = static_cast<uint32_t*>(dm->allocate(sizeof(uint32_t), stream));
     
     traverse_check_box_kernel<<<1, 1, 0, stream>>>(cuda_tree.internal_nodes_tex, cuda_tree.leaf_nodes_tex, 
         static_cast<uint32_t>(cuda_tree.num_leaf_nodes), query_min, query_max, 
-        cuda_result.indexes, cuda_result.shift, d_num_indexes, cuda_result.cell_shifts, d_num_results);
+        cuda_result.indexes, *d_num_indexes);
     
     // Copy results to host
     cudaMemcpyAsync(&cuda_result.num_indexes, d_num_indexes, sizeof(size_t), cudaMemcpyDeviceToHost, stream);
-    cudaMemcpyAsync(&cuda_result.num_results, d_num_results, sizeof(uint32_t), cudaMemcpyDeviceToHost, stream);
     cudaStreamSynchronize(stream);
 
     vector_host<int32_t> h_indexes(cuda_result.num_indexes);
-    vector_host<uint32_t> h_shifts(cuda_result.num_indexes);
-
     cudaMemcpyAsync(h_indexes.data(), cuda_result.indexes, cuda_result.num_indexes * sizeof(int32_t), cudaMemcpyDeviceToHost, stream);
-    cudaMemcpyAsync(h_shifts.data(), cuda_result.shift, cuda_result.num_indexes * sizeof(uint32_t), cudaMemcpyDeviceToHost, stream);
     cudaStreamSynchronize(stream);
 
     // check reuslt 

@@ -12,28 +12,28 @@ namespace gmp { namespace tree {
     
     using namespace morton_codes;
     using gmp::containers::vector_device;
+    using gmp::math::array3d_t;
 
     template <typename IndexType>
     struct traverse_result_t {
         IndexType* indexes; // preallocated by overestimation 
-        uint32_t* shift;
         size_t num_indexes; // number of indexes saved
-        array3d_int32* cell_shifts;
-        uint32_t num_results; // number of results found        
         size_t max_num_mc; // maximum number of mc to be stored
+        size_t num_queries; // number of queries
 
         traverse_result_t(size_t max_num_mc_);
         ~traverse_result_t();
     };
-
+    
     template <typename MortonCodeType, typename IndexType>
     class cuda_compare_op_t {
     public: 
         __device__
-        virtual bool operator()(MortonCodeType query_lower_bound, MortonCodeType query_upper_bound) const = 0;
+        virtual bool operator()(MortonCodeType query_lower_bound, MortonCodeType query_upper_bound, 
+            const array3d_t<IndexType>& cell_shifts) const = 0;
         __device__
-        virtual void operator()(MortonCodeType morton_code, IndexType idx, 
-            IndexType* indexes, uint32_t* count, size_t& num_indexes, array3d_int32* cell_shifts, uint32_t& num_results) const = 0;
+        virtual void operator()(MortonCodeType morton_code, const array3d_t<IndexType>& cell_shifts, IndexType idx, 
+            IndexType* indexes, size_t& num_indexes) const = 0;
     };
 
     template <
@@ -63,8 +63,8 @@ namespace gmp { namespace tree {
     template <typename MortonCodeType, typename IndexType>
     __device__
     void tree_traverse_kernel(const cudaTextureObject_t internal_nodes_tex, const cudaTextureObject_t leaf_nodes_tex, 
-        const IndexType num_leaf_nodes, const cuda_compare_op_t<MortonCodeType, IndexType>& check_method, 
-        IndexType* indexes, uint32_t* count, size_t& num_indexes, array3d_int32* cell_shifts, uint32_t& num_results);
+        const IndexType num_leaf_nodes, const cuda_compare_op_t<MortonCodeType, IndexType>& check_method,
+        const array3d_t<IndexType>& cell_shifts, IndexType* indexes, size_t& num_indexes);
 
     // function to build the tree
     template <typename MortonCodeType, typename IndexType>

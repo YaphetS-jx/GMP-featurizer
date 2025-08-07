@@ -1,20 +1,22 @@
 #include "cuda_tree.hpp"
 #include "resources.hpp"
+#include "cuda_thrust_ops.hpp"
 #include <cuda_runtime.h>
+#include <thrust/scan.h>
+#include "cuda_util.hpp"
 
 namespace gmp { namespace tree {
-    
+
+    using namespace gmp::thrust_ops;
+
     template <typename IndexType>
     traverse_result_t<IndexType>::traverse_result_t(size_t max_num_mc_) : 
         num_indexes(0),
-        cell_shifts(nullptr),
-        num_results(0),
         max_num_mc(max_num_mc_) 
     {
         auto stream = gmp::resources::gmp_resource::instance().get_stream();
         auto dm = gmp::resources::gmp_resource::instance().get_device_memory_manager();
         indexes = static_cast<IndexType*>(dm->allocate(max_num_mc_ * sizeof(IndexType), stream));
-        shift = static_cast<uint32_t*>(dm->allocate(max_num_mc_ * sizeof(uint32_t), stream));
     }
 
     template <typename IndexType>
@@ -23,11 +25,7 @@ namespace gmp { namespace tree {
         auto dm = gmp::resources::gmp_resource::instance().get_device_memory_manager();
         auto stream = gmp::resources::gmp_resource::instance().get_stream();
         if (indexes) dm->deallocate(indexes, stream);
-        if (shift) dm->deallocate(shift, stream);
-        if (cell_shifts) dm->deallocate(cell_shifts, stream);
         indexes = nullptr;
-        shift = nullptr;
-        cell_shifts = nullptr;
     }
 
     template class traverse_result_t<int32_t>;
@@ -107,9 +105,9 @@ namespace gmp { namespace tree {
 
     template <typename MortonCodeType, typename IndexType>
     __device__
-    void tree_traverse_kernel(cudaTextureObject_t internal_nodes_tex, cudaTextureObject_t leaf_nodes_tex, 
-        const IndexType num_leaf_nodes, const cuda_compare_op_t<MortonCodeType, IndexType>& check_method, 
-        IndexType* indexes, uint32_t* count, size_t& num_indexes, array3d_int32* cell_shifts, uint32_t& num_results)
+    void tree_traverse_kernel(cudaTextureObject_t internal_nodes_tex, cudaTextureObject_t leaf_nodes_tex, const IndexType num_leaf_nodes, 
+        const cuda_compare_op_t<MortonCodeType, IndexType>& check_method, const array3d_t<IndexType>& cell_shifts,
+        IndexType* indexes, size_t& num_indexes)
     {
         // Fixed stack for traversal
         IndexType stack_data[64];
@@ -129,7 +127,7 @@ namespace gmp { namespace tree {
                 MortonCodeType morton_code = tex1Dfetch<MortonCodeType>(leaf_nodes_tex, node_index);
                 
                 // Check if morton code is within query bounds
-                check_method(morton_code, node_index, indexes, count, num_indexes, cell_shifts, num_results);
+                check_method(morton_code, cell_shifts, node_index, indexes, num_indexes);
             } else {
                 // Internal node
                 IndexType left = tex1Dfetch<IndexType>(internal_nodes_tex, (node_index - n) * 4);
@@ -137,7 +135,7 @@ namespace gmp { namespace tree {
                 MortonCodeType lower_bound = tex1Dfetch<MortonCodeType>(internal_nodes_tex, (node_index - n) * 4 + 2);
                 MortonCodeType upper_bound = tex1Dfetch<MortonCodeType>(internal_nodes_tex, (node_index - n) * 4 + 3);
                 
-                if (check_method(lower_bound, upper_bound)) {
+                if (check_method(lower_bound, upper_bound, cell_shifts)) {
                     if (stack_top < 63) stack_data[++stack_top] = left;
                     if (stack_top < 63) stack_data[++stack_top] = right;
                 }
@@ -145,9 +143,10 @@ namespace gmp { namespace tree {
         }
         return;
     }
+    
     template __device__
     void tree_traverse_kernel<uint32_t, int32_t>(cudaTextureObject_t, cudaTextureObject_t,
-        int32_t, const cuda_compare_op_t<uint32_t, int32_t>&, int32_t*, uint32_t*, size_t&, array3d_int32*, uint32_t&);
+        int32_t, const cuda_compare_op_t<uint32_t, int32_t>&, const array3d_t<int32_t>&, int32_t*, size_t&);
 
     void bind_texture_memory(void* data_ptr, size_t size, int bits_per_channel, cudaTextureObject_t& tex)
     {
