@@ -53,7 +53,7 @@ namespace gmp { namespace region_query {
     template <typename MortonCodeType, typename IndexType, typename FloatType, typename VecType>
     class region_query_t {
     public:
-        region_query_t(const unit_cell_t<FloatType>* unit_cell, const uint8_t num_bits_per_dim = 10);
+        region_query_t(const unit_cell_t<FloatType>* unit_cell, const uint8_t num_bits_per_dim = 10, bool build_tree = true);
         ~region_query_t() = default;
     
     private: 

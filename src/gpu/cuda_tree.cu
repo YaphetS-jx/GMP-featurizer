@@ -9,28 +9,6 @@ namespace gmp { namespace tree {
 
     using namespace gmp::thrust_ops;
 
-    template <typename IndexType>
-    traverse_result_t<IndexType>::traverse_result_t(size_t max_num_mc_) : 
-        num_indexes(0),
-        max_num_mc(max_num_mc_) 
-    {
-        auto stream = gmp::resources::gmp_resource::instance().get_stream();
-        auto dm = gmp::resources::gmp_resource::instance().get_device_memory_manager();
-        indexes = static_cast<IndexType*>(dm->allocate(max_num_mc_ * sizeof(IndexType), stream));
-    }
-
-    template <typename IndexType>
-    traverse_result_t<IndexType>::~traverse_result_t()
-    {
-        auto dm = gmp::resources::gmp_resource::instance().get_device_memory_manager();
-        auto stream = gmp::resources::gmp_resource::instance().get_stream();
-        if (indexes) dm->deallocate(indexes, stream);
-        indexes = nullptr;
-    }
-
-    template class traverse_result_t<int32_t>;
-    template class traverse_result_t<uint32_t>;
-
     // binary radix tree implementations
     template <typename MortonCodeType, typename IndexType>
     __global__
@@ -52,62 +30,63 @@ namespace gmp { namespace tree {
         IndexType left = (split == first) ? split : split + n;
         IndexType right = (split + 1 == last) ? split + 1 : split + 1 + n;
 
-        internal_nodes[tid] = internal_node_t<MortonCodeType, IndexType>(left, right, lower_bound, upper_bound);
+        internal_nodes[tid] = internal_node_t<MortonCodeType, IndexType>{left, right, lower_bound, upper_bound};
     }
 
     template <typename MortonCodeType, typename IndexType>
-    cuda_binary_radix_tree_t<MortonCodeType, IndexType> cuda_build_tree(const vector_device<MortonCodeType>& morton_codes, const IndexType num_bits)
+    cuda_binary_radix_tree_t<MortonCodeType, IndexType>::cuda_binary_radix_tree_t(
+        const vector_device<MortonCodeType>& morton_codes, const IndexType num_bits, cudaStream_t stream)
+        : num_leaf_nodes(morton_codes.size()), 
+        internal_nodes(num_leaf_nodes - 1, stream), 
+        leaf_nodes(num_leaf_nodes, stream)
     {
         assert(num_bits % 3 == 0);
-        using inode_t = internal_node_t<MortonCodeType, IndexType>;
-
-        auto stream = gmp::resources::gmp_resource::instance().get_stream();
-        auto dm = gmp::resources::gmp_resource::instance().get_device_memory_manager();
-
-        cuda_binary_radix_tree_t<MortonCodeType, IndexType> tree;
-        auto num_mc = static_cast<IndexType>(morton_codes.size());
-        tree.internal_nodes = static_cast<inode_t*>(dm->allocate((num_mc - 1) * sizeof(inode_t), stream));
-        tree.leaf_nodes = static_cast<MortonCodeType*>(dm->allocate(num_mc * sizeof(MortonCodeType), stream));
-        tree.num_leaf_nodes = num_mc;
 
         dim3 block_size(256, 1, 1), grid_size(1, 1, 1);
-        grid_size.x = (num_mc - 1 + block_size.x - 1) / block_size.x;
-        build_tree_kernel<MortonCodeType, IndexType><<<grid_size, block_size, 0, stream>>>(morton_codes.data(), num_mc, num_bits, tree.internal_nodes);
+        grid_size.x = (num_leaf_nodes - 1 + block_size.x - 1) / block_size.x;
+        build_tree_kernel<MortonCodeType, IndexType><<<grid_size, block_size, 0, stream>>>(morton_codes.data(), num_leaf_nodes, num_bits, internal_nodes.data());
         
         // copy leaf nodes
-        cudaMemcpyAsync(tree.leaf_nodes, morton_codes.data(), num_mc * sizeof(MortonCodeType), cudaMemcpyDeviceToDevice, stream);
+        cudaMemcpyAsync(leaf_nodes.data(), morton_codes.data(), num_leaf_nodes * sizeof(MortonCodeType), cudaMemcpyDeviceToDevice, stream);
 
-        bind_texture_memory(tree.internal_nodes, (num_mc - 1) * sizeof(inode_t), 32, tree.internal_nodes_tex);
-        bind_texture_memory(tree.leaf_nodes, num_mc * sizeof(MortonCodeType), 32, tree.leaf_nodes_tex);
-        return tree;
+        bind_texture_memory(internal_nodes.data(), (num_leaf_nodes - 1) * sizeof(inode_t), 32, internal_nodes_tex);
+        bind_texture_memory(leaf_nodes.data(), num_leaf_nodes * sizeof(MortonCodeType), 32, leaf_nodes_tex);
     }
 
-    template cuda_binary_radix_tree_t<uint32_t, int32_t> cuda_build_tree(const vector_device<uint32_t>& morton_codes, const int32_t num_bits);
+    template <typename MortonCodeType, typename IndexType>
+    cuda_binary_radix_tree_t<MortonCodeType, IndexType>::~cuda_binary_radix_tree_t()
+    {
+        unbind_texture_memory(internal_nodes_tex);
+        unbind_texture_memory(leaf_nodes_tex);
+    }
 
+    template class cuda_binary_radix_tree_t<uint32_t, int32_t>;
 
     template <typename MortonCodeType, typename IndexType>
-    void cuda_binary_radix_tree_t<MortonCodeType, IndexType>::get_internal_nodes(internal_node_t<MortonCodeType, IndexType>* internal_nodes) const
+    void cuda_binary_radix_tree_t<MortonCodeType, IndexType>::get_internal_nodes(vector_host<inode_t>& h_internal_nodes) const
     {
         auto stream = gmp::resources::gmp_resource::instance().get_stream();
-        cudaMemcpyAsync(internal_nodes, this->internal_nodes, (num_leaf_nodes - 1) * sizeof(inode_t), cudaMemcpyDeviceToHost, stream);
+        h_internal_nodes.resize(num_leaf_nodes - 1);
+        cudaMemcpyAsync(h_internal_nodes.data(), internal_nodes.data(), (num_leaf_nodes - 1) * sizeof(inode_t), cudaMemcpyDeviceToHost, stream);
         cudaStreamSynchronize(stream);
         return;
     }
 
     template <typename MortonCodeType, typename IndexType>
-    void cuda_binary_radix_tree_t<MortonCodeType, IndexType>::get_leaf_nodes(MortonCodeType* leaf_nodes) const
+    void cuda_binary_radix_tree_t<MortonCodeType, IndexType>::get_leaf_nodes(vector_host<MortonCodeType>& h_leaf_nodes) const
     {
         auto stream = gmp::resources::gmp_resource::instance().get_stream();
-        cudaMemcpyAsync(leaf_nodes, this->leaf_nodes, num_leaf_nodes * sizeof(MortonCodeType), cudaMemcpyDeviceToHost, stream);
+        h_leaf_nodes.resize(num_leaf_nodes);
+        cudaMemcpyAsync(h_leaf_nodes.data(), leaf_nodes.data(), num_leaf_nodes * sizeof(MortonCodeType), cudaMemcpyDeviceToHost, stream);
         cudaStreamSynchronize(stream);
         return;
     }
 
     template <typename MortonCodeType, typename IndexType>
     __device__
-    void tree_traverse_kernel(cudaTextureObject_t internal_nodes_tex, cudaTextureObject_t leaf_nodes_tex, const IndexType num_leaf_nodes, 
+    void tree_traverse_kernel(const cudaTextureObject_t internal_nodes_tex, const cudaTextureObject_t leaf_nodes_tex, const IndexType num_leaf_nodes, 
         const cuda_compare_op_t<MortonCodeType, IndexType>& check_method, const array3d_t<IndexType>& cell_shifts,
-        IndexType* indexes, size_t& num_indexes)
+        IndexType* indexes, size_t* num_indexes)
     {
         // Fixed stack for traversal
         IndexType stack_data[64];
@@ -146,7 +125,7 @@ namespace gmp { namespace tree {
     
     template __device__
     void tree_traverse_kernel<uint32_t, int32_t>(cudaTextureObject_t, cudaTextureObject_t,
-        int32_t, const cuda_compare_op_t<uint32_t, int32_t>&, const array3d_t<int32_t>&, int32_t*, size_t&);
+        int32_t, const cuda_compare_op_t<uint32_t, int32_t>&, const array3d_t<int32_t>&, int32_t*, size_t*);
 
     void bind_texture_memory(void* data_ptr, size_t size, int bits_per_channel, cudaTextureObject_t& tex)
     {
@@ -172,8 +151,5 @@ namespace gmp { namespace tree {
     {
         cudaDestroyTextureObject(tex);
     }
-
-    // Explicit instantiations for cuda_binary_radix_tree_t (used in tests)
-    template class cuda_binary_radix_tree_t<uint32_t, int32_t>;
 
 }} // namespace gmp::tree 

@@ -47,7 +47,7 @@ namespace gmp { namespace tree {
             IndexType left = (split == first) ? split : split + n;
             IndexType right = (split + 1 == last) ? split + 1 : split + 1 + n;
 
-            internal_nodes.emplace_back(left, right, lower_bound, upper_bound);
+            internal_nodes.push_back({left, right, lower_bound, upper_bound});
         }
         // save leaf nodes
         leaf_nodes = std::move(morton_codes);

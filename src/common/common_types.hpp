@@ -13,11 +13,5 @@ namespace gmp { namespace tree {
     struct internal_node_t {
         IndexType left, right;
         MortonCodeType lower_bound, upper_bound;
-        
-        GPU_HOST_DEVICE
-        internal_node_t(IndexType left, IndexType right, MortonCodeType lower_bound, MortonCodeType upper_bound)
-            : left(left), right(right), lower_bound(lower_bound), upper_bound(upper_bound) {}
     };
-
-    template struct internal_node_t<uint32_t, int32_t>;
 }}

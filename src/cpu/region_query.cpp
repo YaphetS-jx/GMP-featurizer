@@ -165,13 +165,15 @@ namespace gmp { namespace region_query {
     // region_query_t implementations
     template <typename MortonCodeType, typename IndexType, typename FloatType, typename VecType>
     region_query_t<MortonCodeType, IndexType, FloatType, VecType>::region_query_t(
-        const unit_cell_t<FloatType>* unit_cell, const uint8_t num_bits_per_dim) 
+        const unit_cell_t<FloatType>* unit_cell, const uint8_t num_bits_per_dim, bool build_tree) 
         : num_bits_per_dim(num_bits_per_dim) {
         // get morton codes
         get_morton_codes(unit_cell->get_atoms(), num_bits_per_dim);
-        
+
         // build tree
-        brt = std::make_unique<binary_radix_tree_t<MortonCodeType, IndexType>>(unique_morton_codes, num_bits_per_dim * 3);
+        if (build_tree) {
+            brt = std::make_unique<binary_radix_tree_t<MortonCodeType, IndexType>>(unique_morton_codes, num_bits_per_dim * 3);
+        }
     }
 
     template <typename MortonCodeType, typename IndexType, typename FloatType, typename VecType>

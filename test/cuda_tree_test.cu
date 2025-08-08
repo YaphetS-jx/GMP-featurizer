@@ -38,8 +38,16 @@ std::string node_to_string(const internal_node_t<uint32_t, int32_t>& node) {
 class CudaTreeTest : public ::testing::Test {
 protected:
     void SetUp() override {
-        // Set up any common test data
         stream = gmp::resources::gmp_resource::instance().get_stream();
+        gmp::resources::gmp_resource::instance().get_device_memory_manager();
+        gmp::resources::gmp_resource::instance().get_pinned_memory_manager();
+
+        // Check CUDA errors from previous operations
+        cudaError_t cuda_status = cudaGetLastError();
+        if (cuda_status != cudaSuccess) {
+            std::cerr << "CUDA error in SetUp: " << cudaGetErrorString(cuda_status) << std::endl;
+            FAIL();
+        }
     }
 
     void TearDown() override {}
@@ -98,13 +106,13 @@ public:
 
     __device__
     void operator()(MortonCodeType morton_code, const array3d_t<IndexType>& cell_shifts, IndexType idx, 
-        IndexType* indexes, size_t& num_indexes) const override
+        IndexType* indexes, size_t* num_indexes) const override
     {
         if (mc_is_less_than_or_equal(query_lower_bound, morton_code, x_mask, y_mask, z_mask) && 
             mc_is_less_than_or_equal(morton_code, query_upper_bound, x_mask, y_mask, z_mask)) 
         {
-            indexes[num_indexes] = idx;
-            num_indexes++;  
+            indexes[*num_indexes] = idx;
+            (*num_indexes)++;  
         }
     }
 };
@@ -115,23 +123,22 @@ using result_t = traverse_result_t<int32_t>;
 TEST_F(CudaTreeTest, ConstructorTest) {
     vector_host<uint32_t> morton_codes = {0, 0b100, 0b001000000, 0b001000001, 0b111111111};
     auto num_bits = 9;
-
+    
     vector_device<uint32_t> d_morton_codes(morton_codes.size(), stream);
-    cudaMemcpyAsync(d_morton_codes.data(), morton_codes.data(), morton_codes.size() * sizeof(uint32_t), cudaMemcpyHostToDevice, stream);
+    cudaMemcpyAsync(d_morton_codes.data(), morton_codes.data(), morton_codes.size() * sizeof(uint32_t), cudaMemcpyHostToDevice, stream);    
 
     // Create and build the tree
-    cuda_binary_radix_tree_t<uint32_t, int32_t> tree = cuda_build_tree(d_morton_codes, num_bits);
-    
-    // Synchronize before reading results
-    cudaStreamSynchronize(stream);
-    
-    auto pm = gmp::resources::gmp_resource::instance().get_pinned_memory_manager();
+    cuda_binary_radix_tree_t<uint32_t, int32_t> tree(d_morton_codes, num_bits, stream);
+
     using inode_t = internal_node_t<uint32_t, int32_t>;
     
     // Calculate the number of internal nodes (num_leaf_nodes - 1)
     size_t num_internal_nodes = morton_codes.size() - 1;
-    inode_t* internal_nodes = static_cast<inode_t*>(pm->allocate(num_internal_nodes * sizeof(inode_t)));
-    tree.get_internal_nodes(internal_nodes);
+    vector_host<inode_t> h_internal_nodes(num_internal_nodes);
+    tree.get_internal_nodes(h_internal_nodes);
+
+    // Synchronize before reading results
+    cudaStreamSynchronize(stream);
 
     // Define expected benchmark values
     std::array<internal_node_t<uint32_t, int32_t>, 4> benchmark = {{
@@ -140,20 +147,18 @@ TEST_F(CudaTreeTest, ConstructorTest) {
         {2, 3, 64, 65},
         {6, 7, 0, 127}
     }};
-
     // Compare actual nodes with benchmark
     for (int i = 0; i < num_internal_nodes; i++) {
-        EXPECT_TRUE(compare_nodes(internal_nodes[i], benchmark[i])) 
-            << "Node " << i << " mismatch: " << node_to_string(internal_nodes[i]);
+        EXPECT_TRUE(compare_nodes(h_internal_nodes[i], benchmark[i])) 
+            << "Node " << i << " mismatch: " << node_to_string(h_internal_nodes[i]);
     }
-    pm->deallocate(internal_nodes);
 }
 
 __global__
 void traverse_check_box_kernel(cudaTextureObject_t internal_nodes_tex, cudaTextureObject_t leaf_nodes_tex, 
-    uint32_t num_leaf_nodes, uint32_t query_lower_bound, uint32_t query_upper_bound, int32_t* indexes, size_t& num_indexes)
+    uint32_t num_leaf_nodes, uint32_t query_lower_bound, uint32_t query_upper_bound, int32_t* indexes, size_t* num_indexes)
 {
-    num_indexes = 0;
+    *num_indexes = 0;
     check_box_t check_method(query_lower_bound, query_upper_bound);
     tree_traverse_kernel(internal_nodes_tex, leaf_nodes_tex, static_cast<int32_t>(num_leaf_nodes), 
         check_method, array3d_t<int32_t>{0, 0, 0}, 
@@ -166,16 +171,12 @@ TEST_F(CudaTreeTest, TraverseBasicTest) {
     vector_host<uint32_t> morton_codes = {0, 0b100, 0b001000000, 0b001000001, 0b111111111};
     auto num_bits = 3;
 
-    auto dm = gmp::resources::gmp_resource::instance().get_device_memory_manager();
-    auto pm = gmp::resources::gmp_resource::instance().get_pinned_memory_manager();
-    auto stream = gmp::resources::gmp_resource::instance().get_stream();
-
     // Create device morton codes
     vector_device<uint32_t> d_morton_codes(morton_codes.size(), stream);
     cudaMemcpyAsync(d_morton_codes.data(), morton_codes.data(), morton_codes.size() * sizeof(uint32_t), cudaMemcpyHostToDevice, stream);
 
     // Create and build the tree
-    cuda_binary_radix_tree_t<uint32_t, int32_t> tree = cuda_build_tree(d_morton_codes, num_bits * 3);
+    cuda_binary_radix_tree_t<uint32_t, int32_t> tree(d_morton_codes, num_bits * 3);
     
     // Synchronize before proceeding
     cudaStreamSynchronize(stream);
@@ -185,30 +186,25 @@ TEST_F(CudaTreeTest, TraverseBasicTest) {
     uint32_t query_upper_bound = interleave_bits(0b100, 0b100, 0b100, num_bits);
 
     // Perform traversal
-    result_t result(morton_codes.size());
-
-    // Allocate device memory for the counters
-    size_t* d_num_indexes = static_cast<size_t*>(dm->allocate(sizeof(size_t), stream));
+    result_t result(morton_codes.size(), 1, stream);
 
     traverse_check_box_kernel<<<1, 1, 0, stream>>>(tree.internal_nodes_tex, tree.leaf_nodes_tex, 
         static_cast<uint32_t>(tree.num_leaf_nodes), query_lower_bound, query_upper_bound, 
-        result.indexes, *d_num_indexes);
+        result.indexes.data(), result.num_indexes.data());
 
     // Copy results to host
-    cudaMemcpyAsync(&result.num_indexes, d_num_indexes, sizeof(size_t), cudaMemcpyDeviceToHost, stream);
+    vector_host<size_t> h_num_indexes(1);
+    cudaMemcpyAsync(h_num_indexes.data(), result.num_indexes.data(), sizeof(size_t), cudaMemcpyDeviceToHost, stream);
     cudaStreamSynchronize(stream);
 
     // Copy results to host for verification
-    vector_host<int32_t> h_indexes(result.num_indexes);
+    vector_host<int32_t> h_indexes(h_num_indexes[0]);
 
-    cudaMemcpyAsync(h_indexes.data(), result.indexes, result.num_indexes * sizeof(int32_t), cudaMemcpyDeviceToHost, stream);
+    cudaMemcpyAsync(h_indexes.data(), result.indexes.data(), h_num_indexes[0] * sizeof(int32_t), cudaMemcpyDeviceToHost, stream);
     cudaStreamSynchronize(stream);
 
     // Basic verification
-    EXPECT_EQ(result.num_indexes, 3);
-
-    // Cleanup
-    dm->deallocate(d_num_indexes, stream);
+    EXPECT_EQ(h_num_indexes[0], 3);
 }
 
 TEST_F(CudaTreeTest, Traverse_general_case) {
@@ -284,29 +280,27 @@ TEST_F(CudaTreeTest, Traverse_general_case) {
     vector_device<uint32_t> d_morton_codes(morton_codes.size(), stream);
     cudaMemcpyAsync(d_morton_codes.data(), morton_codes.data(), morton_codes.size() * sizeof(uint32_t), cudaMemcpyHostToDevice, stream);
 
-    cuda_binary_radix_tree_t<uint32_t, int32_t> cuda_tree = cuda_build_tree(d_morton_codes, num_bits * 3);
+    cuda_binary_radix_tree_t<uint32_t, int32_t> cuda_tree(d_morton_codes, num_bits * 3);
 
-    result_t cuda_result(morton_codes.size());
-
-    // Allocate device memory for the counters
-    size_t* d_num_indexes = static_cast<size_t*>(dm->allocate(sizeof(size_t), stream));
+    result_t cuda_result(morton_codes.size(), 1, stream);
     
     traverse_check_box_kernel<<<1, 1, 0, stream>>>(cuda_tree.internal_nodes_tex, cuda_tree.leaf_nodes_tex, 
         static_cast<uint32_t>(cuda_tree.num_leaf_nodes), query_min, query_max, 
-        cuda_result.indexes, *d_num_indexes);
+        cuda_result.indexes.data(), cuda_result.num_indexes.data());
     
     // Copy results to host
-    cudaMemcpyAsync(&cuda_result.num_indexes, d_num_indexes, sizeof(size_t), cudaMemcpyDeviceToHost, stream);
+    vector_host<size_t> h_num_indexes(1);
+    cudaMemcpyAsync(h_num_indexes.data(), cuda_result.num_indexes.data(), sizeof(size_t), cudaMemcpyDeviceToHost, stream);
     cudaStreamSynchronize(stream);
 
-    vector_host<int32_t> h_indexes(cuda_result.num_indexes);
-    cudaMemcpyAsync(h_indexes.data(), cuda_result.indexes, cuda_result.num_indexes * sizeof(int32_t), cudaMemcpyDeviceToHost, stream);
+    vector_host<int32_t> h_indexes(h_num_indexes[0]);
+    cudaMemcpyAsync(h_indexes.data(), cuda_result.indexes.data(), h_num_indexes[0] * sizeof(int32_t), cudaMemcpyDeviceToHost, stream);
     cudaStreamSynchronize(stream);
 
     // check reuslt 
-    EXPECT_EQ(cpu_result.size(), cuda_result.num_indexes);
+    EXPECT_EQ(cpu_result.size(), h_num_indexes[0]);
     std::cout << "result size: " << cpu_result.size() << std::endl;
-    for (int i = 0; i < cuda_result.num_indexes; i++) {
+    for (int i = 0; i < h_num_indexes[0]; i++) {
         EXPECT_TRUE(cpu_result.find(h_indexes[i]) != cpu_result.end());
     }
 }
