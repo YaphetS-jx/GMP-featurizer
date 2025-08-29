@@ -12,23 +12,22 @@ namespace gmp { namespace tree {
     using gmp::math::array3d_int32;
     using namespace morton_codes;
 
-    template <typename MortonCodeType, typename VecType = vector<array3d_int32>>
+    template <typename MortonCodeType>
     class compare_op_t {
     public: 
         virtual bool operator()(MortonCodeType query_lower_bound, MortonCodeType query_upper_bound) const = 0;
-        virtual VecType operator()(MortonCodeType morton_code) const = 0;
+        virtual std::vector<array3d_int32> operator()(MortonCodeType morton_code) const = 0;
     };
 
     template <
         typename MortonCodeType = std::uint32_t, 
-        typename IndexType = std::int32_t,
-        template<typename, typename...> class Container = vector, 
-        typename map_t = std::unordered_map<IndexType, vector<array3d_int32>>
+        typename IndexType = std::int32_t
     >
     class binary_radix_tree_t {
         using inode_t = internal_node_t<MortonCodeType, IndexType>;
-        using morton_container_t = Container<MortonCodeType>;
-        using node_container_t = Container<inode_t>;
+        using morton_container_t = vector<MortonCodeType>;
+        using node_container_t = std::vector<inode_t>;
+        using map_t = std::unordered_map<IndexType, std::vector<array3d_int32>>;
     
     public: 
         binary_radix_tree_t();

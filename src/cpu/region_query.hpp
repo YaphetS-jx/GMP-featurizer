@@ -19,15 +19,10 @@ namespace gmp { namespace region_query {
         array3d_t<FloatType> difference;
         FloatType distance_squared;
         int neighbor_index;
-
-        query_result_t(array3d_t<FloatType> difference_, FloatType distance_squared_, int neighbor_index_);
-
-        // Add comparison operator for sorting
-        bool operator<(const query_result_t& other) const;
     };
 
-    template <typename MortonCodeType, typename FloatType, typename IndexType, typename VecType = vector<array3d_int32>>
-    class check_sphere_t : public compare_op_t<MortonCodeType, VecType> {
+    template <typename MortonCodeType, typename FloatType, typename IndexType>
+    class check_sphere_t : public compare_op_t<MortonCodeType> {
     private:
         point3d_t<FloatType> position;
         FloatType radius;
@@ -47,20 +42,19 @@ namespace gmp { namespace region_query {
         array3d_t<IndexType> get_cell_shift_end() const;
 
         bool operator()(MortonCodeType lower_bound, MortonCodeType upper_bound) const override;
-        VecType operator()(MortonCodeType morton_code) const override;
+        std::vector<array3d_t<IndexType>> operator()(MortonCodeType morton_code) const override;
     };
 
-    template <typename MortonCodeType, typename IndexType, typename FloatType, typename VecType>
+    template <typename MortonCodeType, typename IndexType, typename FloatType>
     class region_query_t {
     public:
-        region_query_t(const unit_cell_t<FloatType>* unit_cell, const uint8_t num_bits_per_dim = 10, bool build_tree = true);
+        region_query_t(const unit_cell_t<FloatType>* unit_cell, const uint8_t num_bits_per_dim = 10);
         ~region_query_t() = default;
     
     private: 
         vector<MortonCodeType> unique_morton_codes;
         vector<IndexType> offsets;
         vector<IndexType> sorted_indexes;
-        std::unique_ptr<binary_radix_tree_t<MortonCodeType, IndexType>> brt;
         const int num_bits_per_dim;
 
     private:
@@ -70,9 +64,10 @@ namespace gmp { namespace region_query {
         const vector<MortonCodeType>& get_unique_morton_codes() const;
         const vector<IndexType>& get_offsets() const;
         const vector<IndexType>& get_sorted_indexes() const;
-        using result_t = vector<query_result_t<FloatType>>;
-        using sphere_op_t = check_sphere_t<MortonCodeType, FloatType, IndexType, VecType>;
+        using result_t = std::vector<query_result_t<FloatType>>;
+        using sphere_op_t = check_sphere_t<MortonCodeType, FloatType, IndexType>;
 
-        result_t query(const point3d_t<FloatType>& position, const FloatType cutoff, const unit_cell_t<FloatType>* unit_cell);
+        result_t query(const point3d_t<FloatType>& position, const FloatType cutoff, 
+            const binary_radix_tree_t<MortonCodeType, IndexType>* brt, const unit_cell_t<FloatType>* unit_cell);
     };
 }}

@@ -28,6 +28,7 @@ RUN apt-get update && apt-get install -y \
     lsb-release \
     # Additional development tools
     pkg-config \
+    gdb gdbserver \
     # Clean up
     && rm -rf /var/lib/apt/lists/*
 

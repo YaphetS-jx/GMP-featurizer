@@ -11,44 +11,16 @@
 
 namespace gmp { namespace containers {
 
-    template <typename T, typename Allocator = std::allocator<T>>
-    class vector : public std::vector<T, Allocator> {
-        using base = std::vector<T, Allocator>;
-    public:
-        // Default constructor uses the default allocator
-        vector() : base() {}
-
-        template <typename size_type>
-        explicit vector(size_type size, const T& value) : base(size, value) {}
-
-        template <typename size_type>
-        explicit vector(size_type size, const T& value, const Allocator& alloc) : base(size, value, alloc) {}
-        
-        // Constructor with specific allocator
-        explicit vector(const Allocator& alloc) : base(alloc) {}
-        
-        // copy constructor
-        vector(const vector& other) : base(other) {}
-
-        // move constructor
-        vector(vector&& other) noexcept : base(std::move(other)) {}
-
-        // copy assignment
-        vector& operator=(const vector& other) { base::operator=(other); return *this; }
-
-        // Forward all other vector constructors
-        using base::base;
-        
-        // Inherit all vector operations
-        using base::operator=;
-    };    
-    #ifdef GMP_ENABLE_CUDA
+#ifndef GMP_ENABLE_CUDA
     template <typename T>
-    using vector_host = vector<T, gmp::resources::pinned_host_allocator<T>>;
+    using vector = std::vector<T, std::allocator<T>>;
+#else
+    template <typename T>
+    using vector = std::vector<T, gmp::resources::pinned_host_allocator<T>>;
     
     template <typename T>
     using vector_device = rmm::device_uvector<T>;
-    #endif
+#endif
 
     template <typename T, typename Allocator = std::allocator<T>>
     class deque : public std::deque<T, Allocator> {

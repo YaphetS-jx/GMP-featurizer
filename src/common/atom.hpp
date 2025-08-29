@@ -11,8 +11,7 @@
 
 namespace gmp { namespace atom {
     
-    using gmp::geometry::lattice_flt;
-    using gmp::geometry::point_flt;
+    using gmp::geometry::lattice_t;
     using gmp::geometry::point3d_t;
     using gmp::math::array3d_bool;
     using gmp::math::array3d_int32;
@@ -30,32 +29,28 @@ namespace gmp { namespace atom {
     template <typename T>
     class unit_cell_t {
     public:
-        using lattice_type = gmp::geometry::lattice_t<T>;
-        using point_type = gmp::geometry::point3d_t<T>;
-        using atom_type = atom_t<T>;
-        
         unit_cell_t();
         unit_cell_t(std::string atom_file);
         ~unit_cell_t() = default;
 
         // accessors
-        const vector<atom_type>& get_atoms() const;
-        const lattice_type* get_lattice() const;
+        const vector<atom_t<T>>& get_atoms() const;
+        const lattice_t<T>* get_lattice() const;
         const array3d_bool& get_periodicity() const;
-        const atom_type& operator[](size_t i) const;
+        const atom_t<T>& operator[](size_t i) const;
         const atom_type_map_t& get_atom_type_map() const;
 
         // mutators
-        void set_lattice(std::unique_ptr<lattice_type>&& lattice);
-        void set_atoms(vector<atom_type>&& atoms);
+        void set_lattice(std::unique_ptr<lattice_t<T>>&& lattice);
+        void set_atoms(vector<atom_t<T>>&& atoms);
         void set_atom_type_map(atom_type_map_t&& atom_type_map);
         void set_periodicity(const array3d_bool& periodicity);
 
         void dump() const;
 
     private:
-        std::unique_ptr<lattice_type> lattice_;
-        vector<atom_type> atoms_;
+        std::unique_ptr<lattice_t<T>> lattice_;
+        vector<atom_t<T>> atoms_;
         atom_type_map_t atom_type_map_;
         array3d_bool periodicity_;
     };
@@ -64,7 +59,6 @@ namespace gmp { namespace atom {
     struct gaussian_t {
         T B;
         T beta;
-        gaussian_t(T B, T beta);
     };
     
     // psp config 
@@ -80,7 +74,7 @@ namespace gmp { namespace atom {
         const gaussian_type& operator[](const int idx) const;
         void dump() const;
 
-    private:         
+    public:         
         vector<gaussian_type> gaussian_table_;
         vector<int> offset_;
     };

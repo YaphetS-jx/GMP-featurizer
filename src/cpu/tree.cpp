@@ -5,31 +5,31 @@ namespace gmp { namespace tree {
     using gmp::containers::stack;
 
     // binary_radix_tree_t implementation
-    template <typename MortonCodeType, typename IndexType, template<typename, typename...> class Container, typename map_t>
-    binary_radix_tree_t<MortonCodeType, IndexType, Container, map_t>::binary_radix_tree_t() {}
+    template <typename MortonCodeType, typename IndexType>
+    binary_radix_tree_t<MortonCodeType, IndexType>::binary_radix_tree_t() {}
 
-    template <typename MortonCodeType, typename IndexType, template<typename, typename...> class Container, typename map_t>
-    binary_radix_tree_t<MortonCodeType, IndexType, Container, map_t>::binary_radix_tree_t(const morton_container_t& morton_codes, const IndexType num_bits)
+    template <typename MortonCodeType, typename IndexType>
+    binary_radix_tree_t<MortonCodeType, IndexType>::binary_radix_tree_t(const morton_container_t& morton_codes, const IndexType num_bits)
     {
         build_tree(morton_codes, num_bits);
     }
 
-    template <typename MortonCodeType, typename IndexType, template<typename, typename...> class Container, typename map_t>
-    const typename binary_radix_tree_t<MortonCodeType, IndexType, Container, map_t>::node_container_t&
-    binary_radix_tree_t<MortonCodeType, IndexType, Container, map_t>::get_internal_nodes() const
+    template <typename MortonCodeType, typename IndexType>
+    const typename binary_radix_tree_t<MortonCodeType, IndexType>::node_container_t&
+    binary_radix_tree_t<MortonCodeType, IndexType>::get_internal_nodes() const
     {
         return internal_nodes;
     }
 
-    template <typename MortonCodeType, typename IndexType, template<typename, typename...> class Container, typename map_t>
-    const typename binary_radix_tree_t<MortonCodeType, IndexType, Container, map_t>::morton_container_t&
-    binary_radix_tree_t<MortonCodeType, IndexType, Container, map_t>::get_leaf_nodes() const
+    template <typename MortonCodeType, typename IndexType>
+    const typename binary_radix_tree_t<MortonCodeType, IndexType>::morton_container_t&
+    binary_radix_tree_t<MortonCodeType, IndexType>::get_leaf_nodes() const
     {
         return leaf_nodes;
     }
 
-    template <typename MortonCodeType, typename IndexType, template<typename, typename...> class Container, typename map_t>
-    void binary_radix_tree_t<MortonCodeType, IndexType, Container, map_t>::build_tree(const morton_container_t& morton_codes, const IndexType num_bits)
+    template <typename MortonCodeType, typename IndexType>
+    void binary_radix_tree_t<MortonCodeType, IndexType>::build_tree(const morton_container_t& morton_codes, const IndexType num_bits)
     {
         assert(num_bits % 3 == 0);
         auto n = static_cast<IndexType>(morton_codes.size());
@@ -53,8 +53,8 @@ namespace gmp { namespace tree {
         leaf_nodes = std::move(morton_codes);
     }
 
-    template <typename MortonCodeType, typename IndexType, template<typename, typename...> class Container, typename map_t>
-    map_t binary_radix_tree_t<MortonCodeType, IndexType, Container, map_t>::traverse(const compare_op_t<MortonCodeType> &check_method) const
+    template <typename MortonCodeType, typename IndexType>
+    typename binary_radix_tree_t<MortonCodeType, IndexType>::map_t binary_radix_tree_t<MortonCodeType, IndexType>::traverse(const compare_op_t<MortonCodeType> &check_method) const
     {
         map_t result;
         stack<IndexType> s;

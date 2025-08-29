@@ -5,6 +5,7 @@
 #include <cstdlib>
 #include <vector>
 #include <cmath>
+#include "resources.hpp"
 
 namespace fs = std::filesystem;
 
@@ -150,6 +151,11 @@ TEST_F(GmpCpuTest, CompareWithExpectedOutput) {
 }
 
 int main(int argc, char **argv) {
-    ::testing::InitGoogleTest(&argc, argv);
-    return RUN_ALL_TESTS();
+    testing::InitGoogleTest(&argc, argv);
+    int result = RUN_ALL_TESTS();
+#ifdef GMP_ENABLE_CUDA
+    // Explicitly cleanup CUDA resources before exit
+    gmp::resources::gmp_resource::instance().cleanup();
+#endif
+    return result;
 } 

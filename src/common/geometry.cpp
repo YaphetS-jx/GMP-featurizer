@@ -30,7 +30,7 @@ namespace gmp { namespace geometry {
         return lattice_vectors_[i]; 
     }
 
-    // get lattice metric
+    // update lattice metric
     template <typename T>
     inline void lattice_t<T>::update_metric() {
         metric_ = sym_matrix3d_type{{lattice_vectors_[0].dot(lattice_vectors_[0]),
@@ -39,6 +39,18 @@ namespace gmp { namespace geometry {
                               {lattice_vectors_[0].dot(lattice_vectors_[1]),
                               lattice_vectors_[0].dot(lattice_vectors_[2]),
                               lattice_vectors_[1].dot(lattice_vectors_[2])}};
+    }
+
+    // get lattice metric
+    template <typename T>
+    inline const typename lattice_t<T>::sym_matrix3d_type lattice_t<T>::get_metric() const {
+        return metric_;
+    }
+
+    // get lattice vectors
+    template <typename T>
+    inline const typename lattice_t<T>::matrix3d_type lattice_t<T>::get_lattice_vectors() const {
+        return lattice_vectors_;
     }
 
     // get volume of cell

@@ -29,7 +29,7 @@ TEST(RegionQueryTest, basic_query) {
     std::uniform_real_distribution<double> dist(0.0, 1.0);
 
     // Create random atoms
-    vector<atom_t<double>> atoms;
+    std::vector<atom_t<double>> atoms;
     auto num_atoms = 1000;
     auto num_bits_per_dim = 5;
     atoms.reserve(num_atoms);
@@ -43,7 +43,7 @@ TEST(RegionQueryTest, basic_query) {
     unit_cell.set_atoms(std::move(atoms));
 
     // Create region query object
-    region_query_t<uint32_t, int32_t, double, vector<array3d_int32>> region_query(&unit_cell, num_bits_per_dim);
+    region_query_t<uint32_t, int32_t, double> region_query(&unit_cell, num_bits_per_dim);
 
     // Test query around a point
     point3d_t<double> query_point{0.8071282732743802, 0.7297317866938179, 0.5362280914547007};
@@ -51,34 +51,47 @@ TEST(RegionQueryTest, basic_query) {
     std::cout << "query point: " << query_point << std::endl;
     std::cout << "cutoff: " << cutoff << std::endl;
 
-    auto results = region_query.query(query_point, cutoff, &unit_cell);
-    std::sort(results.begin(), results.end());
+    // build tree
+    auto brt = std::make_unique<binary_radix_tree_t<uint32_t, int32_t>>(region_query.get_unique_morton_codes(), num_bits_per_dim * 3);
+
+    // query
+    auto results = region_query.query(query_point, cutoff, brt.get(), &unit_cell);
+    std::sort(results.begin(), results.end(), 
+    [](const query_result_t<double>& a, const query_result_t<double>& b) {
+        return a.distance_squared < b.distance_squared || 
+        (a.distance_squared == b.distance_squared && a.neighbor_index < b.neighbor_index);
+    });
+    
     std::cout << "query results size: " << results.size() << std::endl;
 
     // Create compare_op manually for benchmarking
-    check_sphere_t<uint32_t, double, int32_t, vector<array3d_int32>> compare_op(num_bits_per_dim, unit_cell.get_periodicity(), unit_cell.get_lattice());
+    check_sphere_t<uint32_t, double, int32_t> compare_op(num_bits_per_dim, unit_cell.get_periodicity(), unit_cell.get_lattice());
     compare_op.update_point_radius(query_point, cutoff);
     auto cell_shift_start = compare_op.get_cell_shift_start();
     auto cell_shift_end = compare_op.get_cell_shift_end();
     
-    vector<query_result_t<double>> results_benchmark;
+    std::vector<query_result_t<double>> results_benchmark;
     for (auto shift_z = cell_shift_start[2]; shift_z <= cell_shift_end[2]; shift_z++) {
         for (auto shift_y = cell_shift_start[1]; shift_y <= cell_shift_end[1]; shift_y++) {
             for (auto shift_x = cell_shift_start[0]; shift_x <= cell_shift_end[0]; shift_x++) {
                 for (auto i = 0; i < num_atoms; i++) {
                     array3d_t<double> cell_shift{static_cast<double>(shift_x), static_cast<double>(shift_y), static_cast<double>(shift_z)};
                     array3d_t<double> difference;
-                    double distance2 = unit_cell.get_lattice()->calculate_distance_squared(atoms[i].pos, query_point, cell_shift, difference);
+                    double distance2 = unit_cell.get_lattice()->calculate_distance_squared(unit_cell.get_atoms()[i].pos, query_point, cell_shift, difference);
                     if (distance2 < cutoff * cutoff) {
                         array3d_t<double> difference_cartesian = unit_cell.get_lattice()->fractional_to_cartesian(difference);
-                        results_benchmark.emplace_back(difference_cartesian, distance2, i);
+                        results_benchmark.push_back({difference_cartesian, distance2, i});
                     }
                 }
             }
         }
     }
 
-    std::sort(results_benchmark.begin(), results_benchmark.end());
+    std::sort(results_benchmark.begin(), results_benchmark.end(), 
+    [](const query_result_t<double>& a, const query_result_t<double>& b) {
+        return a.distance_squared < b.distance_squared || 
+        (a.distance_squared == b.distance_squared && a.neighbor_index < b.neighbor_index);
+    });
 
     EXPECT_EQ(results.size(), results_benchmark.size());
     for (auto i = 0; i < results.size(); i++) {
@@ -89,3 +102,8 @@ TEST(RegionQueryTest, basic_query) {
         EXPECT_DOUBLE_EQ(results[i].difference[2], results_benchmark[i].difference[2]);
     }
 }
+
+int main(int argc, char **argv) {
+    testing::InitGoogleTest(&argc, argv);
+    return RUN_ALL_TESTS();
+} 

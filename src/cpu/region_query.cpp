@@ -4,34 +4,15 @@
 
 namespace gmp { namespace region_query {
 
-    // query_result_t implementations
-    template <typename FloatType>
-    query_result_t<FloatType>::query_result_t(array3d_t<FloatType> difference_, FloatType distance_squared_, int neighbor_index_) 
-        : difference(difference_), distance_squared(distance_squared_), neighbor_index(neighbor_index_) {}
-
-    template <typename FloatType>
-    bool query_result_t<FloatType>::operator<(const query_result_t& other) const {
-        if (distance_squared != other.distance_squared) {
-            return distance_squared < other.distance_squared;
-        }
-        if (neighbor_index != other.neighbor_index) {
-            return neighbor_index < other.neighbor_index;
-        }
-        return true;
-    }
-
-    template struct query_result_t<float>;
-    template struct query_result_t<double>;
-
     // check_sphere_t implementations
-    template <typename MortonCodeType, typename FloatType, typename IndexType, typename VecType>
-    check_sphere_t<MortonCodeType, FloatType, IndexType, VecType>::check_sphere_t(
+    template <typename MortonCodeType, typename FloatType, typename IndexType>
+    check_sphere_t<MortonCodeType, FloatType, IndexType>::check_sphere_t(
         const IndexType num_bits_per_dim, const array3d_bool periodicity, const lattice_t<FloatType>* lattice)
         : num_bits_per_dim(num_bits_per_dim), periodicity(periodicity), lattice(lattice) 
     {}
 
-    template <typename MortonCodeType, typename FloatType, typename IndexType, typename VecType>
-    void check_sphere_t<MortonCodeType, FloatType, IndexType, VecType>::update_point_radius(
+    template <typename MortonCodeType, typename FloatType, typename IndexType>
+    void check_sphere_t<MortonCodeType, FloatType, IndexType>::update_point_radius(
         point3d_t<FloatType> position_in, FloatType radius) {
         // get fractional radius 
         radius2 = radius * radius;
@@ -47,18 +28,18 @@ namespace gmp { namespace region_query {
         cell_shift_end[2] = std::floor(position.z + frac_radius[2]);
     }
 
-    template <typename MortonCodeType, typename FloatType, typename IndexType, typename VecType>
-    array3d_t<IndexType> check_sphere_t<MortonCodeType, FloatType, IndexType, VecType>::get_cell_shift_start() const {
+    template <typename MortonCodeType, typename FloatType, typename IndexType>
+    array3d_t<IndexType> check_sphere_t<MortonCodeType, FloatType, IndexType>::get_cell_shift_start() const {
         return cell_shift_start;
     }
 
-    template <typename MortonCodeType, typename FloatType, typename IndexType, typename VecType>
-    array3d_t<IndexType> check_sphere_t<MortonCodeType, FloatType, IndexType, VecType>::get_cell_shift_end() const {
+    template <typename MortonCodeType, typename FloatType, typename IndexType>
+    array3d_t<IndexType> check_sphere_t<MortonCodeType, FloatType, IndexType>::get_cell_shift_end() const {
         return cell_shift_end;
     }
 
-    template <typename MortonCodeType, typename FloatType, typename IndexType, typename VecType>
-    bool check_sphere_t<MortonCodeType, FloatType, IndexType, VecType>::operator()(
+    template <typename MortonCodeType, typename FloatType, typename IndexType>
+    bool check_sphere_t<MortonCodeType, FloatType, IndexType>::operator()(
         MortonCodeType lower_bound, MortonCodeType upper_bound) const {
         MortonCodeType x_min, y_min, z_min;
         deinterleave_bits(lower_bound, num_bits_per_dim, x_min, y_min, z_min);
@@ -107,8 +88,8 @@ namespace gmp { namespace region_query {
         return false;
     }
 
-    template <typename MortonCodeType, typename FloatType, typename IndexType, typename VecType>
-    VecType check_sphere_t<MortonCodeType, FloatType, IndexType, VecType>::operator()(MortonCodeType morton_code) const {
+    template <typename MortonCodeType, typename FloatType, typename IndexType>
+    std::vector<array3d_t<IndexType>> check_sphere_t<MortonCodeType, FloatType, IndexType>::operator()(MortonCodeType morton_code) const {
         MortonCodeType x_min, y_min, z_min;
         deinterleave_bits(morton_code, num_bits_per_dim, x_min, y_min, z_min);
         
@@ -128,7 +109,7 @@ namespace gmp { namespace region_query {
             return (min <= point && point <= max) ? 0 : (point < min) ? min - point : point - max;
         };
 
-        VecType result;            
+        std::vector<array3d_t<IndexType>> result;            
 
         for (auto shift_z = cell_shift_start[2]; shift_z <= cell_shift_end[2]; shift_z++) {
             for (auto shift_y = cell_shift_start[1]; shift_y <= cell_shift_end[1]; shift_y++) {
@@ -159,25 +140,20 @@ namespace gmp { namespace region_query {
         return result;
     }
 
-    template class check_sphere_t<uint32_t, float, int32_t, vector<array3d_int32>>;
-    template class check_sphere_t<uint32_t, double, int32_t, vector<array3d_int32>>;
+    template class check_sphere_t<uint32_t, float, int32_t>;
+    template class check_sphere_t<uint32_t, double, int32_t>;
 
     // region_query_t implementations
-    template <typename MortonCodeType, typename IndexType, typename FloatType, typename VecType>
-    region_query_t<MortonCodeType, IndexType, FloatType, VecType>::region_query_t(
-        const unit_cell_t<FloatType>* unit_cell, const uint8_t num_bits_per_dim, bool build_tree) 
+    template <typename MortonCodeType, typename IndexType, typename FloatType>
+    region_query_t<MortonCodeType, IndexType, FloatType>::region_query_t(
+        const unit_cell_t<FloatType>* unit_cell, const uint8_t num_bits_per_dim) 
         : num_bits_per_dim(num_bits_per_dim) {
         // get morton codes
         get_morton_codes(unit_cell->get_atoms(), num_bits_per_dim);
-
-        // build tree
-        if (build_tree) {
-            brt = std::make_unique<binary_radix_tree_t<MortonCodeType, IndexType>>(unique_morton_codes, num_bits_per_dim * 3);
-        }
     }
 
-    template <typename MortonCodeType, typename IndexType, typename FloatType, typename VecType>
-    void region_query_t<MortonCodeType, IndexType, FloatType, VecType>::get_morton_codes(
+    template <typename MortonCodeType, typename IndexType, typename FloatType>
+    void region_query_t<MortonCodeType, IndexType, FloatType>::get_morton_codes(
         const vector<atom_t<FloatType>>& atoms, const uint8_t num_bits_per_dim) {
         vector<MortonCodeType> morton_codes;
         auto natom = atoms.size();
@@ -196,10 +172,10 @@ namespace gmp { namespace region_query {
         // compact
         unique_morton_codes.clear();
         unique_morton_codes.reserve(natom);
-        vector<IndexType> indexing(natom+1);
+        std::vector<IndexType> indexing(natom+1);
         for (auto i = 0; i < natom+1; i++) indexing[i] = i;
         // get same flag 
-        vector<bool> same(natom);
+        std::vector<bool> same(natom);
         same[0] = true;
         for (auto i = 1; i < natom; i++) {
             same[i] = morton_codes[i] != morton_codes[i-1];
@@ -222,25 +198,26 @@ namespace gmp { namespace region_query {
         offsets.push_back(natom);
     }
 
-    template <typename MortonCodeType, typename IndexType, typename FloatType, typename VecType>
-    const vector<MortonCodeType>& region_query_t<MortonCodeType, IndexType, FloatType, VecType>::get_unique_morton_codes() const {
+    template <typename MortonCodeType, typename IndexType, typename FloatType>
+    const vector<MortonCodeType>& region_query_t<MortonCodeType, IndexType, FloatType>::get_unique_morton_codes() const {
         return unique_morton_codes;
     }
 
-    template <typename MortonCodeType, typename IndexType, typename FloatType, typename VecType>
-    const vector<IndexType>& region_query_t<MortonCodeType, IndexType, FloatType, VecType>::get_offsets() const {
+    template <typename MortonCodeType, typename IndexType, typename FloatType>
+    const vector<IndexType>& region_query_t<MortonCodeType, IndexType, FloatType>::get_offsets() const {
         return offsets;
     }
 
-    template <typename MortonCodeType, typename IndexType, typename FloatType, typename VecType>
-    const vector<IndexType>& region_query_t<MortonCodeType, IndexType, FloatType, VecType>::get_sorted_indexes() const {
+    template <typename MortonCodeType, typename IndexType, typename FloatType>
+    const vector<IndexType>& region_query_t<MortonCodeType, IndexType, FloatType>::get_sorted_indexes() const {
         return sorted_indexes;
     }
 
-    template <typename MortonCodeType, typename IndexType, typename FloatType, typename VecType>
-    typename region_query_t<MortonCodeType, IndexType, FloatType, VecType>::result_t 
-    region_query_t<MortonCodeType, IndexType, FloatType, VecType>::query(
-        const point3d_t<FloatType>& position, const FloatType cutoff, const unit_cell_t<FloatType>* unit_cell) {
+    template <typename MortonCodeType, typename IndexType, typename FloatType>
+    typename region_query_t<MortonCodeType, IndexType, FloatType>::result_t 
+    region_query_t<MortonCodeType, IndexType, FloatType>::query(
+        const point3d_t<FloatType>& position, const FloatType cutoff, 
+        const binary_radix_tree_t<MortonCodeType, IndexType>* brt, const unit_cell_t<FloatType>* unit_cell) {
         sphere_op_t compare_op(num_bits_per_dim, unit_cell->get_periodicity(), unit_cell->get_lattice());
         compare_op.update_point_radius(position, cutoff);
         auto cutoff_squared = cutoff * cutoff;
@@ -258,17 +235,20 @@ namespace gmp { namespace region_query {
                         static_cast<FloatType>(shift[1]), static_cast<FloatType>(shift[2])}, difference);
                     if (distance2 < cutoff_squared) {
                         array3d_t<FloatType> difference_cartesian = unit_cell->get_lattice()->fractional_to_cartesian(difference);
-                        result.emplace_back(difference_cartesian, distance2, atom_index);
+                        result.push_back({difference_cartesian, distance2, atom_index});
                     }
                 }
             }
         }
 
-        std::sort(result.begin(), result.end());
+        std::sort(result.begin(), result.end(), 
+        [](const query_result_t<FloatType>& a, const query_result_t<FloatType>& b) {
+            return a.distance_squared < b.distance_squared || 
+            (a.distance_squared == b.distance_squared && a.neighbor_index < b.neighbor_index);
+        });
         return result;
     }
     
-    template class region_query_t<uint32_t, int32_t, float, vector<array3d_int32>>;
-    template class region_query_t<uint32_t, int32_t, double, vector<array3d_int32>>;
-
+    template class region_query_t<uint32_t, int32_t, float>;
+    template class region_query_t<uint32_t, int32_t, double>;
 }} 

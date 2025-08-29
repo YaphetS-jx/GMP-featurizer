@@ -1,0 +1,273 @@
+#include <cmath>
+#include <iostream>
+#include <cuda_runtime.h>
+#include "error.hpp"
+#include "math.hpp"
+#include "input.hpp"
+#include "containers.hpp"
+#include "util.hpp"
+#include "region_query.hpp"
+#include "mcsh.hpp"
+#include "resources.hpp"
+#include "cuda_featurizer.hpp"
+#include "cuda_thrust_ops.hpp"
+#include "cuda_util.hpp"
+
+namespace gmp { namespace featurizer {    
+
+    using namespace gmp::thrust_ops;
+
+    // Main CUDA featurizer implementation
+    template <typename T>
+    cuda_featurizer_t<T>::cuda_featurizer_t(
+        // query points 
+        const vector<point3d_t<T>>& h_positions,
+        // host atoms 
+        const vector<atom_t<T>>& h_atoms,
+        // host psp_config 
+        const psp_config_t<T>* h_psp_config,
+        // host kernel_params_table
+        const kernel_params_table_t<T>* h_kernel_params_table,
+        // host cutoff_list
+        const cutoff_list_t<T>* h_cutoff_list,
+        // region query initialization parameters
+        const vector<uint32_t>& h_morton_codes, const int32_t num_bits_per_dim, 
+        const vector<int32_t>& h_offsets, const vector<int32_t>& h_sorted_indexes, 
+        // stream
+        cudaStream_t stream)
+        : d_positions(h_positions.size(), stream),
+        d_atoms(h_atoms.size(), stream),
+        d_gaussian_table(h_psp_config->gaussian_table_.size(), stream),
+        d_kernel_params_table(h_kernel_params_table->table_.size(), stream),
+        d_cutoff_list(h_cutoff_list->cutoff_list_.size(), stream),
+        d_cutoff_info(h_cutoff_list->cutoff_info_.size(), stream),
+        d_cutoff_gaussian_offset(h_cutoff_list->gaussian_offset_.size(), stream),
+        d_region_query(std::make_unique<cuda_region_query_t<uint32_t, int32_t, T>>(
+            h_morton_codes, num_bits_per_dim, h_offsets, h_sorted_indexes, stream))
+    {
+        // Copy data to device 
+        cudaMemcpyAsync(d_positions.data(), h_positions.data(), h_positions.size() * sizeof(point3d_t<T>), cudaMemcpyHostToDevice, stream);
+        cudaMemcpyAsync(d_atoms.data(), h_atoms.data(), h_atoms.size() * sizeof(atom_t<T>), cudaMemcpyHostToDevice, stream);
+
+        // save device memory for cuda_psp_config_t, cuda_kernel_params_table_t, cuda_cutoff_list_t
+        cudaMemcpyAsync(d_gaussian_table.data(), h_psp_config->gaussian_table_.data(), d_gaussian_table.size() * sizeof(gaussian_t<T>), cudaMemcpyHostToDevice, stream);
+        cudaMemcpyAsync(d_kernel_params_table.data(), h_kernel_params_table->table_.data(), d_kernel_params_table.size() * sizeof(kernel_params_t<T>), cudaMemcpyHostToDevice, stream);
+        cudaMemcpyAsync(d_cutoff_list.data(), h_cutoff_list->cutoff_list_.data(), d_cutoff_list.size() * sizeof(T), cudaMemcpyHostToDevice, stream);
+        cudaMemcpyAsync(d_cutoff_info.data(), h_cutoff_list->cutoff_info_.data(), d_cutoff_info.size() * sizeof(int), cudaMemcpyHostToDevice, stream);
+        cudaMemcpyAsync(d_cutoff_gaussian_offset.data(), h_cutoff_list->gaussian_offset_.data(), d_cutoff_gaussian_offset.size() * sizeof(int), cudaMemcpyHostToDevice, stream);
+
+        cudaStreamSynchronize(stream);
+
+        // create device POD structures 
+        d_psp_config = cuda_psp_config_t<T>{d_gaussian_table.data()};
+        d_kernel_params = cuda_kernel_params_table_t<T>{d_kernel_params_table.data(), h_kernel_params_table->num_gaussians_};
+        d_cutoff = cuda_cutoff_list_t<T>{d_cutoff_list.data(), d_cutoff_info.data(), d_cutoff_gaussian_offset.data(), 
+            h_cutoff_list->gaussian_offset_.back(), h_cutoff_list->cutoff_max_};
+    }
+
+    template <typename T>
+    __global__
+    void get_num_gaussian_list(
+        const cuda_query_result_t<T>* query_results, const int num_query_results, 
+        const cuda_cutoff_list_t<T> cutoff_list, 
+        int* num_gaussian_list)
+    {
+        auto idx = blockIdx.x * blockDim.x + threadIdx.x;
+        if (idx >= num_query_results) return;
+
+        auto atom_idx = query_results[idx].neighbor_index;
+        auto start = cutoff_list.load_offset(atom_idx);
+        auto end = cutoff_list.load_offset(atom_idx + 1);
+
+        num_gaussian_list[idx] = end - start;
+    }
+
+    template <typename T>
+    __global__
+    void get_target_list_kernel(const int feature_idx,
+        const int* num_gaussian_offset, const int num_query_results, 
+        const int* query_idx_mapping, const int total_num_gaussians, 
+        const cuda_query_result_t<T>* query_results, 
+        const cuda_cutoff_list_t<T> cutoff_list, 
+        uint32_t* target_list)
+    {
+        auto idx = blockIdx.x * blockDim.x + threadIdx.x;
+        if (idx >= total_num_gaussians) return;
+
+        auto query_idx = query_idx_mapping[idx];
+        assert(query_idx < num_query_results);
+        auto distance2 = query_results[query_idx].distance_squared;
+        
+        auto local_gaussian_idx = query_idx > 0 ? (idx - num_gaussian_offset[query_idx - 1]) : idx;
+        auto gaussian_cutoff = cutoff_list.load_cutoff(feature_idx, local_gaussian_idx);
+        target_list[idx] = (distance2 > gaussian_cutoff * gaussian_cutoff) ? 0 : 1;
+    }
+
+    template <typename T> 
+    vector_device<uint32_t> get_target_list(
+        const int feature_idx, const vector_device<int>& num_gaussian_offset, const int num_query_results, 
+        const vector_device<int>& query_idx_mapping, const int total_num_gaussians, 
+        const vector_device<cuda_query_result_t<T>>& query_results, 
+        const cuda_cutoff_list_t<T> cutoff_list, 
+        gmp::resources::device_memory_manager* dm, cudaStream_t stream)
+    {
+        dim3 block_size(256, 1, 1), grid_size(1, 1, 1);
+        // template memory for calculation index 
+        vector_device<uint32_t> temp_target_list(total_num_gaussians, stream);
+
+        // filtering out the target list 
+        grid_size.x = (total_num_gaussians + block_size.x - 1) / block_size.x;
+        get_target_list_kernel<<<grid_size, block_size, 0, stream>>>(
+            feature_idx, num_gaussian_offset.data(), num_query_results, query_idx_mapping.data(), 
+            total_num_gaussians, query_results.data(), cutoff_list, temp_target_list.data());
+
+        // compact target list 
+        vector_device<uint32_t> target_list(total_num_gaussians, stream);
+        auto num_selected = compact(temp_target_list, target_list, dm, stream);
+        target_list.resize(num_selected, stream);
+        return target_list;
+    }
+
+    template <typename T> 
+    __global__
+    void featurizer_kernel(const int feature_idx, const int order, 
+        const uint32_t* target_list, const int num_selected, 
+        const int* num_gaussian_offset, const int* query_idx_mapping, 
+        const int32_t* query_offsets, const int num_positions, 
+        const cuda_query_result_t<T>* query_results, const int num_query_results, 
+        const atom_t<T>* atoms, 
+        const cuda_psp_config_t<T> psp_config, 
+        const cuda_cutoff_list_t<T> cutoff_list, 
+        const cuda_kernel_params_table_t<T> kernel_params_table, 
+        T* desc_values, const int num_values
+    )
+    {
+        auto idx = blockIdx.x * blockDim.x + threadIdx.x;
+        if (idx >= num_selected) return;
+
+        uint32_t target_idx = target_list[idx];
+        auto query_idx = query_idx_mapping[target_idx];
+        assert(query_idx < num_query_results);
+        auto point_idx = gmp::util::binary_search_first_larger(query_offsets, int32_t(0), num_positions - 1, int32_t(query_idx));
+
+        // get gaussian 
+        auto local_gaussian_idx = query_idx > 0 ? (target_idx - num_gaussian_offset[query_idx - 1]) : target_idx;
+        auto gaussian_idx = cutoff_list.load_info(feature_idx, local_gaussian_idx);
+        auto gaussian = psp_config.load(gaussian_idx);
+        auto B = gaussian.B;
+        if (gmp::math::isZero(B)) return;
+
+        // get kernel parameters
+        auto kp = kernel_params_table.load(feature_idx, gaussian_idx);
+
+        // get query result
+        auto result = query_results[query_idx];
+        auto occ = atoms[result.neighbor_index].occ;
+        const auto temp = kp.C1 * std::exp(kp.C2 * result.distance_squared) * occ;
+        const auto shift = result.difference;
+
+        // calculate mcsh values
+        mcsh::solid_mcsh(order, shift, result.distance_squared, temp, kp.lambda, kp.gamma, desc_values + point_idx * num_values);
+    }
+
+    template <typename T>
+    __global__
+    void weighted_square_sum_kernel(const int order, const int num_values, const int num_positions,
+        const bool square, const T* desc_values, T* feature)
+    {
+        auto idx = blockIdx.x * blockDim.x + threadIdx.x;
+        if (idx >= num_positions) return;
+
+        T squareSum = gmp::mcsh::weighted_square_sum(order, desc_values + idx * num_values);
+        if (square) {
+            feature[idx] = squareSum;
+        } else {
+            feature[idx] = std::sqrt(squareSum);
+        }
+    }
+
+    template <typename T>
+    vector<T> cuda_featurizer_t<T>::compute(
+        std::vector<feature_t<T>> feature_list, const bool feature_square, const lattice_t<T>* lattice, cudaStream_t stream)
+    {
+        // get device memory manager
+        auto dm = gmp::resources::gmp_resource::instance().get_device_memory_manager();
+
+        // kernel parameters
+        dim3 block_size(256, 1, 1), grid_size(1, 1, 1);
+
+        // cuda region query 
+        vector_device<cuda_query_result_t<T>> query_results(1, stream);
+        vector_device<int32_t> query_offsets(1, stream);
+        cuda_region_query(d_positions, d_cutoff.cutoff_max, *d_region_query, 
+            lattice, d_atoms, query_results, query_offsets, stream);
+
+        // find out number of gaussian list and offset
+        auto num_query_results = query_results.size();
+        vector_device<int> num_gaussian_offset(num_query_results, stream);
+        grid_size.x = (num_query_results + block_size.x - 1) / block_size.x;
+        get_num_gaussian_list<<<grid_size, block_size, 0, stream>>>(
+            query_results.data(), num_query_results, d_cutoff, num_gaussian_offset.data());
+        
+        // calculate offset
+        THRUST_CALL(thrust::inclusive_scan, dm, stream, 
+            num_gaussian_offset.data(), num_gaussian_offset.data() + num_query_results, num_gaussian_offset.data());
+        
+        uint32_t total_num_gaussians;
+        cudaMemcpyAsync(&total_num_gaussians, num_gaussian_offset.data() + num_query_results - 1, sizeof(uint32_t), cudaMemcpyDeviceToHost, stream);
+        cudaStreamSynchronize(stream);
+        std::cout << "total_num_gaussians: " << total_num_gaussians << std::endl;
+
+        // get index mapping 
+        vector_device<int> query_idx_mapping(total_num_gaussians, stream);
+        get_index_mapping(num_gaussian_offset, query_idx_mapping, dm, stream);
+
+        // featurizer calculation 
+        auto num_positions = d_positions.size();
+        auto num_features = feature_list.size();
+        vector_device<T> feature_collection(num_positions * num_features, stream);
+
+        for (auto feature_idx = 0; feature_idx < num_features; ++feature_idx) {
+            auto order = feature_list[feature_idx].order;
+            auto sigma = feature_list[feature_idx].sigma;
+            auto num_values = order < 0 ? 1 : mcsh::num_mcsh_values[order];
+
+            // get target list 
+            auto target_list = get_target_list(feature_idx, 
+                num_gaussian_offset, num_query_results, query_idx_mapping, 
+                total_num_gaussians, query_results, d_cutoff, dm, stream);
+            
+            auto num_selected = target_list.size();
+
+            // doing calculation
+            vector_device<T> desc_values(num_values * num_positions, stream);
+            grid_size.x = (num_selected + block_size.x - 1) / block_size.x;
+            featurizer_kernel<<<grid_size, block_size, 0, stream>>>(
+                feature_idx, order, target_list.data(), num_selected, 
+                num_gaussian_offset.data(), query_idx_mapping.data(), 
+                query_offsets.data(), num_positions, 
+                query_results.data(), num_query_results, 
+                d_atoms.data(), d_psp_config, d_cutoff, d_kernel_params, 
+                desc_values.data(), num_values);
+            
+            // weighted square sum of the values
+            grid_size.x = (num_positions + block_size.x - 1) / block_size.x;
+            weighted_square_sum_kernel<<<grid_size, block_size, 0, stream>>>(
+                order, num_values, num_positions, 
+                feature_square, desc_values.data(), 
+                feature_collection.data() + feature_idx * num_positions);
+        }
+        
+        // copy to host 
+        vector<T> h_feature_collection(feature_collection.size());
+        cudaMemcpyAsync(h_feature_collection.data(), feature_collection.data(), feature_collection.size() * sizeof(T), cudaMemcpyDeviceToHost, stream);
+        cudaStreamSynchronize(stream);
+
+        return h_feature_collection;
+    }
+
+    // Explicit instantiations
+    template class cuda_featurizer_t<float>;
+    template class cuda_featurizer_t<double>;
+
+}} // namespace gmp::featurizer

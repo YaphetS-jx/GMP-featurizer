@@ -18,10 +18,7 @@ namespace gmp { namespace featurizer {
     // basic structures
     template <typename T>
     struct kernel_params_t {
-        T C1, C2;
-        T lambda, gamma;
-        kernel_params_t() : C1(0.0), C2(0.0), lambda(0.0), gamma(0.0) {}
-        kernel_params_t(const T C1, const T C2, const T lambda, const T gamma) : C1(C1), C2(C2), lambda(lambda), gamma(gamma) {}
+        T C1, C2, lambda, gamma;
     };
 
     template <typename T>
@@ -36,7 +33,7 @@ namespace gmp { namespace featurizer {
 
         void dump() const;
 
-    private: 
+    public: 
         vector<kernel_params_t<T>> table_;
         int num_gaussians_;
         int num_features_;
@@ -61,27 +58,27 @@ namespace gmp { namespace featurizer {
     template <typename T>
     class featurizer_t {
     public:
-        using query_t = region_query_t<uint32_t, int32_t, T, vector<array3d_int32>>;
+        using query_t = region_query_t<uint32_t, int32_t, T>;
         // ctor
         featurizer_t(const descriptor_config_t<T>* descriptor_config, const unit_cell_t<T>* unit_cell, const psp_config_t<T>* psp_config)
             : kernel_params_table_(std::make_unique<kernel_params_table_t<T>>(descriptor_config, psp_config)), 
             cutoff_list_(std::make_unique<cutoff_list_t<T>>(descriptor_config, psp_config)),
-            region_query_(std::make_unique<query_t>(unit_cell, descriptor_config->get_num_bits_per_dim()))
+            region_query_(std::make_unique<query_t>(unit_cell, descriptor_config->get_num_bits_per_dim())), 
+            brt_(std::make_unique<binary_radix_tree_t<uint32_t, int32_t>>(region_query_->get_unique_morton_codes(), 
+                descriptor_config->get_num_bits_per_dim() * 3))
         {}
 
         ~featurizer_t() = default;
 
         // calculate features 
-        vector<vector<T>> compute(const vector<point3d_t<T>>& ref_positions, 
+        std::vector<std::vector<T>> compute(const vector<point3d_t<T>>& ref_positions, 
             const descriptor_config_t<T>* descriptor_config, const unit_cell_t<T>* unit_cell, const psp_config_t<T>* psp_config);
-
-        // vector<vector<T>> compute_simd(const vector<point3d_t<T>>& ref_positions, 
-        //     const descriptor_config_t* descriptor_config, const unit_cell_t* unit_cell, const psp_config_t* psp_config);
         
-    private: 
+    public: 
         std::unique_ptr<kernel_params_table_t<T>> kernel_params_table_;
         std::unique_ptr<cutoff_list_t<T>> cutoff_list_;
         std::unique_ptr<query_t> region_query_;
+        std::unique_ptr<binary_radix_tree_t<uint32_t, int32_t>> brt_;
     };
 
     // functions 

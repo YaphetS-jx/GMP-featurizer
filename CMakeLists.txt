@@ -1,9 +1,19 @@
 cmake_minimum_required(VERSION 3.14)
-project(gmp-featurizer LANGUAGES CXX CUDA)
+
+# Add CUDA support option early, before project() command
+option(ENABLE_CUDA "Enable CUDA support for GPU acceleration" OFF)
+
+# Set project languages conditionally
+if(ENABLE_CUDA)
+    project(gmp-featurizer LANGUAGES CXX CUDA)
+else()
+    project(gmp-featurizer LANGUAGES CXX)
+endif()
 
 # Set C++ standard
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
 # Add option to select build type
 option(BUILD_TYPE_RELEASE "Build in Release mode (default: ON)" ON)
@@ -11,9 +21,6 @@ option(BUILD_TYPE_PROFILE "Build in Profile mode for gprof profiling" OFF)
 
 # Add floating-point precision options
 option(USE_SINGLE_PRECISION "Use single precision (float) instead of double precision" OFF)
-
-# Add CUDA support option
-option(ENABLE_CUDA "Enable CUDA support for GPU acceleration" OFF)
 
 # Set floating-point precision based on options
 if(USE_SINGLE_PRECISION)
@@ -122,12 +129,10 @@ target_sources(gmp-featurizer-lib
     src/common/input.cpp
     src/common/atom.cpp
     src/common/geometry.cpp
-    src/common/math.cpp
-    src/common/mcsh_kernel.cpp
-    src/common/mcsh.cpp
     src/cpu/featurizer.cpp
     src/cpu/tree.cpp
     src/cpu/region_query.cpp
+    src/cpu/cpu_featurizer.cpp
 )
 
 # Add CUDA source files when CUDA is enabled
@@ -135,6 +140,9 @@ if(ENABLE_CUDA)
     target_sources(gmp-featurizer-lib
         PRIVATE
         src/gpu/cuda_tree.cu
+        src/gpu/cuda_region_query.cu
+        src/gpu/cuda_featurizer.cu
+        src/gpu/gpu_featurizer.cu
     )
 endif()
 
@@ -218,60 +226,6 @@ if(BUILD_TESTS)
     set(TEST_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/test)
 
     # Create test executables
-    add_executable(gmp-resources-test
-        test/resources.cpp
-    )
-    set_cuda_architectures_for_target(gmp-resources-test)
-
-    add_executable(gmp-math-test
-        test/math.cpp
-    )
-    set_cuda_architectures_for_target(gmp-math-test)
-
-    add_executable(gmp-geometry-test
-        test/geometry.cpp
-    )
-    set_cuda_architectures_for_target(gmp-geometry-test)
-
-    add_executable(gmp-atom-test
-        test/atom.cpp
-    )
-    set_cuda_architectures_for_target(gmp-atom-test)
-
-    add_executable(gmp-util-test
-        test/util.cpp
-    )
-    set_cuda_architectures_for_target(gmp-util-test)
-
-    add_executable(gmp-input-test
-        test/input.cpp
-    )
-    set_cuda_architectures_for_target(gmp-input-test)
-
-    add_executable(gmp-morton-test
-        test/morton_codes.cpp
-    )
-    set_cuda_architectures_for_target(gmp-morton-test)
-
-    add_executable(gmp-tree-test
-        test/tree.cpp
-    )
-    set_cuda_architectures_for_target(gmp-tree-test)
-
-    add_executable(gmp-region-query-test
-        test/region_query.cpp
-    )
-    set_cuda_architectures_for_target(gmp-region-query-test)
-
-    add_executable(gmp-cif-test
-        test/cif_test.cpp
-    )
-    set_cuda_architectures_for_target(gmp-cif-test)
-
-    add_executable(gmp-cpu-test
-        test/gmp_cpu.cpp
-    )
-    set_cuda_architectures_for_target(gmp-cpu-test)
 
     # Add CUDA test only when CUDA is enabled
     if(ENABLE_CUDA)
@@ -290,108 +244,90 @@ if(BUILD_TESTS)
         )
         set_cuda_architectures_for_target(gmp-cuda-tree-test)
         
+        add_executable(gmp-cuda-region-query-test
+            test/cuda_region_query_test.cu
+        )
+        set_cuda_architectures_for_target(gmp-cuda-region-query-test)
+        
+    else()
+        add_executable(gmp-resources-test
+            test/resources.cpp
+        )
+        set_cuda_architectures_for_target(gmp-resources-test)
 
+        add_executable(gmp-math-test
+            test/math.cpp
+        )
+        set_cuda_architectures_for_target(gmp-math-test)
+
+        add_executable(gmp-geometry-test
+            test/geometry.cpp
+        )
+        set_cuda_architectures_for_target(gmp-geometry-test)
+
+        add_executable(gmp-atom-test
+            test/atom.cpp
+        )
+        set_cuda_architectures_for_target(gmp-atom-test)
+
+        add_executable(gmp-util-test
+            test/util.cpp
+        )
+        set_cuda_architectures_for_target(gmp-util-test)
+
+        add_executable(gmp-input-test
+            test/input.cpp
+        )
+        set_cuda_architectures_for_target(gmp-input-test)
+
+        add_executable(gmp-morton-test
+            test/morton_codes.cpp
+        )
+        set_cuda_architectures_for_target(gmp-morton-test)
+
+        add_executable(gmp-tree-test
+            test/tree.cpp
+        )
+        set_cuda_architectures_for_target(gmp-tree-test)
+
+        add_executable(gmp-region-query-test
+            test/region_query.cpp
+        )
+        set_cuda_architectures_for_target(gmp-region-query-test)
+
+        add_executable(gmp-cif-test
+            test/cif_test.cpp
+        )
+        set_cuda_architectures_for_target(gmp-cif-test)
+
+        add_executable(gmp-cpu-test
+            test/gmp_cpu.cpp
+        )
+        set_cuda_architectures_for_target(gmp-cpu-test)
     endif()
 
     # Add project root definition to all test executables
-    target_compile_definitions(gmp-resources-test PRIVATE PROJECT_ROOT="${PROJECT_ROOT}")
-    target_compile_definitions(gmp-math-test PRIVATE PROJECT_ROOT="${PROJECT_ROOT}")
-    target_compile_definitions(gmp-geometry-test PRIVATE PROJECT_ROOT="${PROJECT_ROOT}")
-    target_compile_definitions(gmp-atom-test PRIVATE PROJECT_ROOT="${PROJECT_ROOT}")
-    target_compile_definitions(gmp-util-test PRIVATE PROJECT_ROOT="${PROJECT_ROOT}")
-    target_compile_definitions(gmp-input-test PRIVATE PROJECT_ROOT="${PROJECT_ROOT}")    
-    target_compile_definitions(gmp-morton-test PRIVATE PROJECT_ROOT="${PROJECT_ROOT}")
-    target_compile_definitions(gmp-tree-test PRIVATE PROJECT_ROOT="${PROJECT_ROOT}")
-    target_compile_definitions(gmp-region-query-test PRIVATE PROJECT_ROOT="${PROJECT_ROOT}")
-    target_compile_definitions(gmp-cif-test PRIVATE PROJECT_ROOT="${PROJECT_ROOT}")
-    target_compile_definitions(gmp-cpu-test PRIVATE PROJECT_ROOT="${PROJECT_ROOT}")
-
     # Add CUDA test definition if CUDA is enabled
     if(ENABLE_CUDA)
         target_compile_definitions(gmp-cuda-test PRIVATE PROJECT_ROOT="${PROJECT_ROOT}")
         target_compile_definitions(gmp-rmm-test PRIVATE PROJECT_ROOT="${PROJECT_ROOT}")
         target_compile_definitions(gmp-cuda-tree-test PRIVATE PROJECT_ROOT="${PROJECT_ROOT}")
-
+        target_compile_definitions(gmp-cuda-region-query-test PRIVATE PROJECT_ROOT="${PROJECT_ROOT}")
+    else()
+        target_compile_definitions(gmp-resources-test PRIVATE PROJECT_ROOT="${PROJECT_ROOT}")
+        target_compile_definitions(gmp-math-test PRIVATE PROJECT_ROOT="${PROJECT_ROOT}")
+        target_compile_definitions(gmp-geometry-test PRIVATE PROJECT_ROOT="${PROJECT_ROOT}")
+        target_compile_definitions(gmp-atom-test PRIVATE PROJECT_ROOT="${PROJECT_ROOT}")
+        target_compile_definitions(gmp-util-test PRIVATE PROJECT_ROOT="${PROJECT_ROOT}")
+        target_compile_definitions(gmp-input-test PRIVATE PROJECT_ROOT="${PROJECT_ROOT}")    
+        target_compile_definitions(gmp-morton-test PRIVATE PROJECT_ROOT="${PROJECT_ROOT}")
+        target_compile_definitions(gmp-tree-test PRIVATE PROJECT_ROOT="${PROJECT_ROOT}")
+        target_compile_definitions(gmp-region-query-test PRIVATE PROJECT_ROOT="${PROJECT_ROOT}")
+        target_compile_definitions(gmp-cif-test PRIVATE PROJECT_ROOT="${PROJECT_ROOT}")
+        target_compile_definitions(gmp-cpu-test PRIVATE PROJECT_ROOT="${PROJECT_ROOT}")
     endif()
 
     # Link against Google Test and the library
-    target_link_libraries(gmp-resources-test
-        PRIVATE
-        GTest::gtest_main
-        GTest::gmock_main
-        gmp-featurizer-lib
-    )
-
-    target_link_libraries(gmp-math-test
-        PRIVATE
-        GTest::gtest_main
-        GTest::gmock_main
-        gmp-featurizer-lib
-    )
-
-    target_link_libraries(gmp-geometry-test
-        PRIVATE
-        GTest::gtest_main
-        GTest::gmock_main
-        gmp-featurizer-lib
-    )
-
-    target_link_libraries(gmp-atom-test
-        PRIVATE
-        GTest::gtest_main
-        GTest::gmock_main
-        gmp-featurizer-lib
-    )
-
-    target_link_libraries(gmp-util-test
-        PRIVATE
-        GTest::gtest_main
-        GTest::gmock_main
-        gmp-featurizer-lib
-    )
-
-    target_link_libraries(gmp-input-test
-        PRIVATE
-        GTest::gtest_main
-        GTest::gmock_main
-        gmp-featurizer-lib
-    )
-
-    target_link_libraries(gmp-morton-test
-        PRIVATE
-        GTest::gtest_main
-        GTest::gmock_main
-        gmp-featurizer-lib
-    )
-
-    target_link_libraries(gmp-tree-test
-        PRIVATE
-        GTest::gtest_main
-        GTest::gmock_main
-        gmp-featurizer-lib
-    )
-
-    target_link_libraries(gmp-region-query-test
-        PRIVATE
-        GTest::gtest_main
-        GTest::gmock_main
-        gmp-featurizer-lib
-    )
-
-    target_link_libraries(gmp-cif-test
-        PRIVATE
-        GTest::gtest_main
-        GTest::gmock_main
-        gmp-featurizer-lib
-    )
-
-    target_link_libraries(gmp-cpu-test
-        PRIVATE
-        GTest::gtest_main
-        GTest::gmock_main
-        gmp-featurizer-lib
-    )
-
     # Link CUDA test if CUDA is enabled
     if(ENABLE_CUDA)
         target_link_libraries(gmp-cuda-test
@@ -420,8 +356,6 @@ if(BUILD_TESTS)
             ${CUDA_LIBRARIES}
         )
         
-
-        
         # Link RMM test
         target_link_libraries(gmp-rmm-test
             PRIVATE
@@ -431,9 +365,7 @@ if(BUILD_TESTS)
             rmm::rmm
             ${CUDA_LIBRARIES}
         )
-        
 
-        
         # Add CUDA include directories and libraries for RMM test
         target_include_directories(gmp-rmm-test
             PRIVATE
@@ -467,112 +399,161 @@ if(BUILD_TESTS)
             CUDA_SEPARABLE_COMPILATION ON
         )
         
-
+        # Link CUDA region query test
+        target_link_libraries(gmp-cuda-region-query-test
+            PRIVATE
+            GTest::gtest_main
+            GTest::gmock_main
+            gmp-featurizer-lib
+            ${CUDA_LIBRARIES}
+        )
         
+        # Add CUDA include directories and libraries for CUDA region query test
+        target_include_directories(gmp-cuda-region-query-test
+            PRIVATE
+            ${CMAKE_SOURCE_DIR}/src
+            ${CUDA_INCLUDE_DIRS}
+        )
+        
+        # Set CUDA properties for CUDA region query test
+        set_target_properties(gmp-cuda-region-query-test PROPERTIES
+            CUDA_SEPARABLE_COMPILATION ON
+        )
+    
+    else()
+        target_link_libraries(gmp-resources-test
+            PRIVATE
+            GTest::gtest_main
+            GTest::gmock_main
+            gmp-featurizer-lib
+        )
+        target_include_directories(gmp-resources-test
+            PRIVATE
+            ${CMAKE_SOURCE_DIR}/src
+        )
+
+        target_link_libraries(gmp-math-test
+            PRIVATE
+            GTest::gtest_main
+            GTest::gmock_main
+            gmp-featurizer-lib
+        )
+        target_include_directories(gmp-math-test
+            PRIVATE
+            ${CMAKE_SOURCE_DIR}/src
+        )
+
+        target_link_libraries(gmp-geometry-test
+            PRIVATE
+            GTest::gtest_main
+            GTest::gmock_main
+            gmp-featurizer-lib
+        )
+
+        target_include_directories(gmp-geometry-test
+            PRIVATE
+            ${CMAKE_SOURCE_DIR}/src
+        )
+
+        target_link_libraries(gmp-atom-test
+            PRIVATE
+            GTest::gtest_main
+            GTest::gmock_main
+            gmp-featurizer-lib
+        )
+
+        target_include_directories(gmp-atom-test
+            PRIVATE
+            ${CMAKE_SOURCE_DIR}/src
+        )
+
+        target_link_libraries(gmp-util-test
+            PRIVATE
+            GTest::gtest_main
+            GTest::gmock_main
+            gmp-featurizer-lib
+        )
+
+        target_include_directories(gmp-util-test
+            PRIVATE
+            ${CMAKE_SOURCE_DIR}/src
+        )
+
+        target_link_libraries(gmp-input-test
+            PRIVATE
+            GTest::gtest_main
+            GTest::gmock_main
+            gmp-featurizer-lib
+        )
+
+        target_include_directories(gmp-input-test
+            PRIVATE
+            ${CMAKE_SOURCE_DIR}/src
+        )
+
+        target_link_libraries(gmp-morton-test
+            PRIVATE
+            GTest::gtest_main
+            GTest::gmock_main
+            gmp-featurizer-lib
+        )
+
+        target_include_directories(gmp-morton-test
+            PRIVATE
+            ${CMAKE_SOURCE_DIR}/src
+        )
+
+        target_link_libraries(gmp-tree-test
+            PRIVATE
+            GTest::gtest_main
+            GTest::gmock_main
+            gmp-featurizer-lib
+        )
+
+        target_include_directories(gmp-tree-test
+            PRIVATE
+            ${CMAKE_SOURCE_DIR}/src
+        )
+
+        target_link_libraries(gmp-region-query-test
+            PRIVATE
+            GTest::gtest_main
+            GTest::gmock_main
+            gmp-featurizer-lib
+        )
+
+        target_include_directories(gmp-region-query-test
+            PRIVATE
+            ${CMAKE_SOURCE_DIR}/src
+        )
+
+        target_link_libraries(gmp-cif-test
+            PRIVATE
+            GTest::gtest_main
+            GTest::gmock_main
+            gmp-featurizer-lib
+        )
+
+        target_include_directories(gmp-cif-test
+            PRIVATE
+            ${CMAKE_SOURCE_DIR}/src
+        )
+
+        target_link_libraries(gmp-cpu-test
+            PRIVATE
+            GTest::gtest_main
+            GTest::gmock_main
+            gmp-featurizer-lib
+        )
+
+        target_include_directories(gmp-cpu-test
+            PRIVATE
+            ${CMAKE_SOURCE_DIR}/src
+        )
 
     endif()
 
-    # Include directories for tests
-    target_include_directories(gmp-resources-test
-        PRIVATE
-        ${CMAKE_SOURCE_DIR}/src
-    )
-
-    target_include_directories(gmp-math-test
-        PRIVATE
-        ${CMAKE_SOURCE_DIR}/src
-    )
-
-    target_include_directories(gmp-geometry-test
-        PRIVATE
-        ${CMAKE_SOURCE_DIR}/src
-    )
-
-    target_include_directories(gmp-atom-test
-        PRIVATE
-        ${CMAKE_SOURCE_DIR}/src
-    )
-
-    target_include_directories(gmp-util-test
-        PRIVATE
-        ${CMAKE_SOURCE_DIR}/src
-    )
-
-    target_include_directories(gmp-input-test
-        PRIVATE
-        ${CMAKE_SOURCE_DIR}/src
-    )
-
-    target_include_directories(gmp-morton-test
-        PRIVATE
-        ${CMAKE_SOURCE_DIR}/src
-    )
-
-    target_include_directories(gmp-tree-test
-        PRIVATE
-        ${CMAKE_SOURCE_DIR}/src
-    )
-
-    target_include_directories(gmp-region-query-test
-        PRIVATE
-        ${CMAKE_SOURCE_DIR}/src
-    )
-
-    target_include_directories(gmp-cif-test
-        PRIVATE
-        ${CMAKE_SOURCE_DIR}/src
-    )
-
-    target_include_directories(gmp-cpu-test
-        PRIVATE
-        ${CMAKE_SOURCE_DIR}/src
-    )
-
     # Set the output directory for the test executables
-    set_target_properties(gmp-resources-test PROPERTIES
-        RUNTIME_OUTPUT_DIRECTORY ${TEST_RUNTIME_OUTPUT_DIRECTORY}
-    )
-
-    set_target_properties(gmp-math-test PROPERTIES
-        RUNTIME_OUTPUT_DIRECTORY ${TEST_RUNTIME_OUTPUT_DIRECTORY}
-    )
-
-    set_target_properties(gmp-geometry-test PROPERTIES
-        RUNTIME_OUTPUT_DIRECTORY ${TEST_RUNTIME_OUTPUT_DIRECTORY}
-    )
-
-    set_target_properties(gmp-atom-test PROPERTIES
-        RUNTIME_OUTPUT_DIRECTORY ${TEST_RUNTIME_OUTPUT_DIRECTORY}
-    )
-
-    set_target_properties(gmp-util-test PROPERTIES
-        RUNTIME_OUTPUT_DIRECTORY ${TEST_RUNTIME_OUTPUT_DIRECTORY}
-    )
-
-    set_target_properties(gmp-input-test PROPERTIES
-        RUNTIME_OUTPUT_DIRECTORY ${TEST_RUNTIME_OUTPUT_DIRECTORY}
-    )
-
-    set_target_properties(gmp-morton-test PROPERTIES
-        RUNTIME_OUTPUT_DIRECTORY ${TEST_RUNTIME_OUTPUT_DIRECTORY}
-    )
-
-    set_target_properties(gmp-tree-test PROPERTIES
-        RUNTIME_OUTPUT_DIRECTORY ${TEST_RUNTIME_OUTPUT_DIRECTORY}
-    )
-
-    set_target_properties(gmp-region-query-test PROPERTIES
-        RUNTIME_OUTPUT_DIRECTORY ${TEST_RUNTIME_OUTPUT_DIRECTORY}
-    )
-
-    set_target_properties(gmp-cif-test PROPERTIES
-        RUNTIME_OUTPUT_DIRECTORY ${TEST_RUNTIME_OUTPUT_DIRECTORY}
-    )
-
-    set_target_properties(gmp-cpu-test PROPERTIES
-        RUNTIME_OUTPUT_DIRECTORY ${TEST_RUNTIME_OUTPUT_DIRECTORY}
-    )
-
     # Set output directory for CUDA test if enabled
     if(ENABLE_CUDA)
         set_target_properties(gmp-cuda-test PROPERTIES
@@ -586,41 +567,95 @@ if(BUILD_TESTS)
         set_target_properties(gmp-cuda-tree-test PROPERTIES
             RUNTIME_OUTPUT_DIRECTORY ${TEST_RUNTIME_OUTPUT_DIRECTORY}
         )
+        
+        set_target_properties(gmp-cuda-region-query-test PROPERTIES
+            RUNTIME_OUTPUT_DIRECTORY ${TEST_RUNTIME_OUTPUT_DIRECTORY}
+        )
+    else()
+        set_target_properties(gmp-resources-test PROPERTIES
+            RUNTIME_OUTPUT_DIRECTORY ${TEST_RUNTIME_OUTPUT_DIRECTORY}
+        )
+
+        set_target_properties(gmp-math-test PROPERTIES
+            RUNTIME_OUTPUT_DIRECTORY ${TEST_RUNTIME_OUTPUT_DIRECTORY}
+        )
+
+        set_target_properties(gmp-geometry-test PROPERTIES
+            RUNTIME_OUTPUT_DIRECTORY ${TEST_RUNTIME_OUTPUT_DIRECTORY}
+        )
+
+        set_target_properties(gmp-atom-test PROPERTIES
+            RUNTIME_OUTPUT_DIRECTORY ${TEST_RUNTIME_OUTPUT_DIRECTORY}
+        )
+
+        set_target_properties(gmp-util-test PROPERTIES
+            RUNTIME_OUTPUT_DIRECTORY ${TEST_RUNTIME_OUTPUT_DIRECTORY}
+        )
+
+        set_target_properties(gmp-input-test PROPERTIES
+            RUNTIME_OUTPUT_DIRECTORY ${TEST_RUNTIME_OUTPUT_DIRECTORY}
+        )
+
+        set_target_properties(gmp-morton-test PROPERTIES
+            RUNTIME_OUTPUT_DIRECTORY ${TEST_RUNTIME_OUTPUT_DIRECTORY}
+        )
+
+        set_target_properties(gmp-tree-test PROPERTIES
+            RUNTIME_OUTPUT_DIRECTORY ${TEST_RUNTIME_OUTPUT_DIRECTORY}
+        )
+
+        set_target_properties(gmp-region-query-test PROPERTIES
+            RUNTIME_OUTPUT_DIRECTORY ${TEST_RUNTIME_OUTPUT_DIRECTORY}
+        )
+
+        set_target_properties(gmp-cif-test PROPERTIES
+            RUNTIME_OUTPUT_DIRECTORY ${TEST_RUNTIME_OUTPUT_DIRECTORY}
+        )
+
+        set_target_properties(gmp-cpu-test PROPERTIES
+            RUNTIME_OUTPUT_DIRECTORY ${TEST_RUNTIME_OUTPUT_DIRECTORY}
+        )
     endif()
 
     # Register tests
     include(GoogleTest)
-    gtest_discover_tests(gmp-resources-test)
-    gtest_discover_tests(gmp-math-test)
-    gtest_discover_tests(gmp-geometry-test)
-    gtest_discover_tests(gmp-atom-test)
-    gtest_discover_tests(gmp-util-test)
-    gtest_discover_tests(gmp-input-test)    
-    gtest_discover_tests(gmp-morton-test)
-    gtest_discover_tests(gmp-tree-test)
-    gtest_discover_tests(gmp-region-query-test)
-    gtest_discover_tests(gmp-cif-test)
-    gtest_discover_tests(gmp-cpu-test)
 
     # Register CUDA test if enabled
     if(ENABLE_CUDA)
         gtest_discover_tests(gmp-cuda-test)
         gtest_discover_tests(gmp-rmm-test)
         gtest_discover_tests(gmp-cuda-tree-test)
+        gtest_discover_tests(gmp-cuda-region-query-test)
+    else()
+        gtest_discover_tests(gmp-resources-test)
+        gtest_discover_tests(gmp-math-test)
+        gtest_discover_tests(gmp-geometry-test)
+        gtest_discover_tests(gmp-atom-test)
+        gtest_discover_tests(gmp-util-test)
+        gtest_discover_tests(gmp-input-test)    
+        gtest_discover_tests(gmp-morton-test)
+        gtest_discover_tests(gmp-tree-test)
+        gtest_discover_tests(gmp-region-query-test)
+        gtest_discover_tests(gmp-cif-test)
+        gtest_discover_tests(gmp-cpu-test)
     endif()
 
-    # Add a custom target to build and run all tests
-    add_custom_target(run_all_tests
-        COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
-        DEPENDS gmp-resources-test gmp-math-test gmp-geometry-test gmp-atom-test gmp-util-test gmp-input-test gmp-morton-test gmp-tree-test gmp-region-query-test gmp-cif-test gmp-cpu-test
-        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-        COMMENT "Running all tests..."
-    )
-
-    # Add CUDA test to dependencies if enabled
+    # Add a custom target to build and run tests based on CUDA availability
     if(ENABLE_CUDA)
-        add_dependencies(run_all_tests gmp-cuda-test)
-        add_dependencies(run_all_tests gmp-rmm-test)
-        add_dependencies(run_all_tests gmp-cuda-tree-test)
+        # GPU tests when CUDA is enabled
+        add_custom_target(run_all_tests
+            COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
+            DEPENDS gmp-cuda-test gmp-rmm-test gmp-cuda-tree-test gmp-cuda-region-query-test
+            WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+            COMMENT "Running GPU tests..."
+        )
+    else()
+        # CPU tests when CUDA is disabled
+        add_custom_target(run_all_tests
+            COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
+            DEPENDS gmp-resources-test gmp-math-test gmp-geometry-test gmp-atom-test gmp-util-test gmp-input-test gmp-morton-test gmp-tree-test gmp-region-query-test gmp-cif-test gmp-cpu-test
+            WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+            COMMENT "Running CPU tests..."
+        )
     endif()
 endif()

@@ -166,22 +166,6 @@ TEST(math, sym_matrix3d_t) {
     EXPECT_EQ(s * v, sv_expected);
 };
 
-// Very basic test for mcsh_registry_t
-TEST(math, mcsh_registry_t) {
-    // Use the test-friendly instance instead of the regular one
-    auto& registry = gmp::mcsh::mcsh_registry_t<double>::get_instance();
-    
-    // Now we can safely test the values without memory allocation issues
-    EXPECT_EQ(registry.get_num_values(0), 1);
-    EXPECT_EQ(registry.get_num_values(1), 3);
-    EXPECT_EQ(registry.get_num_values(2), 6);
-    EXPECT_EQ(registry.get_num_values(3), 10);
-    EXPECT_EQ(registry.get_num_values(4), 15);
-    EXPECT_EQ(registry.get_num_values(5), 21);
-    EXPECT_EQ(registry.get_num_values(6), 28);
-    EXPECT_EQ(registry.get_num_values(7), 36);
-}
-
 int main(int argc, char **argv) {
     testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();

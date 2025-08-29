@@ -131,7 +131,7 @@ build_main_project() {
     echo "  - CUDA enabled: $ENABLE_CUDA"
     echo "  - CUDA architecture: $CUDA_ARCH"
     
-    cmake -DBUILD_TESTS=ON -DBUILD_TYPE_RELEASE=ON \
+    cmake -DBUILD_TESTS=ON -DBUILD_TYPE_RELEASE=OFF \
       -DUSE_SINGLE_PRECISION=$USE_SINGLE_PRECISION \
       -DENABLE_CUDA=$ENABLE_CUDA \
       -DCUDA_ARCH=$CUDA_ARCH \

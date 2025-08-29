@@ -74,6 +74,43 @@ namespace gmp { namespace util {
         outfile.close();
     }
 
+    template<typename Container1D>
+    void write_vector_1d(const Container1D &container1D, const std::string & filename, int k) {
+        // Open the file for writing, truncating it if it exists
+        std::ofstream outfile(filename, std::ios::trunc);
+        
+        // Check if the file was opened successfully
+        if (!outfile.is_open()) {
+            update_error(error_t::output_file_error);
+            return;
+        }
+        
+        // Write the vector data with k elements per line
+        int count = 0;
+        for (auto it = container1D.begin(); it != container1D.end(); ++it) {
+            // Set precision and format (only affects numeric types)
+            if constexpr (std::is_floating_point<typename Container1D::value_type>::value) {
+                outfile << std::fixed << std::setprecision(16) << std::setw(12);
+            }
+            outfile << *it;
+            count++;
+            
+            // Add comma if not the last element in the line and not the last element overall
+            if (count % k != 0 && std::next(it) != container1D.end()) {
+                outfile << ", ";
+            }
+            
+            // Start new line after k elements or at the end
+            if (count % k == 0 || std::next(it) == container1D.end()) {
+                outfile << "\n";
+            }
+        }
+        outfile << std::endl;
+        
+        // Close the file
+        outfile.close();
+    }
+
     template<typename Container>
     void print_vector(const Container& data, const std::string& name) {
         std::cout << name << ": ";
@@ -83,7 +120,7 @@ namespace gmp { namespace util {
         std::cout << std::endl;
     }
 
-    template<typename DataType, typename IndexType, template<typename, typename...> class Container>
+    template<typename DataType, typename IndexType, template<typename, typename...> class Container = std::vector>
     Container<IndexType> sort_indexes(const Container<DataType>& data) 
     {
         Container<IndexType> idx(data.size());
@@ -96,7 +133,7 @@ namespace gmp { namespace util {
         return idx;
     }
 
-    template<typename DataType, typename IndexType, template<typename, typename...> class Container>
+    template<typename DataType, typename IndexType, template<typename, typename...> class Container = std::vector>
     Container<IndexType> sort_indexes(const Container<DataType>& data, int start, int end, int start_idx = 0) 
     {
         Container<IndexType> idx(end - start);
@@ -109,7 +146,7 @@ namespace gmp { namespace util {
         return idx;
     }
 
-    template<typename DataType, typename IndexType, template<typename, typename...> class Container>
+    template<typename DataType, typename IndexType, template<typename, typename...> class Container = std::vector>
     Container<IndexType> sort_indexes_desc(const Container<DataType>& data, int start, int end, int start_idx = 0) 
     {
         Container<IndexType> idx(end - start);

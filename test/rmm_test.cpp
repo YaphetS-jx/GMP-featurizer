@@ -15,7 +15,7 @@
 #include <cuda_runtime.h>
 
 // using gmp::resources::pinned_host_allocator;
-using gmp::containers::vector_host;
+using gmp::containers::vector;
 using gmp::containers::vector_device;
 
 class RMMTest : public ::testing::Test {
@@ -104,7 +104,7 @@ TEST_F(RMMTest, PinnedHostAllocatorBasic) {
     std::cout << "=== Testing Pinned Host Allocator Basic Functionality ===" << std::endl;
     
     // Create a std::vector using pinned host memory resource via custom allocator
-    vector_host<int> host_vec;
+    vector<int> host_vec;
     
     // Test basic operations
     const size_t test_size = 5 * 1024 * 1024; // in total 20MB
@@ -160,7 +160,7 @@ TEST_F(RMMTest, DataTransferHostToDevice) {
     const size_t test_size = 5 * 1024 * 1024; // in total 20MB
     
     // Create host vector with pinned memory
-    vector_host<int> host_vec(test_size);
+    vector<int> host_vec(test_size);
     for (size_t i = 0; i < test_size; ++i) {
         host_vec[i] = static_cast<int>(i * 2);
     }

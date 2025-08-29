@@ -78,7 +78,7 @@ namespace gmp { namespace featurizer {
         cutoff_list_.reserve(gaussian_offset_.back() * num_features_);
         cutoff_info_.reserve(gaussian_offset_.back() * num_features_);
 
-        vector<T> factors = {1, 1, 1, 1, 1e-1, 1e-2, 1e-4, 1e-5, 1e-7, 1e-9, 1e-11}; // for threshold 
+        std::vector<T> factors = {1, 1, 1, 1, 1e-1, 1e-2, 1e-4, 1e-5, 1e-7, 1e-9, 1e-11}; // for threshold 
 
         for (auto feature_idx = 0; feature_idx < num_features_; ++feature_idx) {
             const auto &feature = feature_list[feature_idx];
@@ -87,14 +87,14 @@ namespace gmp { namespace featurizer {
             for (auto atom_type_idx = 0; atom_type_idx < num_atom_types_; ++atom_type_idx) {
                 auto start = gaussian_offset_[atom_type_idx];
                 auto end = gaussian_offset_[atom_type_idx + 1];
-                vector<T> cutoff_list;
+                std::vector<T> cutoff_list;
                 for (auto gaussian_idx = start; gaussian_idx < end; ++gaussian_idx) {
                     const auto &gaussian = (*psp_config)[gaussian_idx];
                     const auto cutoff = get_cutoff_gaussian(feature.sigma, gaussian, threshold);
                     cutoff_max_ = std::max(cutoff_max_, cutoff);
                     cutoff_list.push_back(cutoff);
                 }
-                auto sorted_idx = util::sort_indexes_desc<T, int, vector>(cutoff_list, 0, cutoff_list.size(), start);
+                auto sorted_idx = util::sort_indexes_desc<T, int>(cutoff_list, 0, cutoff_list.size(), start);
                 cutoff_info_.insert(cutoff_info_.end(), sorted_idx.begin(), sorted_idx.end());
                 for (auto idx : sorted_idx) {
                     cutoff_list_.push_back(cutoff_list[idx - start]);
@@ -226,15 +226,13 @@ namespace gmp { namespace featurizer {
     }
 
     template <typename T>
-    vector<vector<T>> featurizer_t<T>::compute(const vector<point3d_t<T>>& ref_positions, 
+    std::vector<std::vector<T>> featurizer_t<T>::compute(const vector<point3d_t<T>>& ref_positions, 
         const descriptor_config_t<T>* descriptor_config, const unit_cell_t<T>* unit_cell, const psp_config_t<T>* psp_config)
     {
-        // Get the singleton instance first
-        const auto& registry = mcsh::mcsh_registry_t<T>::get_instance();
         const auto& region_query = region_query_;
         const auto& feature_list = descriptor_config->get_feature_list();
 
-        vector<vector<T>> feature_collection;
+        std::vector<std::vector<T>> feature_collection;
         feature_collection.resize(ref_positions.size());
         
         // Get thread pool for parallel processing
@@ -243,7 +241,7 @@ namespace gmp { namespace featurizer {
         // Create futures to store results for each chunk
         const size_t num_threads = thread_pool.get_thread_count();
         const size_t chunk_size = (ref_positions.size() + num_threads - 1) / num_threads;
-        std::vector<std::future<vector<std::pair<size_t, vector<T>>>>> futures;
+        std::vector<std::future<std::vector<std::pair<size_t, std::vector<T>>>>> futures;
         futures.reserve(num_threads);
 
         // Submit chunked tasks to thread pool
@@ -253,8 +251,8 @@ namespace gmp { namespace featurizer {
             
             if (start_idx >= end_idx) break;
             
-            futures.push_back(thread_pool.enqueue([&, start_idx, end_idx]() -> vector<std::pair<size_t, vector<T>>> {
-                vector<std::pair<size_t, vector<T>>> chunk_results;
+            futures.push_back(thread_pool.enqueue([&, start_idx, end_idx]() -> std::vector<std::pair<size_t, std::vector<T>>> {
+                std::vector<std::pair<size_t, std::vector<T>>> chunk_results;
                 chunk_results.reserve(end_idx - start_idx);
                 
                 // Process each reference position in this chunk
@@ -262,18 +260,17 @@ namespace gmp { namespace featurizer {
                     const auto& ref_position = ref_positions[i];
                     
                     // find neighbors
-                    auto query_results = region_query->query(ref_position, cutoff_list_->cutoff_max_, unit_cell);
+                    auto query_results = region_query->query(ref_position, cutoff_list_->cutoff_max_, brt_.get(), unit_cell);
 
                     // calculate GMP features
-                    vector<T> feature(feature_list.size(), 0.0);
+                    std::vector<T> feature(feature_list.size(), 0.0);
                     for (auto feature_idx = 0; feature_idx < feature_list.size(); ++feature_idx) {
                         auto order = feature_list[feature_idx].order;
                         auto sigma = feature_list[feature_idx].sigma;
 
-                        // Get the function for the specified order
-                        const auto& mcsh_func = registry.get_function(order);
-                        const auto& num_values = registry.get_num_values(order);
-                        vector<T> desc_values(num_values, 0.0);
+                        // Get the number of values for the specified order
+                        const auto num_values = order < 0 ? 1 : mcsh::num_mcsh_values[order];
+                        std::vector<T> desc_values(num_values, 0.0);
 
                         for (const auto& result : query_results) {
                             const auto distance2 = result.distance_squared;
@@ -301,12 +298,12 @@ namespace gmp { namespace featurizer {
                                 const auto temp = C1 * std::exp(C2 * distance2) * occ;
                                 const auto shift = result.difference;
 
-                                mcsh_func(shift, distance2, temp, lambda, gamma, desc_values.data());
+                                mcsh::solid_mcsh(order, shift, distance2, temp, lambda, gamma, desc_values.data());
                             }
                         }
 
                         // weighted square sum of the values
-                        T squareSum = gmp::mcsh::weighted_square_sum(order, desc_values);
+                        T squareSum = gmp::mcsh::weighted_square_sum(order, desc_values.data());
                         if (descriptor_config->get_square()) {
                             feature[feature_idx] = squareSum;
                         } else {
@@ -336,5 +333,4 @@ namespace gmp { namespace featurizer {
     // Explicit instantiations for featurizer_t (only the class that's used externally)
     template class featurizer_t<float>;
     template class featurizer_t<double>;
-
 }} 

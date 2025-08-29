@@ -34,25 +34,25 @@ namespace gmp { namespace atom {
     }
 
     template <typename T>
-    inline const vector<typename unit_cell_t<T>::atom_type>& unit_cell_t<T>::get_atoms() const { return atoms_; }
+    inline const vector<atom_t<T>>& unit_cell_t<T>::get_atoms() const { return atoms_; }
 
     template <typename T>
-    inline const typename unit_cell_t<T>::lattice_type* unit_cell_t<T>::get_lattice() const { return lattice_.get(); }
+    inline const lattice_t<T>* unit_cell_t<T>::get_lattice() const { return lattice_.get(); }
 
     template <typename T>
     inline const array3d_bool& unit_cell_t<T>::get_periodicity() const { return periodicity_; }
 
     template <typename T>
-    inline const typename unit_cell_t<T>::atom_type& unit_cell_t<T>::operator[](size_t i) const { return atoms_[i]; }
+    inline const atom_t<T>& unit_cell_t<T>::operator[](size_t i) const { return atoms_[i]; }
 
     template <typename T>
     inline const atom_type_map_t& unit_cell_t<T>::get_atom_type_map() const { return atom_type_map_; }
 
     template <typename T>
-    inline void unit_cell_t<T>::set_lattice(std::unique_ptr<lattice_type>&& lattice) { lattice_ = std::move(lattice); }
+    inline void unit_cell_t<T>::set_lattice(std::unique_ptr<lattice_t<T>>&& lattice) { lattice_ = std::move(lattice); }
 
     template <typename T>
-    inline void unit_cell_t<T>::set_atoms(vector<atom_type>&& atoms) { atoms_ = std::move(atoms); }
+    inline void unit_cell_t<T>::set_atoms(vector<atom_t<T>>&& atoms) { atoms_ = std::move(atoms); }
 
     template <typename T>
     inline void unit_cell_t<T>::set_atom_type_map(atom_type_map_t&& atom_type_map) { atom_type_map_ = std::move(atom_type_map); }
@@ -77,14 +77,6 @@ namespace gmp { namespace atom {
     // Explicit instantiations for unit_cell_t
     template class unit_cell_t<float>;
     template class unit_cell_t<double>;
-
-    // gaussian_t implementations
-    template <typename T>
-    inline gaussian_t<T>::gaussian_t(T B, T beta) : B(B), beta(beta) {}
-
-    // Explicit instantiations for gaussian_t
-    template struct gaussian_t<float>;
-    template struct gaussian_t<double>;
 
     // psp_config_t implementations
     template <typename T>
@@ -126,9 +118,13 @@ namespace gmp { namespace atom {
     template class psp_config_t<float>;
     template class psp_config_t<double>;
 
+    // Explicit instantiations for template member functions  
+    // template psp_config_t<float>::psp_config_t(std::string, const unit_cell_t<float>*);
+    // template psp_config_t<double>::psp_config_t(std::string, const unit_cell_t<double>*);
+
     // read cif file 
     template <typename T>
-    inline void read_atom_file(const std::string& atom_file, std::unique_ptr<gmp::geometry::lattice_t<T>>& lattice, vector<atom_t<T>>& atoms, atom_type_map_t& atom_type_map) 
+    inline void read_atom_file(const std::string& atom_file, std::unique_ptr<lattice_t<T>>& lattice, vector<atom_t<T>>& atoms, atom_type_map_t& atom_type_map) 
     {
         gemmi::cif::Document doc;
         try {
@@ -179,14 +175,14 @@ namespace gmp { namespace atom {
     }
 
     // Explicit instantiations for read_atom_file
-    template void read_atom_file<float>(const std::string&, std::unique_ptr<gmp::geometry::lattice_t<float>>&, vector<atom_t<float>>&, atom_type_map_t&);
-    template void read_atom_file<double>(const std::string&, std::unique_ptr<gmp::geometry::lattice_t<double>>&, vector<atom_t<double>>&, atom_type_map_t&);
+    template void read_atom_file<float>(const std::string&, std::unique_ptr<lattice_t<float>>&, vector<atom_t<float>>&, atom_type_map_t&);
+    template void read_atom_file<double>(const std::string&, std::unique_ptr<lattice_t<double>>&, vector<atom_t<double>>&, atom_type_map_t&);
 
     // read psp file 
     template <typename T>
     inline void read_psp_file(const std::string& psp_file, const atom_type_map_t& atom_type_map, vector<gaussian_t<T>>& gaussian_table, vector<int>& offset) 
     {
-        vector<vector<gaussian_t<T>>> gaussian_table_2d(atom_type_map.size());
+        std::vector<std::vector<gaussian_t<T>>> gaussian_table_2d(atom_type_map.size());
 
         std::ifstream file(psp_file);
         if (!file.is_open()) {
@@ -232,7 +228,7 @@ namespace gmp { namespace atom {
                         iss.str(line);
                         T B, beta;
                         iss >> B >> beta;
-                        gaussian_table_2d[id].emplace_back(B, beta);
+                        gaussian_table_2d[id].push_back({B, beta});
                     }
                 }
             }

@@ -46,8 +46,14 @@ namespace gmp { namespace geometry {
         const array3d_type& operator[](size_t i) const;
         array3d_type& operator[](size_t i);
 
-        // get lattice metric
+        // update lattice metric
         void update_metric();
+
+        // get lattice metric
+        const sym_matrix3d_type get_metric() const;
+
+        // get lattice vectors
+        const matrix3d_type get_lattice_vectors() const;
 
         // get volume of cell
         T get_volume() const;
