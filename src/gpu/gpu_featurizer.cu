@@ -1,6 +1,7 @@
 #include <memory>
 #include <chrono>
 #include <iostream>
+#include <cuda_runtime.h>
 #include "input.hpp"
 #include "error.hpp"
 #include "atom.hpp"
@@ -13,14 +14,12 @@
 
 namespace gmp {
 
-    void run_gpu_featurizer(char* json_file) 
+    void run_gpu_featurizer(input::input_t* input) 
     {
         using namespace gmp;
         using namespace gmp::containers;
 
-        // parse arguments
-        std::unique_ptr<input::input_t> input = std::make_unique<input::input_t>(json_file);
-        GMP_CHECK(get_last_error());    
+        std::cout << "Running GPU featurizer..." << std::endl;
 
         // create unit cell
         std::unique_ptr<atom::unit_cell_flt> unit_cell = std::make_unique<atom::unit_cell_flt>(input->files->get_atom_file());
@@ -39,7 +38,7 @@ namespace gmp {
         GMP_CHECK(get_last_error());
 
         cudaStream_t stream = gmp::resources::gmp_resource::instance().get_stream();
-        
+
         // compute features
         std::unique_ptr<featurizer::cuda_featurizer_flt> cuda_featurizer = std::make_unique<featurizer::cuda_featurizer_flt>(
             ref_positions, unit_cell->get_atoms(), psp_config.get(), 
@@ -49,12 +48,24 @@ namespace gmp {
             featurizer->region_query_->get_offsets(), featurizer->region_query_->get_sorted_indexes());
         GMP_CHECK(get_last_error());
 
+        cudaEvent_t start, stop;
+        cudaEventCreate(&start);
+        cudaEventCreate(&stop);
+        cudaEventRecord(start, stream);
+
         // compute features
         auto result = cuda_featurizer->compute(
             input->descriptor_config->get_feature_list(), 
             input->descriptor_config->get_square(), 
             unit_cell->get_lattice(), stream
         );
+
+        cudaEventRecord(stop, stream);
+        cudaEventSynchronize(stop);
+        float milliseconds = 0;
+        cudaEventElapsedTime(&milliseconds, start, stop);
+        std::cout << "GPU featurizer time: " << milliseconds << " ms" << std::endl;
+
         GMP_CHECK(get_last_error());
         util::write_vector_1d(result, input->files->get_output_file(), input->descriptor_config->get_feature_list().size(), ref_positions.size(), false);
         GMP_CHECK(get_last_error());

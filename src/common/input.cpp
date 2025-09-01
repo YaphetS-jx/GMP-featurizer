@@ -73,7 +73,7 @@ namespace gmp { namespace input {
 
         // Optional entries
         if (config.contains("square")) {
-            this->descriptor_config->set_square(config["square"].get<int32_t>());
+            this->descriptor_config->set_square(config["square"].get<bool>());
         }
         if (config.contains("overlap threshold")) {
             this->descriptor_config->set_overlap_threshold(static_cast<gmp_float>(config["overlap threshold"].get<double>()));
@@ -99,6 +99,9 @@ namespace gmp { namespace input {
         }
         if (config.contains("num threads")) {
             this->descriptor_config->set_num_threads(static_cast<size_t>(config["num threads"].get<int32_t>()));
+        }
+        if (config.contains("enable gpu")) {
+            this->descriptor_config->set_enable_gpu(config["enable gpu"].get<bool>());
         }
 
         if (config.contains("orders")) {
@@ -135,13 +138,14 @@ namespace gmp { namespace input {
         std::cout << "  orders <list>                    List of orders (e.g., -1,0,1,2)" << std::endl;
         std::cout << "  sigmas <list>                    List of sigmas (e.g., 0.1,0.2,0.3)" << std::endl;
         std::cout << "  feature lists <list>             List of feature pairs (e.g., (1,0.1),(2,0.2))" << std::endl;
-        std::cout << "  square <int>                     Square option (0 or 1)" << std::endl;
+        std::cout << "  square <bool>                    Square option (true or false, default: false)" << std::endl;
         std::cout << "  overlap threshold <double>       Overlap threshold" << std::endl;
         std::cout << "  scaling mode <int>               Scaling mode (0 for radial, 1 for both)" << std::endl;
         std::cout << "  output file path <path>          Path to the output file" << std::endl;
         std::cout << "  reference grid <list>            Reference grid (e.g., 10,10,10)" << std::endl;
         std::cout << "  num bits per dim <int>           Number of bits per dimension" << std::endl;
         std::cout << "  num threads <int>                Number of threads" << std::endl;
+        std::cout << "  enable gpu <bool>                Enable GPU when CUDA is available (true or false, default: true)" << std::endl;
         std::cout << "  -h                               Print this help message" << std::endl;
         return;
     }
@@ -205,6 +209,7 @@ namespace gmp { namespace input {
         std::cout << "Overlap threshold: " << overlap_threshold_ << std::endl;
         std::cout << "Scaling mode: " << gmp_to_string(scaling_mode_) << std::endl;
         std::cout << "Ref grid: " << ref_grid_[0] << ", " << ref_grid_[1] << ", " << ref_grid_[2] << std::endl;
+        std::cout << "Enable GPU: " << (enable_gpu_ ? "true" : "false") << std::endl;
     }
 
     // Explicit instantiations for descriptor_config_t (used externally)

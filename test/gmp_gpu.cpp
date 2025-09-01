@@ -96,7 +96,7 @@ TEST_F(GmpGpuTest, CompareWithExpectedOutput) {
         "system file path": ")" << get_project_path("test/test_files/test.cif") << R"(",
         "psp file path": ")" << get_project_path("test/test_files/QE-kjpaw.gpsp") << R"(",
         "output file path": ")" << get_project_path("test/test_files/gmpFeatures_test.dat") << R"(",
-        "square": 0,
+        "square": false,
         "cutoff": 0.0,
         "overlap threshold": 1e-11,
         "cutoff method": 4,

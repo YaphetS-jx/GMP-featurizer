@@ -65,7 +65,7 @@ namespace gmp { namespace input {
             scaling_mode_(scaling_mode_t::radial), 
             ref_grid_({0, 0, 0}),
             overlap_threshold_(1e-11), square_(false),
-            num_bits_per_dim_(5), num_threads_(0) {}
+            num_bits_per_dim_(5), num_threads_(0), enable_gpu_(true) {}
         ~descriptor_config_t() = default;
 
     private:
@@ -76,6 +76,7 @@ namespace gmp { namespace input {
         bool square_;
         uint8_t num_bits_per_dim_;
         size_t num_threads_;
+        bool enable_gpu_;
 
     public:
         // accessor
@@ -86,6 +87,7 @@ namespace gmp { namespace input {
         const array3d_int32& get_ref_grid() const { return ref_grid_; }
         uint8_t get_num_bits_per_dim() const { return num_bits_per_dim_; }
         size_t get_num_threads() const { return num_threads_; }
+        bool get_enable_gpu() const { return enable_gpu_; }
 
         // setter
         void set_feature_list(const std::vector<int> orders, const std::vector<T> sigmas, const std::vector<std::tuple<int, T>> feature_list);
@@ -95,6 +97,7 @@ namespace gmp { namespace input {
         void set_ref_grid(const array3d_int32& ref_grid) { ref_grid_ = ref_grid; }
         void set_num_bits_per_dim(const uint8_t num_bits_per_dim) { num_bits_per_dim_ = num_bits_per_dim; }
         void set_num_threads(const size_t num_threads) { num_threads_ = num_threads; }
+        void set_enable_gpu(const bool enable_gpu) { enable_gpu_ = enable_gpu; }
 
         // print config
         void dump() const;
