@@ -128,7 +128,7 @@ void traverse_check_box_kernel(const cudaTextureObject_t internal_nodes_tex, con
     *num_indexes = 0;
     cuda_tree_traverse<check_box_t, uint32_t, float, int32_t>(
         internal_nodes_tex, leaf_nodes_tex, num_leaf_nodes, check_box,
-        point3d_t<float>{0.0f, 0.0f, 0.0f}, array3d_t<int32_t>{0, 0, 0}, indexes, num_indexes);
+        point3d_t<float>{0.0f, 0.0f, 0.0f}, array3d_t<int32_t>{0, 0, 0}, indexes, *num_indexes, 0);
     return;
 }
 
@@ -148,7 +148,7 @@ TEST_F(CudaTreeTest, TraverseBasicTest) {
     uint32_t query_upper_bound = interleave_bits(0b100, 0b100, 0b100, num_bits);
 
     // Perform traversal
-    result_t result(morton_codes.size(), 1, stream);
+    result_t result(1, stream);
 
     check_box_t check_box;
     create_masks(check_box.x_mask, check_box.y_mask, check_box.z_mask);
@@ -245,7 +245,8 @@ TEST_F(CudaTreeTest, Traverse_general_case) {
     
     cuda_binary_radix_tree_t<uint32_t, int32_t> cuda_tree(morton_codes, num_bits * 3);
 
-    result_t cuda_result(morton_codes.size(), 1, stream);
+    result_t cuda_result(1, stream);
+    cuda_result.indexes.resize(unique_points.size(), stream);
 
     check_box_t check_box;
     create_masks(check_box.x_mask, check_box.y_mask, check_box.z_mask);
@@ -267,9 +268,9 @@ TEST_F(CudaTreeTest, Traverse_general_case) {
                                                                                                                
     // check reuslt 
     EXPECT_EQ(cpu_result.size(), h_num_indexes[0]);
-    std::cout << "result size: " << cpu_result.size() << std::endl;
     for (int i = 0; i < h_num_indexes[0]; i++) {
         EXPECT_TRUE(cpu_result.find(h_indexes[i]) != cpu_result.end());
+
     }
 }
 

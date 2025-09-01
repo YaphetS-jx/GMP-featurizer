@@ -249,6 +249,11 @@ if(BUILD_TESTS)
         )
         set_cuda_architectures_for_target(gmp-cuda-region-query-test)
         
+        add_executable(gmp-gpu-test
+            test/gmp_gpu.cpp
+        )
+        set_cuda_architectures_for_target(gmp-gpu-test)
+        
     else()
         add_executable(gmp-resources-test
             test/resources.cpp
@@ -313,6 +318,7 @@ if(BUILD_TESTS)
         target_compile_definitions(gmp-rmm-test PRIVATE PROJECT_ROOT="${PROJECT_ROOT}")
         target_compile_definitions(gmp-cuda-tree-test PRIVATE PROJECT_ROOT="${PROJECT_ROOT}")
         target_compile_definitions(gmp-cuda-region-query-test PRIVATE PROJECT_ROOT="${PROJECT_ROOT}")
+        target_compile_definitions(gmp-gpu-test PRIVATE PROJECT_ROOT="${PROJECT_ROOT}")
     else()
         target_compile_definitions(gmp-resources-test PRIVATE PROJECT_ROOT="${PROJECT_ROOT}")
         target_compile_definitions(gmp-math-test PRIVATE PROJECT_ROOT="${PROJECT_ROOT}")
@@ -417,6 +423,27 @@ if(BUILD_TESTS)
         
         # Set CUDA properties for CUDA region query test
         set_target_properties(gmp-cuda-region-query-test PROPERTIES
+            CUDA_SEPARABLE_COMPILATION ON
+        )
+        
+        # Link GPU test
+        target_link_libraries(gmp-gpu-test
+            PRIVATE
+            GTest::gtest_main
+            GTest::gmock_main
+            gmp-featurizer-lib
+            ${CUDA_LIBRARIES}
+        )
+        
+        # Add CUDA include directories and libraries for GPU test
+        target_include_directories(gmp-gpu-test
+            PRIVATE
+            ${CMAKE_SOURCE_DIR}/src
+            ${CUDA_INCLUDE_DIRS}
+        )
+        
+        # Set CUDA properties for GPU test
+        set_target_properties(gmp-gpu-test PROPERTIES
             CUDA_SEPARABLE_COMPILATION ON
         )
     
@@ -571,6 +598,10 @@ if(BUILD_TESTS)
         set_target_properties(gmp-cuda-region-query-test PROPERTIES
             RUNTIME_OUTPUT_DIRECTORY ${TEST_RUNTIME_OUTPUT_DIRECTORY}
         )
+        
+        set_target_properties(gmp-gpu-test PROPERTIES
+            RUNTIME_OUTPUT_DIRECTORY ${TEST_RUNTIME_OUTPUT_DIRECTORY}
+        )
     else()
         set_target_properties(gmp-resources-test PROPERTIES
             RUNTIME_OUTPUT_DIRECTORY ${TEST_RUNTIME_OUTPUT_DIRECTORY}
@@ -626,6 +657,7 @@ if(BUILD_TESTS)
         gtest_discover_tests(gmp-rmm-test)
         gtest_discover_tests(gmp-cuda-tree-test)
         gtest_discover_tests(gmp-cuda-region-query-test)
+        gtest_discover_tests(gmp-gpu-test)
     else()
         gtest_discover_tests(gmp-resources-test)
         gtest_discover_tests(gmp-math-test)
@@ -645,7 +677,7 @@ if(BUILD_TESTS)
         # GPU tests when CUDA is enabled
         add_custom_target(run_all_tests
             COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
-            DEPENDS gmp-cuda-test gmp-rmm-test gmp-cuda-tree-test gmp-cuda-region-query-test
+            DEPENDS gmp-cuda-test gmp-rmm-test gmp-cuda-tree-test gmp-cuda-region-query-test gmp-gpu-test
             WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
             COMMENT "Running GPU tests..."
         )

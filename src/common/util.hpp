@@ -75,7 +75,7 @@ namespace gmp { namespace util {
     }
 
     template<typename Container1D>
-    void write_vector_1d(const Container1D &container1D, const std::string & filename, int k) {
+    void write_vector_1d(const Container1D &container1D, const std::string & filename, int nrows, int ncols, bool Transpose) {
         // Open the file for writing, truncating it if it exists
         std::ofstream outfile(filename, std::ios::trunc);
         
@@ -84,24 +84,36 @@ namespace gmp { namespace util {
             update_error(error_t::output_file_error);
             return;
         }
+
+        assert(container1D.size() == nrows * ncols);
         
         // Write the vector data with k elements per line
-        int count = 0;
-        for (auto it = container1D.begin(); it != container1D.end(); ++it) {
-            // Set precision and format (only affects numeric types)
-            if constexpr (std::is_floating_point<typename Container1D::value_type>::value) {
-                outfile << std::fixed << std::setprecision(16) << std::setw(12);
+        if (!Transpose) {
+            for (auto col = 0; col < ncols; ++col) {
+                for (auto row = 0; row < nrows; ++row) {
+                    // Set precision and format (only affects numeric types)
+                    if constexpr (std::is_floating_point<typename Container1D::value_type>::value) {
+                        outfile << std::fixed << std::setprecision(16) << std::setw(12);
+                    }
+                    outfile << container1D[row * ncols + col];
+                    if (row != nrows - 1) {
+                        outfile << ", ";
+                    }
+                }
+                outfile << "\n";
             }
-            outfile << *it;
-            count++;
-            
-            // Add comma if not the last element in the line and not the last element overall
-            if (count % k != 0 && std::next(it) != container1D.end()) {
-                outfile << ", ";
-            }
-            
-            // Start new line after k elements or at the end
-            if (count % k == 0 || std::next(it) == container1D.end()) {
+        } else {
+            for (auto row = 0; row < nrows; ++row) {
+                for (auto col = 0; col < ncols; ++col) {
+                    // Set precision and format (only affects numeric types)
+                    if constexpr (std::is_floating_point<typename Container1D::value_type>::value) {
+                        outfile << std::fixed << std::setprecision(16) << std::setw(12);
+                    }
+                    outfile << container1D[row * ncols + col];
+                    if (col != ncols - 1) {
+                        outfile << ", ";
+                    }
+                }
                 outfile << "\n";
             }
         }

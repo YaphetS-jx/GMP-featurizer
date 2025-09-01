@@ -76,13 +76,14 @@ namespace gmp { namespace featurizer {
         }
 
         __device__ __forceinline__
-        int load_info(const int feature_idx, const int idx) const {
-            return __ldg(&cutoff_info[idx]);
+        int load_info(const int feature_idx, const int atom_idx, const int idx) const {
+            const auto shift = feature_idx * num_gaussians + gaussian_offset[atom_idx];
+            return __ldg(&cutoff_info[shift + idx]);
         }
 
         __device__ __forceinline__
-        T load_cutoff(const int feature_idx, const int idx) const {
-            const auto shift = feature_idx * num_gaussians;
+        T load_cutoff(const int feature_idx, const int atom_idx, const int idx) const {
+            const auto shift = feature_idx * num_gaussians + gaussian_offset[atom_idx];
             return __ldg(&cutoff_list[shift + idx]);
         }
     };

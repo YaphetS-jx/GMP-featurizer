@@ -8,7 +8,7 @@ GMON_PATH=${4:-../profile/gmon.out}
 
 if [ "$USE_GDB" == "true" ]; then
     echo "running GMP Featurizer in $FEATURIZER_PATH with gdb"
-    gdb --args $FEATURIZER_PATH  \
+    cuda-gdb --args $FEATURIZER_PATH  \
         ./config.json
 elif [ "$USE_GPROF" == "true" ]; then
     echo "running GMP Featurizer in $FEATURIZER_PATH with gprof using $GMON_PATH"

@@ -48,7 +48,7 @@ namespace gmp { namespace tree {
     void cuda_check_sphere_t<MortonCodeType, FloatType, IndexType>::operator()(
         const MortonCodeType morton_code, const IndexType idx, 
         const point3d_t<FloatType> position, const array3d_t<IndexType> cell_shift, 
-        IndexType* indexes, IndexType* num_indexes) const 
+        IndexType* indexes, IndexType& num_indexes, const IndexType indexes_offset) const 
     {
         MortonCodeType x_min, y_min, z_min;
         deinterleave_bits(morton_code, num_bits_per_dim, x_min, y_min, z_min);
@@ -73,8 +73,10 @@ namespace gmp { namespace tree {
 
         auto distance_squared = gmp::util::cuda_calculate_distance_squared(metric, difference);
         if (distance_squared <= radius2) {
-            indexes[*num_indexes] = idx;
-            (*num_indexes)++;
+            if (indexes != nullptr) {
+                indexes[indexes_offset + num_indexes] = idx;    
+            }
+            num_indexes++;
         }
     }
 
@@ -157,7 +159,7 @@ namespace gmp { namespace tree {
     template <class Checker, typename MortonCodeType, typename FloatType, typename IndexType>
     __device__
     void cuda_tree_traverse(const cudaTextureObject_t internal_nodes_tex, const cudaTextureObject_t leaf_nodes_tex, const IndexType num_leaf_nodes, 
-        const Checker check_method, const point3d_t<FloatType> position, const array3d_t<IndexType> cell_shift, IndexType* indexes, IndexType* num_indexes)
+        const Checker check_method, const point3d_t<FloatType> position, const array3d_t<IndexType> cell_shift, IndexType* indexes, IndexType& num_indexes, const IndexType indexes_offset)
     {
         // Fixed stack for traversal
         IndexType stack_data[64];
@@ -177,7 +179,7 @@ namespace gmp { namespace tree {
                 MortonCodeType morton_code = tex1Dfetch<MortonCodeType>(leaf_nodes_tex, node_index);
                 
                 // Check if morton code is within query bounds
-                check_method(morton_code, node_index, position, cell_shift, indexes, num_indexes);
+                check_method(morton_code, node_index, position, cell_shift, indexes, num_indexes, indexes_offset);
             } else {
                 // Internal node
                 IndexType left = tex1Dfetch<IndexType>(internal_nodes_tex, (node_index - n) * 4);
@@ -198,25 +200,25 @@ namespace gmp { namespace tree {
     void cuda_tree_traverse<cuda_check_intersect_box_t<uint32_t, float, int32_t>, uint32_t, float, int32_t>
     (const cudaTextureObject_t internal_nodes_tex, const cudaTextureObject_t leaf_nodes_tex, const int32_t num_leaf_nodes, 
         const cuda_check_intersect_box_t<uint32_t, float, int32_t> check_method, 
-        const point3d_t<float> position, const array3d_t<int32_t> cell_shift, int32_t* indexes, int32_t* num_indexes);
+        const point3d_t<float> position, const array3d_t<int32_t> cell_shift, int32_t* indexes, int32_t& num_indexes, const int32_t indexes_offset);
     
     template __device__
     void cuda_tree_traverse<cuda_check_intersect_box_t<uint32_t, double, int32_t>, uint32_t, double, int32_t>
     (const cudaTextureObject_t internal_nodes_tex, const cudaTextureObject_t leaf_nodes_tex, const int32_t num_leaf_nodes, 
         const cuda_check_intersect_box_t<uint32_t, double, int32_t> check_method, 
-        const point3d_t<double> position, const array3d_t<int32_t> cell_shift, int32_t* indexes, int32_t* num_indexes);
+        const point3d_t<double> position, const array3d_t<int32_t> cell_shift, int32_t* indexes, int32_t& num_indexes, const int32_t indexes_offset);
 
     template __device__
     void cuda_tree_traverse<cuda_check_sphere_t<uint32_t, float, int32_t>, uint32_t, float, int32_t>
     (const cudaTextureObject_t internal_nodes_tex, const cudaTextureObject_t leaf_nodes_tex, const int32_t num_leaf_nodes, 
         const cuda_check_sphere_t<uint32_t, float, int32_t> check_method, 
-        const point3d_t<float> position, const array3d_t<int32_t> cell_shift, int32_t* indexes, int32_t* num_indexes);
+        const point3d_t<float> position, const array3d_t<int32_t> cell_shift, int32_t* indexes, int32_t& num_indexes, const int32_t indexes_offset);
     
     template __device__
     void cuda_tree_traverse<cuda_check_sphere_t<uint32_t, double, int32_t>, uint32_t, double, int32_t>
     (const cudaTextureObject_t internal_nodes_tex, const cudaTextureObject_t leaf_nodes_tex, const int32_t num_leaf_nodes, 
         const cuda_check_sphere_t<uint32_t, double, int32_t> check_method, 
-        const point3d_t<double> position, const array3d_t<int32_t> cell_shift, int32_t* indexes, int32_t* num_indexes);
+        const point3d_t<double> position, const array3d_t<int32_t> cell_shift, int32_t* indexes, int32_t& num_indexes, const int32_t indexes_offset);
 
     void bind_texture_memory(void* data_ptr, uint32_t size, int bits_per_channel, cudaTextureObject_t& tex)
     {

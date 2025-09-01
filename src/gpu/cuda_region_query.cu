@@ -111,24 +111,14 @@ namespace gmp { namespace region_query {
     template class cuda_region_query_t<uint32_t, int32_t, float>;
     template class cuda_region_query_t<uint32_t, int32_t, double>;
 
-    template <typename IndexType, typename FloatType>
-    IndexType get_max_num_mc(const array3d_t<FloatType> frac_radius, const IndexType num_bits_per_dim) {
-        FloatType size_per_dim = 1.0 / (1 << (num_bits_per_dim - 1));
-        IndexType max_num_mc = 1;
-        for (auto i = 0; i < 3; i++) {
-            max_num_mc *= (2 * ceil(frac_radius[i] / size_per_dim) + 1);
-        }
-        return max_num_mc; 
-    }
-
     template <typename MortonCodeType, typename FloatType, typename IndexType>
     __global__
     void cuda_traverse_sphere_kernel(const cudaTextureObject_t internal_nodes_tex, const cudaTextureObject_t leaf_nodes_tex, 
         const IndexType num_leaf_nodes, const cuda_check_sphere_t<MortonCodeType, FloatType, IndexType> check_method,
         const point3d_t<FloatType>* positions, 
         const IndexType* query_target_indexes, const array3d_t<IndexType>* query_target_cell_shifts,
-        const IndexType num_queries, const IndexType max_num_mc,
-        IndexType* indexes, IndexType* num_indexes)
+        const IndexType num_queries, 
+        IndexType* indexes, IndexType* num_indexes, const IndexType* indexes_offset = nullptr)
     {
         auto tid = blockIdx.x * blockDim.x + threadIdx.x;
         if (tid >= num_queries) return;
@@ -139,9 +129,8 @@ namespace gmp { namespace region_query {
 
         cuda_tree_traverse<cuda_check_sphere_t<MortonCodeType, FloatType, IndexType>, MortonCodeType, FloatType, IndexType>(
             internal_nodes_tex, leaf_nodes_tex, num_leaf_nodes, check_method, 
-            position, cell_shift, indexes + tid * max_num_mc, num_indexes + tid);
-        // sanity check. if failed here, increase max_num_mc
-        assert(num_indexes[tid] <= max_num_mc);
+            position, cell_shift, indexes, num_indexes[tid], 
+            indexes_offset ? (tid > 0 ? indexes_offset[tid - 1] : 0) : 0);
     }
 
     template <typename MortonCodeType, typename IndexType, typename FloatType>
@@ -150,7 +139,7 @@ namespace gmp { namespace region_query {
         const IndexType* query_target_indexes, const array3d_t<IndexType>* query_target_cell_shifts, const IndexType num_queries, 
         const atom_t<FloatType>* atoms, const sym_matrix3d_t<FloatType> metric, const matrix3d_t<FloatType> lattice_vectors, const FloatType radius2, 
         const IndexType* traverse_result_offset, const IndexType num_traverse_results, 
-        const IndexType* indexes_per_traverse, const IndexType max_num_mc,
+        const IndexType* indexes_per_traverse, 
         IndexType* query_offsets, cuda_query_result_t<FloatType>* query_results)
     {
         auto tid = blockIdx.x * blockDim.x + threadIdx.x;
@@ -158,9 +147,7 @@ namespace gmp { namespace region_query {
 
         // get query index and cell index for the traverse result
         auto query_index = gmp::util::binary_search_first_larger(traverse_result_offset, static_cast<IndexType>(0), num_queries - 1, static_cast<IndexType>(tid));
-        auto local_index = query_index ? (tid - traverse_result_offset[query_index - 1]) : tid;
-        auto local_traverse_index = query_index * max_num_mc + local_index;
-        auto cell_index = indexes_per_traverse[local_traverse_index];
+        auto cell_index = indexes_per_traverse[tid];
 
         // get the atoms in the cell
         auto start = atom_offsets[cell_index];
@@ -239,38 +226,44 @@ namespace gmp { namespace region_query {
         vector_device<array3d_t<IndexType>> query_target_cell_shifts(1, stream);
         get_query_targets(frac_radius, positions, num_queries, query_target_indexes, query_target_cell_shifts);
 
-        // do treverse first to get traverse result 
-        auto max_num_mc = get_max_num_mc(frac_radius, region_query.num_bits_per_dim);
-        cuda_traverse_result_t<IndexType> traverse_result(max_num_mc, num_queries, stream);
-
-        std::cout << "max_num_mc: " << max_num_mc << std::endl;
-
         // create check method 
         cuda_check_sphere_t<MortonCodeType, FloatType, IndexType> check_method;
         check_method.radius2 = cutoff * cutoff;
         check_method.num_bits_per_dim = region_query.num_bits_per_dim;
         check_method.metric = lattice->get_metric();
 
+        // create traverse result
+        cuda_traverse_result_t<IndexType> traverse_result(num_queries, stream);
+
         // launch kernel 
         grid_size.x = (num_queries + block_size.x - 1) / block_size.x;
         cuda_traverse_sphere_kernel<MortonCodeType, FloatType, IndexType><<<grid_size, block_size, 0, stream>>>(
             region_query.brt->internal_nodes_tex, region_query.brt->leaf_nodes_tex, region_query.brt->num_leaf_nodes, 
-            check_method, positions.data(), query_target_indexes.data(), query_target_cell_shifts.data(),
-            num_queries, max_num_mc,
-            traverse_result.indexes.data(), traverse_result.num_indexes.data()
+            check_method, positions.data(), query_target_indexes.data(), query_target_cell_shifts.data(), num_queries,
+            nullptr, traverse_result.num_indexes.data()
         );
 
-        std::cout << "traverse result size: " << traverse_result.num_indexes.size() << std::endl;
-
         // inclusive sum to get traverse result offset
-        vector_device<IndexType> traverse_result_offset(num_queries, stream);
         THRUST_CALL(thrust::inclusive_scan, dm, stream, 
-            traverse_result.num_indexes.data(), traverse_result.num_indexes.data() + num_queries, traverse_result_offset.data());
+            traverse_result.num_indexes.data(), traverse_result.num_indexes.data() + num_queries, traverse_result.num_indexes_offset.data());
 
         // get the total number of traverse results
         IndexType num_traverse_results;
-        cudaMemcpyAsync(&num_traverse_results, traverse_result_offset.data() + num_queries - 1, sizeof(IndexType), cudaMemcpyDeviceToHost, stream);
+        cudaMemcpyAsync(&num_traverse_results, traverse_result.num_indexes_offset.data() + num_queries - 1, sizeof(IndexType), cudaMemcpyDeviceToHost, stream);
         cudaStreamSynchronize(stream);
+
+        // zero out num indexes
+        cudaMemsetAsync(traverse_result.num_indexes.data(), 0, num_queries * sizeof(IndexType), stream);
+
+        // allocate memory for traverse result
+        traverse_result.indexes.resize(num_traverse_results, stream);
+
+        // second traverse to get traverse result
+        cuda_traverse_sphere_kernel<MortonCodeType, FloatType, IndexType><<<grid_size, block_size, 0, stream>>>(
+            region_query.brt->internal_nodes_tex, region_query.brt->leaf_nodes_tex, region_query.brt->num_leaf_nodes, 
+            check_method, positions.data(), query_target_indexes.data(), query_target_cell_shifts.data(), num_queries,
+            traverse_result.indexes.data(), traverse_result.num_indexes.data(), traverse_result.num_indexes_offset.data()
+        );
 
         // filter over atoms per cell and count the number of atoms per traverse
         vector_device<IndexType> query_counts(num_traverse_results, stream);
@@ -279,8 +272,8 @@ namespace gmp { namespace region_query {
             region_query.offsets.data(), region_query.sorted_indexes.data(), 
             positions.data(), query_target_indexes.data(), query_target_cell_shifts.data(), num_queries, 
             atoms.data(), lattice->get_metric(), lattice->get_lattice_vectors(), check_method.radius2, 
-            traverse_result_offset.data(), num_traverse_results, 
-            traverse_result.indexes.data(), max_num_mc,
+            traverse_result.num_indexes_offset.data(), num_traverse_results, 
+            traverse_result.indexes.data(),
             query_counts.data(), nullptr);
 
         // inclusive sum to get query offsets
@@ -296,13 +289,12 @@ namespace gmp { namespace region_query {
         query_results.resize(num_query_results, stream);
 
         // get the atoms information 
-        grid_size.x = (num_query_results + block_size.x - 1) / block_size.x;
         filter_traverse_results_kernel<MortonCodeType, IndexType, FloatType><<<grid_size, block_size, 0, stream>>>(
             region_query.offsets.data(), region_query.sorted_indexes.data(), 
             positions.data(), query_target_indexes.data(), query_target_cell_shifts.data(), num_queries, 
             atoms.data(), lattice->get_metric(), lattice->get_lattice_vectors(), check_method.radius2, 
-            traverse_result_offset.data(), num_traverse_results, 
-            traverse_result.indexes.data(), max_num_mc,
+            traverse_result.num_indexes_offset.data(), num_traverse_results, 
+            traverse_result.indexes.data(),
             query_counts.data(), query_results.data());
         
         // compaction of query counts
@@ -310,7 +302,7 @@ namespace gmp { namespace region_query {
         grid_size.x = (positions.size() + block_size.x - 1) / block_size.x;
         compact_query_results_kernel<<<grid_size, block_size, 0, stream>>>(
             positions.size(), query_target_indexes.data(), num_queries,
-            query_counts.data(), traverse_result_offset.data(), query_offsets.data());
+            query_counts.data(), traverse_result.num_indexes_offset.data(), query_offsets.data());
         
         // block sort the query results
         thrust_ops::segmented_sort_inplace(query_results, query_offsets, compare_query_result_t<FloatType, IndexType>(), dm, stream);

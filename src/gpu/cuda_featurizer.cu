@@ -69,6 +69,7 @@ namespace gmp { namespace featurizer {
     __global__
     void get_num_gaussian_list(
         const cuda_query_result_t<T>* query_results, const int num_query_results, 
+        const atom_t<T>* atoms,
         const cuda_cutoff_list_t<T> cutoff_list, 
         int* num_gaussian_list)
     {
@@ -76,8 +77,9 @@ namespace gmp { namespace featurizer {
         if (idx >= num_query_results) return;
 
         auto atom_idx = query_results[idx].neighbor_index;
-        auto start = cutoff_list.load_offset(atom_idx);
-        auto end = cutoff_list.load_offset(atom_idx + 1);
+        auto atom = atoms[atom_idx];
+        auto start = cutoff_list.load_offset(atom.type_id);
+        auto end = cutoff_list.load_offset(atom.type_id + 1);
 
         num_gaussian_list[idx] = end - start;
     }
@@ -88,6 +90,7 @@ namespace gmp { namespace featurizer {
         const int* num_gaussian_offset, const int num_query_results, 
         const int* query_idx_mapping, const int total_num_gaussians, 
         const cuda_query_result_t<T>* query_results, 
+        const atom_t<T>* atoms,
         const cuda_cutoff_list_t<T> cutoff_list, 
         uint32_t* target_list)
     {
@@ -96,10 +99,12 @@ namespace gmp { namespace featurizer {
 
         auto query_idx = query_idx_mapping[idx];
         assert(query_idx < num_query_results);
-        auto distance2 = query_results[query_idx].distance_squared;
+        auto result = query_results[query_idx];
+        auto distance2 = result.distance_squared;
         
         auto local_gaussian_idx = query_idx > 0 ? (idx - num_gaussian_offset[query_idx - 1]) : idx;
-        auto gaussian_cutoff = cutoff_list.load_cutoff(feature_idx, local_gaussian_idx);
+        auto atom = atoms[result.neighbor_index];
+        auto gaussian_cutoff = cutoff_list.load_cutoff(feature_idx, atom.type_id, local_gaussian_idx);
         target_list[idx] = (distance2 > gaussian_cutoff * gaussian_cutoff) ? 0 : 1;
     }
 
@@ -108,6 +113,7 @@ namespace gmp { namespace featurizer {
         const int feature_idx, const vector_device<int>& num_gaussian_offset, const int num_query_results, 
         const vector_device<int>& query_idx_mapping, const int total_num_gaussians, 
         const vector_device<cuda_query_result_t<T>>& query_results, 
+        const vector_device<atom_t<T>>& atoms,
         const cuda_cutoff_list_t<T> cutoff_list, 
         gmp::resources::device_memory_manager* dm, cudaStream_t stream)
     {
@@ -119,7 +125,7 @@ namespace gmp { namespace featurizer {
         grid_size.x = (total_num_gaussians + block_size.x - 1) / block_size.x;
         get_target_list_kernel<<<grid_size, block_size, 0, stream>>>(
             feature_idx, num_gaussian_offset.data(), num_query_results, query_idx_mapping.data(), 
-            total_num_gaussians, query_results.data(), cutoff_list, temp_target_list.data());
+            total_num_gaussians, query_results.data(), atoms.data(), cutoff_list, temp_target_list.data());
 
         // compact target list 
         vector_device<uint32_t> target_list(total_num_gaussians, stream);
@@ -152,7 +158,9 @@ namespace gmp { namespace featurizer {
 
         // get gaussian 
         auto local_gaussian_idx = query_idx > 0 ? (target_idx - num_gaussian_offset[query_idx - 1]) : target_idx;
-        auto gaussian_idx = cutoff_list.load_info(feature_idx, local_gaussian_idx);
+        auto result = query_results[query_idx];
+        auto atom = atoms[result.neighbor_index];
+        auto gaussian_idx = cutoff_list.load_info(feature_idx, atom.type_id, local_gaussian_idx);
         auto gaussian = psp_config.load(gaussian_idx);
         auto B = gaussian.B;
         if (gmp::math::isZero(B)) return;
@@ -161,10 +169,14 @@ namespace gmp { namespace featurizer {
         auto kp = kernel_params_table.load(feature_idx, gaussian_idx);
 
         // get query result
-        auto result = query_results[query_idx];
-        auto occ = atoms[result.neighbor_index].occ;
+        auto occ = atom.occ;
         const auto temp = kp.C1 * std::exp(kp.C2 * result.distance_squared) * occ;
         const auto shift = result.difference;
+
+        if (point_idx > 12 && 0)
+        {
+            printf("idx: %d, point_idx: %d, temp: %f\n", idx, point_idx, temp);
+        }
 
         // calculate mcsh values
         mcsh::solid_mcsh(order, shift, result.distance_squared, temp, kp.lambda, kp.gamma, desc_values + point_idx * num_values);
@@ -207,8 +219,8 @@ namespace gmp { namespace featurizer {
         vector_device<int> num_gaussian_offset(num_query_results, stream);
         grid_size.x = (num_query_results + block_size.x - 1) / block_size.x;
         get_num_gaussian_list<<<grid_size, block_size, 0, stream>>>(
-            query_results.data(), num_query_results, d_cutoff, num_gaussian_offset.data());
-        
+            query_results.data(), num_query_results, d_atoms.data(), d_cutoff, num_gaussian_offset.data());
+
         // calculate offset
         THRUST_CALL(thrust::inclusive_scan, dm, stream, 
             num_gaussian_offset.data(), num_gaussian_offset.data() + num_query_results, num_gaussian_offset.data());
@@ -216,7 +228,6 @@ namespace gmp { namespace featurizer {
         uint32_t total_num_gaussians;
         cudaMemcpyAsync(&total_num_gaussians, num_gaussian_offset.data() + num_query_results - 1, sizeof(uint32_t), cudaMemcpyDeviceToHost, stream);
         cudaStreamSynchronize(stream);
-        std::cout << "total_num_gaussians: " << total_num_gaussians << std::endl;
 
         // get index mapping 
         vector_device<int> query_idx_mapping(total_num_gaussians, stream);
@@ -226,6 +237,7 @@ namespace gmp { namespace featurizer {
         auto num_positions = d_positions.size();
         auto num_features = feature_list.size();
         vector_device<T> feature_collection(num_positions * num_features, stream);
+        cudaMemsetAsync(feature_collection.data(), 0, num_positions * num_features * sizeof(T), stream);
 
         for (auto feature_idx = 0; feature_idx < num_features; ++feature_idx) {
             auto order = feature_list[feature_idx].order;
@@ -235,12 +247,13 @@ namespace gmp { namespace featurizer {
             // get target list 
             auto target_list = get_target_list(feature_idx, 
                 num_gaussian_offset, num_query_results, query_idx_mapping, 
-                total_num_gaussians, query_results, d_cutoff, dm, stream);
+                total_num_gaussians, query_results, d_atoms, d_cutoff, dm, stream);
             
             auto num_selected = target_list.size();
 
             // doing calculation
             vector_device<T> desc_values(num_values * num_positions, stream);
+            cudaMemsetAsync(desc_values.data(), 0, num_values * num_positions * sizeof(T), stream);
             grid_size.x = (num_selected + block_size.x - 1) / block_size.x;
             featurizer_kernel<<<grid_size, block_size, 0, stream>>>(
                 feature_idx, order, target_list.data(), num_selected, 

@@ -56,7 +56,7 @@ namespace gmp {
             unit_cell->get_lattice(), stream
         );
         GMP_CHECK(get_last_error());
-        util::write_vector_1d(result, input->files->get_output_file(), input->descriptor_config->get_feature_list().size());
+        util::write_vector_1d(result, input->files->get_output_file(), input->descriptor_config->get_feature_list().size(), ref_positions.size(), false);
         GMP_CHECK(get_last_error());
     }
 

@@ -23,16 +23,15 @@ namespace gmp { namespace tree {
     public:
         vector_device<IndexType> indexes; // preallocated by overestimation 
         vector_device<IndexType> num_indexes; // number of indexes saved
-        IndexType max_num_mc; // maximum number of mc to be stored
+        vector_device<IndexType> num_indexes_offset; // offset of num_indexes
         IndexType num_queries; // number of queries
 
-        cuda_traverse_result_t(IndexType max_num_mc, IndexType num_queries, cudaStream_t stream = gmp::resources::gmp_resource::instance().get_stream()) : 
-            indexes(max_num_mc * num_queries, stream),
+        cuda_traverse_result_t(IndexType num_queries, cudaStream_t stream = gmp::resources::gmp_resource::instance().get_stream()) : 
+            indexes(1, stream),
             num_indexes(num_queries, stream),
-            max_num_mc(max_num_mc),
+            num_indexes_offset(num_queries, stream),
             num_queries(num_queries)
         {
-            cudaMemsetAsync(indexes.data(), 0, max_num_mc * num_queries * sizeof(IndexType), stream);
             cudaMemsetAsync(num_indexes.data(), 0, num_queries * sizeof(IndexType), stream);
         }
         ~cuda_traverse_result_t() = default;
@@ -56,13 +55,13 @@ namespace gmp { namespace tree {
         __device__
         void operator() (const MortonCodeType morton_code, const IndexType idx, 
             const point3d_t<FloatType> position, const array3d_t<IndexType> cell_shift, 
-            IndexType* indexes, IndexType* num_indexes) const
+            IndexType* indexes, IndexType& num_indexes, const IndexType indexes_offset = 0) const /* indexes_offset is deprecated for box intersection check */
         {
             if (mc_is_less_than_or_equal(query_lower_bound, morton_code, x_mask, y_mask, z_mask) && 
                 mc_is_less_than_or_equal(morton_code, query_upper_bound, x_mask, y_mask, z_mask)) 
             {
-                indexes[*num_indexes] = idx;
-                (*num_indexes)++;  
+                indexes[num_indexes] = idx;
+                num_indexes++;
             }
         }
     };
@@ -82,7 +81,7 @@ namespace gmp { namespace tree {
         __device__
         void operator()(const MortonCodeType morton_code, const IndexType idx, 
             const point3d_t<FloatType> position, const array3d_t<IndexType> cell_shift, 
-            IndexType* indexes, IndexType* num_indexes) const;
+            IndexType* indexes, IndexType& num_indexes, const IndexType indexes_offset) const;
     };
 
     template <
@@ -111,7 +110,7 @@ namespace gmp { namespace tree {
     template <class Checker, typename MortonCodeType, typename FloatType, typename IndexType>
     __device__
     void cuda_tree_traverse(const cudaTextureObject_t internal_nodes_tex, const cudaTextureObject_t leaf_nodes_tex, const IndexType num_leaf_nodes, 
-        const Checker check_method, const point3d_t<FloatType> position, const array3d_t<IndexType> cell_shift, IndexType* indexes, IndexType* num_indexes);
+        const Checker check_method, const point3d_t<FloatType> position, const array3d_t<IndexType> cell_shift, IndexType* indexes, IndexType& num_indexes, const IndexType indexes_offset = 0);
 
     // Texture memory setup and teardown
     void bind_texture_memory(void* data_ptr, uint32_t size, int bits_per_channel, cudaTextureObject_t& tex);
