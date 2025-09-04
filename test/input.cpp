@@ -172,7 +172,7 @@ TEST_F(InputTest, json_parse_arguments) {
     // Check numeric values
     EXPECT_DOUBLE_EQ(obj["overlap threshold"].get<double>(), 1e-10);
     EXPECT_EQ(obj["scaling mode"].get<int64_t>(), 0);
-    EXPECT_EQ(obj["square"].get<int64_t>(), 1);
+    EXPECT_EQ(obj["square"].get<bool>(), true);
     
     // Check array of doubles
     json const& tree_min_bounds = obj["tree min bounds"];
