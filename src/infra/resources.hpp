@@ -10,6 +10,7 @@
 #include <rmm/mr/device/cuda_async_memory_resource.hpp>
 #include <rmm/mr/device/pool_memory_resource.hpp>
 #include <rmm/mr/pinned_host_memory_resource.hpp>
+#include <rmm/mr/device/per_device_resource.hpp>
 #endif
 
 namespace gmp { namespace resources {
@@ -45,13 +46,15 @@ namespace gmp { namespace resources {
         }
 
         #ifdef GMP_ENABLE_CUDA
-        // get gpu device memory pool
+        // get gpu device memory pool and set it as current device resource
         rmm::mr::cuda_async_memory_resource* get_gpu_device_memory_pool() const {
             if (!gpu_device_memory_pool_) {
                 auto [free_memory, total_memory] = rmm::available_device_memory();
                 // Use a reasonable initial pool size (1GB) instead of all available memory
                 size_t initial_pool_size = std::min(free_memory / 4, size_t(1 << 30)); // 1GB or 25% of free memory, whichever is smaller
                 gpu_device_memory_pool_ = std::make_unique<rmm::mr::cuda_async_memory_resource>(initial_pool_size);
+                // Set this pool as the current device resource for RMM
+                rmm::mr::set_current_device_resource(gpu_device_memory_pool_.get());
             }
             return gpu_device_memory_pool_.get();
         }

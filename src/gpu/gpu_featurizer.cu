@@ -21,6 +21,13 @@ namespace gmp {
 
         std::cout << "Running GPU featurizer..." << std::endl;
 
+        // Ensure CUDA device is set before creating RMM resources
+        cudaError_t cuda_status = cudaSetDevice(0);
+        if (cuda_status != cudaSuccess) {
+            std::cerr << "ERROR: Failed to set CUDA device: " << cudaGetErrorString(cuda_status) << std::endl;
+            return;
+        }
+
         // create unit cell
         std::unique_ptr<atom::unit_cell_flt> unit_cell = std::make_unique<atom::unit_cell_flt>(input->files->get_atom_file());
         GMP_CHECK(get_last_error());
