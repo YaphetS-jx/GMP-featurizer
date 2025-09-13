@@ -29,8 +29,14 @@ RUN apt-get update && apt-get install -y \
     # Additional development tools
     pkg-config \
     gdb gdbserver \
+    # nsys for GPU profiling
+    # nsight-systems \
     # Clean up
     && rm -rf /var/lib/apt/lists/*
+
+# Install latest Nsight Systems (nsys)
+RUN apt-get update && apt-get install -y nsight-systems-2025.3.2 && \
+    rm -rf /var/lib/apt/lists/*
 
 # Install latest CMake from Kitware
 RUN wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | gpg --dearmor -o /usr/share/keyrings/kitware.gpg && \

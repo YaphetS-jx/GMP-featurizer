@@ -116,4 +116,11 @@ namespace gmp { namespace tree {
     void bind_texture_memory(void* data_ptr, uint32_t size, int bits_per_channel, cudaTextureObject_t& tex);
     void unbind_texture_memory(cudaTextureObject_t tex);
 
+    template <class Checker, typename MortonCodeType, typename FloatType, typename IndexType, int MAX_STACK=64>
+    __global__
+    void cuda_tree_traverse_warp(const cudaTextureObject_t internal_nodes_tex, const cudaTextureObject_t leaf_nodes_tex, const IndexType num_leaf_nodes, 
+        const Checker check_method, const point3d_t<FloatType>* positions, const IndexType* query_target_indexes,
+        const array3d_t<IndexType>* cell_shifts, const IndexType num_queries,
+        IndexType* indexes, IndexType* num_indexes, const IndexType* num_indexes_offset);
+
 }} // namespace gmp::tree

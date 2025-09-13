@@ -244,4 +244,116 @@ namespace gmp { namespace tree {
         cudaDestroyTextureObject(tex);
     }
 
+
+    template <class Checker, typename MortonCodeType, typename FloatType, typename IndexType, int MAX_STACK>
+    __global__
+    void cuda_tree_traverse_warp(const cudaTextureObject_t internal_nodes_tex, const cudaTextureObject_t leaf_nodes_tex, const IndexType num_leaf_nodes, 
+        const Checker check_method, const point3d_t<FloatType>* positions, const IndexType* query_target_indexes,
+        const array3d_t<IndexType>* cell_shifts, const IndexType num_queries,
+        IndexType* indexes, IndexType* num_indexes, const IndexType* num_indexes_offset)
+    {
+        const IndexType lane  = threadIdx.x & 31;
+        const IndexType warp  = threadIdx.x >> 5;
+        const IndexType warps_per_block = blockDim.x >> 5;
+        const IndexType global_warp = blockIdx.x * warps_per_block + warp;
+        const IndexType q0 = global_warp * 32;
+        if (q0 >= num_queries) return; // warp level inactive, skip
+
+        const IndexType tid = q0 + lane;
+        IndexType packet_mask = __ballot_sync(0xffffffff, tid < num_queries);
+        if (!packet_mask) return; // warp level inactive, skip
+
+        const auto& query_target_index = tid < num_queries ? query_target_indexes[tid] : 0;
+        const auto& position = positions[query_target_index];
+        const auto& cell_shift = tid < num_queries ? cell_shifts[tid] : array3d_t<IndexType>{0, 0, 0};
+        IndexType dummy_num_index = 0;
+        IndexType& num_index = (tid < num_queries) ? num_indexes[tid] : dummy_num_index;
+        const IndexType indexes_offset = tid < num_queries ? (num_indexes_offset ? (tid > 0 ? num_indexes_offset[tid - 1] : 0) : 0) : 0;
+
+        extern __shared__ IndexType smem[];
+        IndexType *stack_nodes = smem;                                  // [warps_per_block * MAX_STACK]
+        IndexType *stack_masks = smem + warps_per_block * MAX_STACK;    // [warps_per_block * MAX_STACK]
+
+        auto sidx = [&](IndexType sp)->IndexType { return warp * MAX_STACK + sp; };
+        IndexType stack_top = -1;
+        if (lane == 0) {
+            ++stack_top;
+            stack_nodes[sidx(stack_top)] = num_leaf_nodes;
+            stack_masks[sidx(stack_top)] = packet_mask;
+        }
+        // broadcast stack_top
+        // assert((packet_mask & 1u));
+        stack_top = __shfl_sync(0xffffffff, stack_top, 0);
+        
+        while (stack_top >= 0) {
+            IndexType node_index, mask;
+            if (lane == 0) {
+                node_index = stack_nodes[sidx(stack_top)];
+                mask = stack_masks[sidx(stack_top)];
+                --stack_top;
+            }
+            // broadcast node_index and mask
+            node_index = __shfl_sync(0xffffffff, node_index, 0);
+            mask = __shfl_sync(0xffffffff, mask, 0);
+            // broadcast stack_top
+            stack_top = __shfl_sync(0xffffffff, stack_top, 0);
+            bool lane_active = ((unsigned)mask & (1u << lane)) != 0;
+            
+            if (node_index < num_leaf_nodes) {
+                MortonCodeType morton_code = lane == 0 ? tex1Dfetch<MortonCodeType>(leaf_nodes_tex, node_index) : 0;
+                morton_code = __shfl_sync(0xffffffff, morton_code, 0);
+                if (!lane_active) continue; 
+                check_method(morton_code, node_index, position, cell_shift, indexes, num_index, indexes_offset);
+            } else {
+                MortonCodeType lower_bound = lane == 0 ? tex1Dfetch<MortonCodeType>(internal_nodes_tex, (node_index - num_leaf_nodes) * 4 + 2) : 0;
+                MortonCodeType upper_bound = lane == 0 ? tex1Dfetch<MortonCodeType>(internal_nodes_tex, (node_index - num_leaf_nodes) * 4 + 3) : 0;
+                lower_bound = __shfl_sync(0xffffffff, lower_bound, 0);
+                upper_bound = __shfl_sync(0xffffffff, upper_bound, 0);
+
+                bool hit = lane_active && check_method(lower_bound, upper_bound, position, cell_shift);
+                IndexType parent_mask  = __ballot_sync(0xffffffff, hit);
+
+                if (lane == 0 && parent_mask) {
+                    IndexType left = tex1Dfetch<IndexType>(internal_nodes_tex, (node_index - num_leaf_nodes) * 4);
+                    IndexType right = tex1Dfetch<IndexType>(internal_nodes_tex, (node_index - num_leaf_nodes) * 4 + 1);
+
+                    ++stack_top;
+                    stack_nodes[sidx(stack_top)] = left; stack_masks[sidx(stack_top)] = parent_mask;
+                    ++stack_top;
+                    stack_nodes[sidx(stack_top)] = right; stack_masks[sidx(stack_top)] = parent_mask;
+                }
+                // broadcast stack_top
+                stack_top = __shfl_sync(0xffffffff, stack_top, 0);
+            }
+        }
+    }
+
+    template __global__
+    void cuda_tree_traverse_warp<cuda_check_intersect_box_t<uint32_t, float, int32_t>, uint32_t, float, int32_t, 64>
+    (const cudaTextureObject_t internal_nodes_tex, const cudaTextureObject_t leaf_nodes_tex, const int32_t num_leaf_nodes, 
+        const cuda_check_intersect_box_t<uint32_t, float, int32_t> check_method, 
+        const point3d_t<float>* positions, const int32_t* query_target_indexes, const array3d_t<int32_t>* cell_shifts, const int32_t num_queries,
+        int32_t* indexes, int32_t* num_indexes, const int32_t* num_indexes_offset);
+    
+    template __global__
+    void cuda_tree_traverse_warp<cuda_check_intersect_box_t<uint32_t, double, int32_t>, uint32_t, double, int32_t, 64>
+    (const cudaTextureObject_t internal_nodes_tex, const cudaTextureObject_t leaf_nodes_tex, const int32_t num_leaf_nodes, 
+        const cuda_check_intersect_box_t<uint32_t, double, int32_t> check_method, 
+        const point3d_t<double>* positions, const int32_t* query_target_indexes, const array3d_t<int32_t>* cell_shifts, const int32_t num_queries,
+        int32_t* indexes, int32_t* num_indexes, const int32_t* num_indexes_offset);
+
+    template __global__
+    void cuda_tree_traverse_warp<cuda_check_sphere_t<uint32_t, float, int32_t>, uint32_t, float, int32_t, 64>
+    (const cudaTextureObject_t internal_nodes_tex, const cudaTextureObject_t leaf_nodes_tex, const int32_t num_leaf_nodes, 
+        const cuda_check_sphere_t<uint32_t, float, int32_t> check_method, 
+        const point3d_t<float>* positions, const int32_t* query_target_indexes, const array3d_t<int32_t>* cell_shifts, const int32_t num_queries,
+        int32_t* indexes, int32_t* num_indexes, const int32_t* num_indexes_offset);
+    
+    template __global__
+    void cuda_tree_traverse_warp<cuda_check_sphere_t<uint32_t, double, int32_t>, uint32_t, double, int32_t, 64>
+    (const cudaTextureObject_t internal_nodes_tex, const cudaTextureObject_t leaf_nodes_tex, const int32_t num_leaf_nodes, 
+        const cuda_check_sphere_t<uint32_t, double, int32_t> check_method, 
+        const point3d_t<double>* positions, const int32_t* query_target_indexes, const array3d_t<int32_t>* cell_shifts, const int32_t num_queries,
+        int32_t* indexes, int32_t* num_indexes, const int32_t* num_indexes_offset);
+        
 }} // namespace gmp::tree 

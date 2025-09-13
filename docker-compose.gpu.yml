@@ -17,3 +17,6 @@ services:
             - driver: nvidia
               count: all
               capabilities: [gpu] 
+    environment:
+      NVIDIA_VISIBLE_DEVICES: "all"           # or "0,1"
+      NVIDIA_DRIVER_CAPABILITIES: "compute,utility"

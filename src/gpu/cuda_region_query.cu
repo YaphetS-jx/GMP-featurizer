@@ -5,6 +5,7 @@
 #include "cuda_util.hpp"
 #include "cuda_thrust_ops.hpp"
 #include <thrust/scan.h>
+#include <thrust/equal.h>
 
 namespace gmp { namespace region_query {
 
@@ -227,7 +228,8 @@ namespace gmp { namespace region_query {
         get_query_targets(frac_radius, positions, num_queries, query_target_indexes, query_target_cell_shifts);
 
         // create check method 
-        cuda_check_sphere_t<MortonCodeType, FloatType, IndexType> check_method;
+        using Checker = cuda_check_sphere_t<MortonCodeType, FloatType, IndexType>;
+        Checker check_method;
         check_method.radius2 = cutoff * cutoff;
         check_method.num_bits_per_dim = region_query.num_bits_per_dim;
         check_method.metric = lattice->get_metric();
@@ -235,13 +237,15 @@ namespace gmp { namespace region_query {
         // create traverse result
         cuda_traverse_result_t<IndexType> traverse_result(num_queries, stream);
 
-        // launch kernel 
+        // launch the warp version 
         grid_size.x = (num_queries + block_size.x - 1) / block_size.x;
-        cuda_traverse_sphere_kernel<MortonCodeType, FloatType, IndexType><<<grid_size, block_size, 0, stream>>>(
+        const int warps_per_block = block_size.x >> 5;
+        const int MAX_STACK = 64;
+        size_t shmem_bytes = 2 * warps_per_block * MAX_STACK * sizeof(IndexType);
+        cuda_tree_traverse_warp<Checker, MortonCodeType, FloatType, IndexType, 64><<<grid_size, block_size, shmem_bytes, stream>>>(
             region_query.brt->internal_nodes_tex, region_query.brt->leaf_nodes_tex, region_query.brt->num_leaf_nodes, 
             check_method, positions.data(), query_target_indexes.data(), query_target_cell_shifts.data(), num_queries,
-            nullptr, traverse_result.num_indexes.data()
-        );
+            nullptr, traverse_result.num_indexes.data(), nullptr);
 
         // inclusive sum to get traverse result offset
         THRUST_CALL(thrust::inclusive_scan, dm, stream, 
@@ -259,11 +263,10 @@ namespace gmp { namespace region_query {
         traverse_result.indexes.resize(num_traverse_results, stream);
 
         // second traverse to get traverse result
-        cuda_traverse_sphere_kernel<MortonCodeType, FloatType, IndexType><<<grid_size, block_size, 0, stream>>>(
+        cuda_tree_traverse_warp<Checker, MortonCodeType, FloatType, IndexType, 64><<<grid_size, block_size, shmem_bytes, stream>>>(
             region_query.brt->internal_nodes_tex, region_query.brt->leaf_nodes_tex, region_query.brt->num_leaf_nodes, 
             check_method, positions.data(), query_target_indexes.data(), query_target_cell_shifts.data(), num_queries,
-            traverse_result.indexes.data(), traverse_result.num_indexes.data(), traverse_result.num_indexes_offset.data()
-        );
+            traverse_result.indexes.data(), traverse_result.num_indexes.data(), traverse_result.num_indexes_offset.data());
 
         // filter over atoms per cell and count the number of atoms per traverse
         vector_device<IndexType> query_counts(num_traverse_results, stream);
