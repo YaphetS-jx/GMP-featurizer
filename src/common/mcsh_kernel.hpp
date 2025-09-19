@@ -39,28 +39,21 @@ namespace gmp { namespace mcsh {
     template <typename T>
     GPU_HOST_DEVICE constexpr T P4(const T lambda_x0_2, const T lambda_x0_4,
                                    const T inv_gamma, const T inv_gamma_2) {
-        const T term1 = 0.75 * inv_gamma_2;
-        const T term2 = 3.0 * lambda_x0_2 * inv_gamma;
-        return term1 + term2 + lambda_x0_4;
+        return 0.75 * inv_gamma_2 + 3.0 * lambda_x0_2 * inv_gamma + lambda_x0_4;
     }
     
     template <typename T>
     GPU_HOST_DEVICE constexpr T P5(const T lambda_x0, const T lambda_x0_3,
                                    const T lambda_x0_5, const T inv_gamma,
                                    const T inv_gamma_2) {
-        const T term1 = 3.75 * lambda_x0 * inv_gamma_2;
-        const T term2 = 5.0 * lambda_x0_3 * inv_gamma;
-        return term1 + term2 + lambda_x0_5;
+        return 3.75 * lambda_x0 * inv_gamma_2 + 5.0 * lambda_x0_3 * inv_gamma + lambda_x0_5;
     }
     
     template <typename T>
     GPU_HOST_DEVICE constexpr T P6(const T lambda_x0_2, const T lambda_x0_4,
                                    const T lambda_x0_6, const T inv_gamma,
                                    const T inv_gamma_2, const T inv_gamma_3) {
-        const T term1 = 1.875 * inv_gamma_3;
-        const T term2 = 11.25 * lambda_x0_2 * inv_gamma_2;
-        const T term3 = 7.5 * lambda_x0_4 * inv_gamma;
-        return term1 + term2 + term3 + lambda_x0_6;
+        return 1.875 * inv_gamma_3 + 11.25 * lambda_x0_2 * inv_gamma_2 + 7.5 * lambda_x0_4 * inv_gamma + lambda_x0_6;
     }
     
     template <typename T>
@@ -68,10 +61,7 @@ namespace gmp { namespace mcsh {
                                    const T lambda_x0_5, const T lambda_x0_7,
                                    const T inv_gamma, const T inv_gamma_2,
                                    const T inv_gamma_3) {
-        const T term1 = 13.125 * lambda_x0 * inv_gamma_3;
-        const T term2 = 26.25 * lambda_x0_3 * inv_gamma_2;
-        const T term3 = 10.5 * lambda_x0_5 * inv_gamma;
-        return term1 + term2 + term3 + lambda_x0_7;
+        return 13.125 * lambda_x0 * inv_gamma_3 + 26.25 * lambda_x0_3 * inv_gamma_2 + 10.5 * lambda_x0_5 * inv_gamma + lambda_x0_7;
     }
     
     template <typename T>
@@ -79,11 +69,7 @@ namespace gmp { namespace mcsh {
                                    const T lambda_x0_6, const T lambda_x0_8,
                                    const T inv_gamma, const T inv_gamma_2, 
                                    const T inv_gamma_3, const T inv_gamma_4) {
-        const T term1 = 6.5625 * inv_gamma_4;
-        const T term2 = 52.5 * lambda_x0_2 * inv_gamma_3;
-        const T term3 = 52.5 * lambda_x0_4 * inv_gamma_2;
-        const T term4 = 14.0 * lambda_x0_6 * inv_gamma;
-        return term1 + term2 + term3 + term4 + lambda_x0_8;
+        return 6.5625 * inv_gamma_4 + 52.5 * lambda_x0_2 * inv_gamma_3 + 52.5 * lambda_x0_4 * inv_gamma_2 + 14.0 * lambda_x0_6 * inv_gamma + lambda_x0_8;   
     }
     
     template <typename T>
@@ -92,142 +78,97 @@ namespace gmp { namespace mcsh {
                                    const T lambda_x0_9, const T inv_gamma, 
                                    const T inv_gamma_2, const T inv_gamma_3,
                                    const T inv_gamma_4) {
-        const T term1 = 59.0625 * lambda_x0 * inv_gamma_4;
-        const T term2 = 157.5 * lambda_x0_3 * inv_gamma_3;
-        const T term3 = 94.5 * lambda_x0_5 * inv_gamma_2;
-        const T term4 = 18.0 * lambda_x0_7 * inv_gamma;
-        return term1 + term2 + term3 + term4 + lambda_x0_9;
+        return 59.0625 * lambda_x0 * inv_gamma_4 + 157.5 * lambda_x0_3 * inv_gamma_3 + 94.5 * lambda_x0_5 * inv_gamma_2 + 18.0 * lambda_x0_7 * inv_gamma + lambda_x0_9;
     }
 
     template <typename T>
-    GPU_HOST_DEVICE void solid_mcsh_0(const array3d_t<T>& dr, const T r_sqr, const T temp, const T lambda, const T gamma, T* value) 
+    GPU_HOST_DEVICE void solid_mcsh_0(const array3d_t<T>& dr, const T r_sqr, const T temp, const T lambda, const T gamma, T* __restrict__ value) 
     {
         add_to_atomic(value, temp);
     }
 
     template <typename T>
-    GPU_HOST_DEVICE void solid_mcsh_1(const array3d_t<T>& dr, const T r_sqr, const T temp, const T lambda, const T gamma, T* value) 
+    GPU_HOST_DEVICE void solid_mcsh_1(const array3d_t<T>& dr, const T r_sqr, const T temp, const T lambda, const T gamma, T* __restrict__ value) 
     {
-        const T lambda_x0 = lambda * dr[0];
-        const T lambda_y0 = lambda * dr[1];
-        const T lambda_z0 = lambda * dr[2];
-    
-        const T miu_1_1_1 = temp * lambda_x0;
-        const T miu_1_1_2 = temp * lambda_y0;
-        const T miu_1_1_3 = temp * lambda_z0;
-    
-        add_to_atomic(value, miu_1_1_1);
-        add_to_atomic(value + 1, miu_1_1_2);
-        add_to_atomic(value + 2, miu_1_1_3);
+        const T temp_lambda = temp * lambda;
+        #pragma unroll 3
+        for (int dim = 0; dim < 3; ++dim) {
+            add_to_atomic(value + dim, temp_lambda * dr[dim]);
+        }
     }
 
     template <typename T>
-    GPU_HOST_DEVICE void solid_mcsh_2(const array3d_t<T>& dr, const T r_sqr, const T temp, const T lambda, const T gamma, T* value) 
+    GPU_HOST_DEVICE void solid_mcsh_2(const array3d_t<T>& dr, const T r_sqr, const T temp, const T lambda, const T gamma, T* __restrict__ value) 
     {
-        const T lambda_x0 = lambda * dr[0];
-        const T lambda_x0_2 = lambda_x0   * lambda_x0;
-        const T lambda_y0 = lambda * dr[1];
-        const T lambda_y0_2 = lambda_y0   * lambda_y0;
-        const T lambda_z0 = lambda * dr[2];
-        const T lambda_z0_2 = lambda_z0   * lambda_z0;
+        const array3d_t<T> lambda_dr = dr * lambda;
+        const array3d_t<T> lambda_dr2 = lambda_dr * lambda_dr;
+        const T inv_gamma = 1.0 / gamma;
+        array3d_t<T> P2_vals;
+        #pragma unroll
+        for (int dim = 0; dim < 3; ++dim) {
+            P2_vals[dim] = P2(lambda_dr2[dim], inv_gamma);
+        }
+
+        const T sum_P2 = P2_vals[0] + P2_vals[1] + P2_vals[2];
+        #pragma unroll
+        for (int dim = 0; dim < 3; ++dim) {
+            const T term = (3.0 * P2_vals[dim]) - sum_P2;
+            add_to_atomic(value + dim, temp * term);
+        }
+
+        const T temp_times_three = 3.0 * temp;
+        array3d_t<T> lambda_products;
+        lambda_products[0] = lambda_dr[0] * lambda_dr[1];
+        lambda_products[1] = lambda_dr[0] * lambda_dr[2];
+        lambda_products[2] = lambda_dr[1] * lambda_dr[2];
+
+        #pragma unroll
+        for (int pair = 0; pair < 3; ++pair) {
+            add_to_atomic(value + 3 + pair, temp_times_three * lambda_products[pair]);
+        }
+    }
+
+    template <typename T>
+    GPU_HOST_DEVICE void solid_mcsh_3(const array3d_t<T>& dr, const T r_sqr, const T temp, const T lambda, const T gamma, T* __restrict__ value) 
+    {
+        const array3d_t<T> lambda_dr = dr * lambda;
+        const array3d_t<T> lambda_dr2 = lambda_dr * lambda_dr;
+        const array3d_t<T> lambda_dr3 = lambda_dr2 * lambda_dr;
         const T inv_gamma = 1.0 / gamma;
 
-        const T P2x = P2(lambda_x0_2, inv_gamma);
-        const T P2y = P2(lambda_y0_2, inv_gamma);
-        const T P2z = P2(lambda_z0_2, inv_gamma);
+        const array3d_t<T> P1_vals = lambda_dr;
+        array3d_t<T> P2_vals;
+        array3d_t<T> P3_vals;
 
-        // group 1
-        const T gp1_term_x = (2.0 * P2x) - (P2y + P2z);
-        const T gp1_term_y = (2.0 * P2y) - (P2x + P2z);
-        const T gp1_term_z = (2.0 * P2z) - (P2x + P2y);
+        #pragma unroll
+        for (int dim = 0; dim < 3; ++dim) {
+            P2_vals[dim] = P2(lambda_dr2[dim], inv_gamma);
+            P3_vals[dim] = P3(lambda_dr[dim], lambda_dr3[dim], inv_gamma);
+        }
 
-        const T gp1_miu_1 = temp * gp1_term_x;
-        const T gp1_miu_2 = temp * gp1_term_y;
-        const T gp1_miu_3 = temp * gp1_term_z;
+        const T sum_P2 = P2_vals[0] + P2_vals[1] + P2_vals[2];
+        #pragma unroll
+        for (int dim = 0; dim < 3; ++dim) {
+            const T gp1_term = (6.0 * P3_vals[dim]) - (9.0 * P1_vals[dim] * (sum_P2 - P2_vals[dim]));
+            add_to_atomic(value + dim, temp * gp1_term);
+        }
 
-        add_to_atomic(value, gp1_miu_1);
-        add_to_atomic(value + 1, gp1_miu_2);
-        add_to_atomic(value + 2, gp1_miu_3);
+        constexpr int pairs[6][2] = {{0, 1}, {1, 0}, {0, 2}, {2, 0}, {1, 2}, {2, 1}};
+        #pragma unroll
+        for (int pair = 0; pair < 6; ++pair) {
+            const int a = pairs[pair][0];
+            const int b = pairs[pair][1];
+            const int c = 3 - a - b;
+            const T gp2_term = (12.0 * P2_vals[a] * P1_vals[b]) - (3.0 * P3_vals[b]) - (3.0 * P1_vals[b] * P2_vals[c]);
+            add_to_atomic(value + 3 + pair, temp * gp2_term);
+        }
 
-        // group 2
-        const T gp2_miu_2_2_1 = 3.0 * temp * lambda_x0 * lambda_y0;
-        const T gp2_miu_2_2_2 = 3.0 * temp * lambda_x0 * lambda_z0;
-        const T gp2_miu_2_2_3 = 3.0 * temp * lambda_y0 * lambda_z0;
-
-        add_to_atomic(value + 3, gp2_miu_2_2_1);
-        add_to_atomic(value + 4, gp2_miu_2_2_2);
-        add_to_atomic(value + 5, gp2_miu_2_2_3);
+        const T gp3_term = 15.0 * temp * (lambda_dr[0] * lambda_dr[1] * lambda_dr[2]);
+        add_to_atomic(value + 9, gp3_term);
     }
 
     template <typename T>
-    GPU_HOST_DEVICE void solid_mcsh_3(const array3d_t<T>& dr, const T r_sqr, const T temp, const T lambda, const T gamma, T* value) 
-    {
-        const T lambda_x0 = lambda * dr[0];
-        const T lambda_x0_2 = lambda_x0   * lambda_x0;
-        const T lambda_x0_3 = lambda_x0_2 * lambda_x0;
-        const T lambda_y0 = lambda * dr[1];
-        const T lambda_y0_2 = lambda_y0   * lambda_y0;
-        const T lambda_y0_3 = lambda_y0_2 * lambda_y0;
-        const T lambda_z0 = lambda * dr[2];
-        const T lambda_z0_2 = lambda_z0   * lambda_z0;
-        const T lambda_z0_3 = lambda_z0_2 * lambda_z0;
-
-        const T inv_gamma = 1.0 / gamma;
-
-        const T P1x = lambda_x0;
-        const T P1y = lambda_y0;
-        const T P1z = lambda_z0;
-
-        const T P2x = P2(lambda_x0_2, inv_gamma);
-        const T P2y = P2(lambda_y0_2, inv_gamma);
-        const T P2z = P2(lambda_z0_2, inv_gamma);
-
-        const T P3x = P3(lambda_x0, lambda_x0_3, inv_gamma);
-        const T P3y = P3(lambda_y0, lambda_y0_3, inv_gamma);
-        const T P3z = P3(lambda_z0, lambda_z0_3, inv_gamma);
-
-        // group 1
-        const T gp1_term_x = (6.0 * P3x) - (9.0 * P1x * (P2y + P2z));
-        const T gp1_term_y = (6.0 * P3y) - (9.0 * P1y * (P2x + P2z));
-        const T gp1_term_z = (6.0 * P3z) - (9.0 * P1z * (P2x + P2y));
-
-        const T gp1_miu_1 = temp * gp1_term_x;
-        const T gp1_miu_2 = temp * gp1_term_y;
-        const T gp1_miu_3 = temp * gp1_term_z;
-
-        add_to_atomic(value, gp1_miu_1);
-        add_to_atomic(value + 1, gp1_miu_2);
-        add_to_atomic(value + 2, gp1_miu_3);
-
-        // group 2
-        const T gp2_term_1 = (12.0 * P2x * P1y) - (3.0 * P3y) - (3.0 * P1y * P2z);
-        const T gp2_term_2 = (12.0 * P2y * P1x) - (3.0 * P3x) - (3.0 * P1x * P2z);
-        const T gp2_term_3 = (12.0 * P2x * P1z) - (3.0 * P3z) - (3.0 * P1z * P2y);
-        const T gp2_term_4 = (12.0 * P2z * P1x) - (3.0 * P3x) - (3.0 * P1x * P2y);
-        const T gp2_term_5 = (12.0 * P2y * P1z) - (3.0 * P3z) - (3.0 * P1z * P2x);
-        const T gp2_term_6 = (12.0 * P2z * P1y) - (3.0 * P3y) - (3.0 * P1y * P2x);
-
-        const T gp2_miu_1 = temp * gp2_term_1;
-        const T gp2_miu_2 = temp * gp2_term_2;
-        const T gp2_miu_3 = temp * gp2_term_3;
-        const T gp2_miu_4 = temp * gp2_term_4;
-        const T gp2_miu_5 = temp * gp2_term_5;
-        const T gp2_miu_6 = temp * gp2_term_6;
-
-        add_to_atomic(value + 3, gp2_miu_1);
-        add_to_atomic(value + 4, gp2_miu_2);
-        add_to_atomic(value + 5, gp2_miu_3);
-        add_to_atomic(value + 6, gp2_miu_4);
-        add_to_atomic(value + 7, gp2_miu_5);
-        add_to_atomic(value + 8, gp2_miu_6);
-
-        // group 3
-        const T gp3_m_3_3 = 15.0 * temp * lambda_x0 * lambda_y0 * lambda_z0; 
-        add_to_atomic(value + 9, gp3_m_3_3);
-    }
-
-    template <typename T>
-    GPU_HOST_DEVICE void solid_mcsh_4(const array3d_t<T>& dr, const T r_sqr, const T temp, const T lambda, const T gamma, T* value) 
+    GPU_HOST_DEVICE void solid_mcsh_4(const array3d_t<T>& dr, const T r_sqr, const T temp, const T lambda, const T gamma, T* __restrict__ value) 
     {
 
         const T lambda_x0 = lambda * dr[0];
@@ -326,7 +267,7 @@ namespace gmp { namespace mcsh {
     }
 
     template <typename T>
-    GPU_HOST_DEVICE void solid_mcsh_5(const array3d_t<T>& dr, const T r_sqr, const T temp, const T lambda, const T gamma, T* value) 
+    GPU_HOST_DEVICE void solid_mcsh_5(const array3d_t<T>& dr, const T r_sqr, const T temp, const T lambda, const T gamma, T* __restrict__ value) 
     {
 
         const T lambda_x0 = lambda * dr[0];
@@ -828,7 +769,7 @@ namespace gmp { namespace mcsh {
     }
     
     template <typename T>
-    GPU_HOST_DEVICE void solid_mcsh_8(const array3d_t<T>& dr, const T r_sqr, const T temp, const T lambda, const T gamma, T* value) 
+    GPU_HOST_DEVICE void solid_mcsh_8(const array3d_t<T>& dr, const T r_sqr, const T temp, const T lambda, const T gamma, T* __restrict__ value) 
     {
         const T lambda_x0 = lambda * dr[0];
         const T lambda_x0_2 = lambda_x0 * lambda_x0;
@@ -1080,7 +1021,7 @@ namespace gmp { namespace mcsh {
     }
 
     template <typename T>
-    GPU_HOST_DEVICE void solid_mcsh_9(const array3d_t<T>& dr, const T r_sqr, const T temp, const T lambda, const T gamma, T* value) 
+    GPU_HOST_DEVICE void solid_mcsh_9(const array3d_t<T>& dr, const T r_sqr, const T temp, const T lambda, const T gamma, T* __restrict__ value) 
     {
         const T lambda_x0 = lambda * dr[0];
         const T lambda_x0_2 = lambda_x0 * lambda_x0;

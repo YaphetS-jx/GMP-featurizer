@@ -6,3 +6,5 @@ _deps/
 profile/
 gmon.out
 deprecated/
+example/ncu/
+example/nsys/

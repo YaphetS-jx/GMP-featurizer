@@ -22,6 +22,9 @@ option(BUILD_TYPE_PROFILE "Build in Profile mode for gprof profiling" OFF)
 # Add floating-point precision options
 option(USE_SINGLE_PRECISION "Use single precision (float) instead of double precision" OFF)
 
+# Add CUDA PTXAS verbose option (only valid when CUDA is enabled)
+option(ENABLE_PTXAS_VERBOSE "Enable verbose output from CUDA PTX assembler (-Xptxas -v)" OFF)
+
 # Set floating-point precision based on options
 if(USE_SINGLE_PRECISION)
     add_compile_definitions(GMP_USE_SINGLE_PRECISION)
@@ -79,6 +82,14 @@ function(set_cuda_architectures_for_target target_name)
     endif()
 endfunction()
 
+# Set PTXAS verbose flag if enabled and CUDA is available
+if(ENABLE_CUDA AND ENABLE_PTXAS_VERBOSE)
+    set(PTXAS_VERBOSE_FLAG " -Xptxas -v")
+    message(STATUS "PTXAS verbose output enabled")
+else()
+    set(PTXAS_VERBOSE_FLAG "")
+endif()
+
 # Set release mode and flags based on the option
 if(BUILD_TYPE_PROFILE)
     set(CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING "Build type" FORCE)
@@ -87,21 +98,21 @@ if(BUILD_TYPE_PROFILE)
     set(CMAKE_SHARED_LINKER_FLAGS_RELWITHDEBINFO "-pg" CACHE STRING "Profile shared linker flags" FORCE)
     
     if(ENABLE_CUDA)
-        set(CMAKE_CUDA_FLAGS_RELWITHDEBINFO "-O3 -pg" CACHE STRING "CUDA Profile flags" FORCE)
+        set(CMAKE_CUDA_FLAGS_RELWITHDEBINFO "-O3 -pg${PTXAS_VERBOSE_FLAG}" CACHE STRING "CUDA Profile flags" FORCE)
     endif()
 elseif(BUILD_TYPE_RELEASE)
     set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
     set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native" CACHE STRING "Release flags" FORCE)
     
     if(ENABLE_CUDA)
-        set(CMAKE_CUDA_FLAGS_RELEASE "-O3" CACHE STRING "CUDA Release flags" FORCE)
+        set(CMAKE_CUDA_FLAGS_RELEASE "-O3${PTXAS_VERBOSE_FLAG}" CACHE STRING "CUDA Release flags" FORCE)
     endif()
 else()
     set(CMAKE_BUILD_TYPE Debug CACHE STRING "Build type" FORCE)
     set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g -DDEBUG -march=native" CACHE STRING "Debug flags" FORCE)
     
     if(ENABLE_CUDA)
-        set(CMAKE_CUDA_FLAGS_DEBUG "-O0 -g -G" CACHE STRING "CUDA Debug flags" FORCE)
+        set(CMAKE_CUDA_FLAGS_DEBUG "-O0 -g -G${PTXAS_VERBOSE_FLAG}" CACHE STRING "CUDA Debug flags" FORCE)
     endif()
 endif()
 

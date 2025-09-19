@@ -21,7 +21,7 @@ elif [ "$USE_GPROF" == "true" ]; then
     if [ "$CPU_OR_GPU" == "gpu" ]; then
         echo "running GMP Featurizer (GPU) in $FEATURIZER_PATH with nsys"
         # Use NVIDIA Nsight Systems for GPU profiling
-        nsys profile --force-overwrite=true -o nsys_profile $FEATURIZER_PATH ./config.json
+        nsys profile --force-overwrite=true -o nsys/nsys_profile $FEATURIZER_PATH ./config.json
     else
         echo "running GMP Featurizer (CPU) in $FEATURIZER_PATH with gprof using $GMON_PATH"
         # First run the program to generate gmon.out

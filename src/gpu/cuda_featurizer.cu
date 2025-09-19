@@ -164,9 +164,9 @@ namespace gmp { namespace featurizer {
         return query_indexes;
     }
 
-    template <typename T> 
+    template <int Order, typename T> 
     __global__
-    void featurizer_kernel(const int feature_idx, const int order, 
+    void featurizer_kernel(const int feature_idx,
         const int32_t* target_list, const int num_selected, 
         const int32_t* num_gaussian_offset, 
         const int32_t* query_indexes, const int32_t* point_indexes,
@@ -184,7 +184,6 @@ namespace gmp { namespace featurizer {
         int32_t target_idx = target_list[idx];
         auto query_idx = query_indexes[idx];
         assert(query_idx < num_query_results);
-        // auto point_idx = gmp::util::binary_search_first_larger(query_offsets, int32_t(0), num_positions - 1, int32_t(query_idx));
         auto point_idx = point_indexes[idx];
 
         // get gaussian 
@@ -205,8 +204,53 @@ namespace gmp { namespace featurizer {
         const auto shift = result.difference;
 
         // calculate mcsh values
-        mcsh::solid_mcsh(order, shift, result.distance_squared, temp, kp.lambda, kp.gamma, desc_values + point_idx * num_values);
+        mcsh::cuda_solid_mcsh<Order>(shift, result.distance_squared, temp, kp.lambda, kp.gamma, desc_values + point_idx * num_values);
     }
+
+    template <typename T>
+    void launch_featurizer_kernel(
+        const int order, dim3 grid_size, dim3 block_size, cudaStream_t stream,
+        const int feature_idx, const int32_t* target_list, const int num_selected,
+        const int32_t* num_gaussian_offset,
+        const int32_t* query_indexes, const int32_t* point_indexes,
+        const cuda_query_result_t<T>* query_results, const int num_query_results,
+        const atom_t<T>* atoms,
+        const cuda_psp_config_t<T> psp_config,
+        const cuda_cutoff_list_t<T> cutoff_list,
+        const cuda_kernel_params_table_t<T> kernel_params_table,
+        T* desc_values, const int num_values)
+    {
+        switch (order) {
+#define LAUNCH_FEATURIZER_CASE(order_value) \
+            case order_value: \
+                featurizer_kernel<order_value, T><<<grid_size, block_size, 0, stream>>>( \
+                    feature_idx, target_list, num_selected, \
+                    num_gaussian_offset, \
+                    query_indexes, point_indexes, \
+                    query_results, num_query_results, \
+                    atoms, \
+                    psp_config, \
+                    cutoff_list, \
+                    kernel_params_table, \
+                    desc_values, num_values); \
+                break;
+            LAUNCH_FEATURIZER_CASE(-1)
+            LAUNCH_FEATURIZER_CASE(0)
+            LAUNCH_FEATURIZER_CASE(1)
+            LAUNCH_FEATURIZER_CASE(2)
+            LAUNCH_FEATURIZER_CASE(3)
+            LAUNCH_FEATURIZER_CASE(4)
+            LAUNCH_FEATURIZER_CASE(5)
+            LAUNCH_FEATURIZER_CASE(6)
+            LAUNCH_FEATURIZER_CASE(7)
+            LAUNCH_FEATURIZER_CASE(8)
+            LAUNCH_FEATURIZER_CASE(9)
+#undef LAUNCH_FEATURIZER_CASE
+            default:
+                throw std::invalid_argument("Unsupported MCSH order");
+        }
+    }
+
 
     template <typename T>
     __global__
@@ -288,12 +332,19 @@ namespace gmp { namespace featurizer {
             vector_device<T> desc_values(num_values * num_positions, stream);
             cudaMemsetAsync(desc_values.data(), 0, num_values * num_positions * sizeof(T), stream);
             grid_size.x = (num_selected + block_size.x - 1) / block_size.x;
-            featurizer_kernel<<<grid_size, block_size, 0, stream>>>(
-                feature_idx, order, target_list.data(), num_selected, 
-                num_gaussian_offset.data(), 
+            // featurizer_kernel<<<grid_size, block_size, 0, stream>>>(
+            //     feature_idx, order, target_list.data(), num_selected, 
+            //     num_gaussian_offset.data(), 
+            //     query_indexes.data(), point_indexes.data(),
+            //     query_results.data(), num_query_results, 
+            //     d_atoms.data(), d_psp_config, d_cutoff, d_kernel_params, 
+            //     desc_values.data(), num_values);
+            launch_featurizer_kernel<T>(order, grid_size, block_size, stream,
+                feature_idx, target_list.data(), num_selected,
+                num_gaussian_offset.data(),
                 query_indexes.data(), point_indexes.data(),
-                query_results.data(), num_query_results, 
-                d_atoms.data(), d_psp_config, d_cutoff, d_kernel_params, 
+                query_results.data(), num_query_results,
+                d_atoms.data(), d_psp_config, d_cutoff, d_kernel_params,
                 desc_values.data(), num_values);
             
             // weighted square sum of the values
