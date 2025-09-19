@@ -4,6 +4,7 @@
 #include "cuda_tree.hpp"
 #include "cuda_util.hpp"
 #include "cuda_thrust_ops.hpp"
+#include "gmp_float.hpp"
 #include <thrust/scan.h>
 #include <thrust/equal.h>
 
@@ -109,8 +110,7 @@ namespace gmp { namespace region_query {
         cudaMemcpyAsync(sorted_indexes.data(), h_sorted_indexes.data(), h_sorted_indexes.size() * sizeof(IndexType), cudaMemcpyHostToDevice, stream);
     }
 
-    template class cuda_region_query_t<uint32_t, int32_t, float>;
-    template class cuda_region_query_t<uint32_t, int32_t, double>;
+    template class cuda_region_query_t<uint32_t, int32_t, gmp::gmp_float>;
 
     template <typename MortonCodeType, typename FloatType, typename IndexType>
     __global__
@@ -237,12 +237,12 @@ namespace gmp { namespace region_query {
         // create traverse result
         cuda_traverse_result_t<IndexType> traverse_result(num_queries, stream);
 
-        // launch the warp version 
+        // launch the warp version with reduced stack size for better occupancy
         grid_size.x = (num_queries + block_size.x - 1) / block_size.x;
         const int warps_per_block = block_size.x >> 5;
-        const int MAX_STACK = 64;
+        constexpr int MAX_STACK = 24;  // Reduced from 64 to 24 for register optimization
         size_t shmem_bytes = 2 * warps_per_block * MAX_STACK * sizeof(IndexType);
-        cuda_tree_traverse_warp<Checker, MortonCodeType, FloatType, IndexType, 64><<<grid_size, block_size, shmem_bytes, stream>>>(
+        cuda_tree_traverse_warp<Checker, MortonCodeType, FloatType, IndexType, MAX_STACK><<<grid_size, block_size, shmem_bytes, stream>>>(
             region_query.brt->internal_nodes_tex, region_query.brt->leaf_nodes_tex, region_query.brt->num_leaf_nodes, 
             check_method, positions.data(), query_target_indexes.data(), query_target_cell_shifts.data(), num_queries,
             nullptr, traverse_result.num_indexes.data(), nullptr);
@@ -262,8 +262,8 @@ namespace gmp { namespace region_query {
         // allocate memory for traverse result
         traverse_result.indexes.resize(num_traverse_results, stream);
 
-        // second traverse to get traverse result
-        cuda_tree_traverse_warp<Checker, MortonCodeType, FloatType, IndexType, 64><<<grid_size, block_size, shmem_bytes, stream>>>(
+        // second traverse to get traverse result with optimized stack
+        cuda_tree_traverse_warp<Checker, MortonCodeType, FloatType, IndexType, MAX_STACK><<<grid_size, block_size, shmem_bytes, stream>>>(
             region_query.brt->internal_nodes_tex, region_query.brt->leaf_nodes_tex, region_query.brt->num_leaf_nodes, 
             check_method, positions.data(), query_target_indexes.data(), query_target_cell_shifts.data(), num_queries,
             traverse_result.indexes.data(), traverse_result.num_indexes.data(), traverse_result.num_indexes_offset.data());
@@ -313,19 +313,11 @@ namespace gmp { namespace region_query {
     }
 
     template 
-    void cuda_region_query<uint32_t, int32_t, float>(
-        const vector_device<point3d_t<float>>& positions,
-        const float cutoff, const cuda_region_query_t<uint32_t, int32_t, float>& region_query, 
-        const lattice_t<float>* lattice, const vector_device<atom_t<float>>& atoms,
-        vector_device<cuda_query_result_t<float>>& query_results, 
-        vector_device<int32_t>& query_offsets, cudaStream_t stream);
-    
-    template 
-    void cuda_region_query<uint32_t, int32_t, double>(
-        const vector_device<point3d_t<double>>& positions,
-        const double cutoff, const cuda_region_query_t<uint32_t, int32_t, double>& region_query, 
-        const lattice_t<double>* lattice, const vector_device<atom_t<double>>& atoms,
-        vector_device<cuda_query_result_t<double>>& query_results, 
+    void cuda_region_query<uint32_t, int32_t, gmp::gmp_float>(
+        const vector_device<point3d_t<gmp::gmp_float>>& positions,
+        const gmp::gmp_float cutoff, const cuda_region_query_t<uint32_t, int32_t, gmp::gmp_float>& region_query, 
+        const lattice_t<gmp::gmp_float>* lattice, const vector_device<atom_t<gmp::gmp_float>>& atoms,
+        vector_device<cuda_query_result_t<gmp::gmp_float>>& query_results, 
         vector_device<int32_t>& query_offsets, cudaStream_t stream);
 
 }} // namespace gmp::region_query

@@ -1,6 +1,7 @@
 #include "cuda_tree.hpp"
 #include "resources.hpp"
 #include "cuda_thrust_ops.hpp"
+#include "gmp_float.hpp"
 #include <cuda_runtime.h>
 #include <thrust/scan.h>
 #include "cuda_util.hpp"
@@ -80,8 +81,7 @@ namespace gmp { namespace tree {
         }
     }
 
-    template class cuda_check_sphere_t<uint32_t, float, int32_t>;
-    template class cuda_check_sphere_t<uint32_t, double, int32_t>;
+    template class cuda_check_sphere_t<uint32_t, gmp::gmp_float, int32_t>;
 
     // binary radix tree implementations
     template <typename MortonCodeType, typename IndexType>
@@ -197,28 +197,16 @@ namespace gmp { namespace tree {
     }
 
     template __device__
-    void cuda_tree_traverse<cuda_check_intersect_box_t<uint32_t, float, int32_t>, uint32_t, float, int32_t>
+    void cuda_tree_traverse<cuda_check_intersect_box_t<uint32_t, gmp::gmp_float, int32_t>, uint32_t, gmp::gmp_float, int32_t>
     (const cudaTextureObject_t internal_nodes_tex, const cudaTextureObject_t leaf_nodes_tex, const int32_t num_leaf_nodes, 
-        const cuda_check_intersect_box_t<uint32_t, float, int32_t> check_method, 
-        const point3d_t<float> position, const array3d_t<int32_t> cell_shift, int32_t* indexes, int32_t& num_indexes, const int32_t indexes_offset);
-    
-    template __device__
-    void cuda_tree_traverse<cuda_check_intersect_box_t<uint32_t, double, int32_t>, uint32_t, double, int32_t>
-    (const cudaTextureObject_t internal_nodes_tex, const cudaTextureObject_t leaf_nodes_tex, const int32_t num_leaf_nodes, 
-        const cuda_check_intersect_box_t<uint32_t, double, int32_t> check_method, 
-        const point3d_t<double> position, const array3d_t<int32_t> cell_shift, int32_t* indexes, int32_t& num_indexes, const int32_t indexes_offset);
+        const cuda_check_intersect_box_t<uint32_t, gmp::gmp_float, int32_t> check_method, 
+        const point3d_t<gmp::gmp_float> position, const array3d_t<int32_t> cell_shift, int32_t* indexes, int32_t& num_indexes, const int32_t indexes_offset);
 
     template __device__
-    void cuda_tree_traverse<cuda_check_sphere_t<uint32_t, float, int32_t>, uint32_t, float, int32_t>
+    void cuda_tree_traverse<cuda_check_sphere_t<uint32_t, gmp::gmp_float, int32_t>, uint32_t, gmp::gmp_float, int32_t>
     (const cudaTextureObject_t internal_nodes_tex, const cudaTextureObject_t leaf_nodes_tex, const int32_t num_leaf_nodes, 
-        const cuda_check_sphere_t<uint32_t, float, int32_t> check_method, 
-        const point3d_t<float> position, const array3d_t<int32_t> cell_shift, int32_t* indexes, int32_t& num_indexes, const int32_t indexes_offset);
-    
-    template __device__
-    void cuda_tree_traverse<cuda_check_sphere_t<uint32_t, double, int32_t>, uint32_t, double, int32_t>
-    (const cudaTextureObject_t internal_nodes_tex, const cudaTextureObject_t leaf_nodes_tex, const int32_t num_leaf_nodes, 
-        const cuda_check_sphere_t<uint32_t, double, int32_t> check_method, 
-        const point3d_t<double> position, const array3d_t<int32_t> cell_shift, int32_t* indexes, int32_t& num_indexes, const int32_t indexes_offset);
+        const cuda_check_sphere_t<uint32_t, gmp::gmp_float, int32_t> check_method, 
+        const point3d_t<gmp::gmp_float> position, const array3d_t<int32_t> cell_shift, int32_t* indexes, int32_t& num_indexes, const int32_t indexes_offset);
 
     void bind_texture_memory(void* data_ptr, uint32_t size, int bits_per_channel, cudaTextureObject_t& tex)
     {
@@ -329,31 +317,17 @@ namespace gmp { namespace tree {
     }
 
     template __global__
-    void cuda_tree_traverse_warp<cuda_check_intersect_box_t<uint32_t, float, int32_t>, uint32_t, float, int32_t, 64>
+    void cuda_tree_traverse_warp<cuda_check_intersect_box_t<uint32_t, gmp::gmp_float, int32_t>, uint32_t, gmp::gmp_float, int32_t, 24>
     (const cudaTextureObject_t internal_nodes_tex, const cudaTextureObject_t leaf_nodes_tex, const int32_t num_leaf_nodes, 
-        const cuda_check_intersect_box_t<uint32_t, float, int32_t> check_method, 
-        const point3d_t<float>* positions, const int32_t* query_target_indexes, const array3d_t<int32_t>* cell_shifts, const int32_t num_queries,
-        int32_t* indexes, int32_t* num_indexes, const int32_t* num_indexes_offset);
-    
-    template __global__
-    void cuda_tree_traverse_warp<cuda_check_intersect_box_t<uint32_t, double, int32_t>, uint32_t, double, int32_t, 64>
-    (const cudaTextureObject_t internal_nodes_tex, const cudaTextureObject_t leaf_nodes_tex, const int32_t num_leaf_nodes, 
-        const cuda_check_intersect_box_t<uint32_t, double, int32_t> check_method, 
-        const point3d_t<double>* positions, const int32_t* query_target_indexes, const array3d_t<int32_t>* cell_shifts, const int32_t num_queries,
+        const cuda_check_intersect_box_t<uint32_t, gmp::gmp_float, int32_t> check_method, 
+        const point3d_t<gmp::gmp_float>* positions, const int32_t* query_target_indexes, const array3d_t<int32_t>* cell_shifts, const int32_t num_queries,
         int32_t* indexes, int32_t* num_indexes, const int32_t* num_indexes_offset);
 
     template __global__
-    void cuda_tree_traverse_warp<cuda_check_sphere_t<uint32_t, float, int32_t>, uint32_t, float, int32_t, 64>
+    void cuda_tree_traverse_warp<cuda_check_sphere_t<uint32_t, gmp::gmp_float, int32_t>, uint32_t, gmp::gmp_float, int32_t, 24>
     (const cudaTextureObject_t internal_nodes_tex, const cudaTextureObject_t leaf_nodes_tex, const int32_t num_leaf_nodes, 
-        const cuda_check_sphere_t<uint32_t, float, int32_t> check_method, 
-        const point3d_t<float>* positions, const int32_t* query_target_indexes, const array3d_t<int32_t>* cell_shifts, const int32_t num_queries,
-        int32_t* indexes, int32_t* num_indexes, const int32_t* num_indexes_offset);
-    
-    template __global__
-    void cuda_tree_traverse_warp<cuda_check_sphere_t<uint32_t, double, int32_t>, uint32_t, double, int32_t, 64>
-    (const cudaTextureObject_t internal_nodes_tex, const cudaTextureObject_t leaf_nodes_tex, const int32_t num_leaf_nodes, 
-        const cuda_check_sphere_t<uint32_t, double, int32_t> check_method, 
-        const point3d_t<double>* positions, const int32_t* query_target_indexes, const array3d_t<int32_t>* cell_shifts, const int32_t num_queries,
+        const cuda_check_sphere_t<uint32_t, gmp::gmp_float, int32_t> check_method, 
+        const point3d_t<gmp::gmp_float>* positions, const int32_t* query_target_indexes, const array3d_t<int32_t>* cell_shifts, const int32_t num_queries,
         int32_t* indexes, int32_t* num_indexes, const int32_t* num_indexes_offset);
         
 }} // namespace gmp::tree 

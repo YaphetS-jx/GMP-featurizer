@@ -12,6 +12,7 @@
 #include "cuda_featurizer.hpp"
 #include "cuda_thrust_ops.hpp"
 #include "cuda_util.hpp"
+#include "gmp_float.hpp"
 
 namespace gmp { namespace featurizer {    
 
@@ -92,7 +93,7 @@ namespace gmp { namespace featurizer {
         const cuda_query_result_t<T>* query_results, 
         const atom_t<T>* atoms,
         const cuda_cutoff_list_t<T> cutoff_list, 
-        uint32_t* target_list)
+        int32_t* target_list)
     {
         auto idx = blockIdx.x * blockDim.x + threadIdx.x;
         if (idx >= total_num_gaussians) return;
@@ -109,7 +110,7 @@ namespace gmp { namespace featurizer {
     }
 
     template <typename T> 
-    vector_device<uint32_t> get_target_list(
+    vector_device<int32_t> get_target_list(
         const int feature_idx, const vector_device<int>& num_gaussian_offset, const int num_query_results, 
         const vector_device<int>& query_idx_mapping, const int total_num_gaussians, 
         const vector_device<cuda_query_result_t<T>>& query_results, 
@@ -117,9 +118,9 @@ namespace gmp { namespace featurizer {
         const cuda_cutoff_list_t<T> cutoff_list, 
         gmp::resources::device_memory_manager* dm, cudaStream_t stream)
     {
-        dim3 block_size(256, 1, 1), grid_size(1, 1, 1);
+        dim3 block_size(64, 1, 1), grid_size(1, 1, 1);
         // template memory for calculation index 
-        vector_device<uint32_t> temp_target_list(total_num_gaussians, stream);
+        vector_device<int32_t> temp_target_list(total_num_gaussians, stream);
 
         // filtering out the target list 
         grid_size.x = (total_num_gaussians + block_size.x - 1) / block_size.x;
@@ -128,18 +129,47 @@ namespace gmp { namespace featurizer {
             total_num_gaussians, query_results.data(), atoms.data(), cutoff_list, temp_target_list.data());
 
         // compact target list 
-        vector_device<uint32_t> target_list(total_num_gaussians, stream);
+        vector_device<int32_t> target_list(total_num_gaussians, stream);
         auto num_selected = compact(temp_target_list, target_list, dm, stream);
         target_list.resize(num_selected, stream);
         return target_list;
     }
 
+    __global__
+    void get_query_indexes_kernel(
+        const int32_t* target_list, const int num_selected,
+        const int* query_idx_mapping, int32_t* query_indexes)
+    {
+        auto idx = blockIdx.x * blockDim.x + threadIdx.x;
+        if (idx >= num_selected) return;
+
+        int32_t target_idx = target_list[idx];
+        query_indexes[idx] = query_idx_mapping[target_idx];
+    }
+
+    vector_device<int32_t> get_query_indexes(
+        const vector_device<int32_t>& target_list,
+        const vector_device<int>& query_idx_mapping, 
+        gmp::resources::device_memory_manager* dm, cudaStream_t stream)
+    {
+        dim3 block_size(64, 1, 1), grid_size(1, 1, 1);
+        // template memory for calculation index 
+        auto num_selected = target_list.size();
+        vector_device<int32_t> query_indexes(num_selected, stream);
+
+        // filtering out the target list 
+        grid_size.x = (num_selected + block_size.x - 1) / block_size.x;
+        get_query_indexes_kernel<<<grid_size, block_size, 0, stream>>>(
+            target_list.data(), num_selected, query_idx_mapping.data(), query_indexes.data());
+        return query_indexes;
+    }
+
     template <typename T> 
     __global__
     void featurizer_kernel(const int feature_idx, const int order, 
-        const uint32_t* target_list, const int num_selected, 
-        const int* num_gaussian_offset, const int* query_idx_mapping, 
-        const int32_t* query_offsets, const int num_positions, 
+        const int32_t* target_list, const int num_selected, 
+        const int32_t* num_gaussian_offset, 
+        const int32_t* query_indexes, const int32_t* point_indexes,
         const cuda_query_result_t<T>* query_results, const int num_query_results, 
         const atom_t<T>* atoms, 
         const cuda_psp_config_t<T> psp_config, 
@@ -151,10 +181,11 @@ namespace gmp { namespace featurizer {
         auto idx = blockIdx.x * blockDim.x + threadIdx.x;
         if (idx >= num_selected) return;
 
-        uint32_t target_idx = target_list[idx];
-        auto query_idx = query_idx_mapping[target_idx];
+        int32_t target_idx = target_list[idx];
+        auto query_idx = query_indexes[idx];
         assert(query_idx < num_query_results);
-        auto point_idx = gmp::util::binary_search_first_larger(query_offsets, int32_t(0), num_positions - 1, int32_t(query_idx));
+        // auto point_idx = gmp::util::binary_search_first_larger(query_offsets, int32_t(0), num_positions - 1, int32_t(query_idx));
+        auto point_idx = point_indexes[idx];
 
         // get gaussian 
         auto local_gaussian_idx = query_idx > 0 ? (target_idx - num_gaussian_offset[query_idx - 1]) : target_idx;
@@ -172,11 +203,6 @@ namespace gmp { namespace featurizer {
         auto occ = atom.occ;
         const auto temp = kp.C1 * std::exp(kp.C2 * result.distance_squared) * occ;
         const auto shift = result.difference;
-
-        if (point_idx > 12 && 0)
-        {
-            printf("idx: %d, point_idx: %d, temp: %f\n", idx, point_idx, temp);
-        }
 
         // calculate mcsh values
         mcsh::solid_mcsh(order, shift, result.distance_squared, temp, kp.lambda, kp.gamma, desc_values + point_idx * num_values);
@@ -206,17 +232,17 @@ namespace gmp { namespace featurizer {
         auto dm = gmp::resources::gmp_resource::instance().get_device_memory_manager();
 
         // kernel parameters
-        dim3 block_size(256, 1, 1), grid_size(1, 1, 1);
+        dim3 block_size(64, 1, 1), grid_size(1, 1, 1);
 
         // cuda region query 
         vector_device<cuda_query_result_t<T>> query_results(1, stream);
         vector_device<int32_t> query_offsets(1, stream);
         cuda_region_query(d_positions, d_cutoff.cutoff_max, *d_region_query, 
             lattice, d_atoms, query_results, query_offsets, stream);
-
+        
         // find out number of gaussian list and offset
         auto num_query_results = query_results.size();
-        vector_device<int> num_gaussian_offset(num_query_results, stream);
+        vector_device<int32_t> num_gaussian_offset(num_query_results, stream);
         grid_size.x = (num_query_results + block_size.x - 1) / block_size.x;
         get_num_gaussian_list<<<grid_size, block_size, 0, stream>>>(
             query_results.data(), num_query_results, d_atoms.data(), d_cutoff, num_gaussian_offset.data());
@@ -225,12 +251,12 @@ namespace gmp { namespace featurizer {
         THRUST_CALL(thrust::inclusive_scan, dm, stream, 
             num_gaussian_offset.data(), num_gaussian_offset.data() + num_query_results, num_gaussian_offset.data());
         
-        uint32_t total_num_gaussians;
-        cudaMemcpyAsync(&total_num_gaussians, num_gaussian_offset.data() + num_query_results - 1, sizeof(uint32_t), cudaMemcpyDeviceToHost, stream);
+        int32_t total_num_gaussians;
+        cudaMemcpyAsync(&total_num_gaussians, num_gaussian_offset.data() + num_query_results - 1, sizeof(int32_t), cudaMemcpyDeviceToHost, stream);
         cudaStreamSynchronize(stream);
 
         // get index mapping 
-        vector_device<int> query_idx_mapping(total_num_gaussians, stream);
+        vector_device<int32_t> query_idx_mapping(total_num_gaussians, stream);
         get_index_mapping(num_gaussian_offset, query_idx_mapping, dm, stream);
 
         // featurizer calculation 
@@ -251,14 +277,21 @@ namespace gmp { namespace featurizer {
             
             auto num_selected = target_list.size();
 
+            // get query_indexes
+            auto query_indexes = get_query_indexes(target_list, query_idx_mapping, dm, stream);
+
+            // get point indexes
+            vector_device<int32_t> point_indexes(num_selected, stream);
+            get_index_mapping(query_offsets, query_indexes, point_indexes, dm, stream);
+
             // doing calculation
             vector_device<T> desc_values(num_values * num_positions, stream);
             cudaMemsetAsync(desc_values.data(), 0, num_values * num_positions * sizeof(T), stream);
             grid_size.x = (num_selected + block_size.x - 1) / block_size.x;
             featurizer_kernel<<<grid_size, block_size, 0, stream>>>(
                 feature_idx, order, target_list.data(), num_selected, 
-                num_gaussian_offset.data(), query_idx_mapping.data(), 
-                query_offsets.data(), num_positions, 
+                num_gaussian_offset.data(), 
+                query_indexes.data(), point_indexes.data(),
                 query_results.data(), num_query_results, 
                 d_atoms.data(), d_psp_config, d_cutoff, d_kernel_params, 
                 desc_values.data(), num_values);
@@ -280,7 +313,6 @@ namespace gmp { namespace featurizer {
     }
 
     // Explicit instantiations
-    template class cuda_featurizer_t<float>;
-    template class cuda_featurizer_t<double>;
+    template class cuda_featurizer_t<gmp::gmp_float>;
 
 }} // namespace gmp::featurizer

@@ -58,6 +58,15 @@ namespace gmp { namespace thrust_ops {
             inclusive_offset.begin(), inclusive_offset.end(), idx0, idx0 + index_mapping.size(), index_mapping.begin());
     }
 
+    template <typename IndexType>
+    void get_index_mapping(const vector_device<IndexType>& inclusive_offset, const vector_device<IndexType>& values,
+        vector_device<IndexType>& index_mapping, 
+        gmp::resources::device_memory_manager* dm, cudaStream_t stream)
+    {   
+        THRUST_CALL(thrust::upper_bound, dm, stream, 
+            inclusive_offset.begin(), inclusive_offset.end(), values.begin(), values.end(), index_mapping.begin());
+    }
+
     // values: concatenated array of length N
     // ends_inclusive: size M, inclusive ends (e.g., lengths [3,2,4] -> ends [3,5,9])
     template <typename T, typename Index, typename Operator>
@@ -113,4 +122,6 @@ namespace gmp { namespace thrust_ops {
         non_zero_predicate<FlagType> comp_op;
         return compact(flags, output_indices, comp_op, dm, stream);
     }
+
+
 }} // namespace gmp::thrust_ops
