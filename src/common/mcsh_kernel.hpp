@@ -1,6 +1,7 @@
 #pragma once
 #include "math.hpp"
 #include "gpu_qualifiers.hpp"
+#include "cuda_group_add.hpp"
 #ifdef GMP_USE_CUDA
 #include <cuda_runtime.h>
 #endif
@@ -8,14 +9,15 @@
 namespace gmp { namespace mcsh {
 
     using gmp::math::array3d_t;
+    using namespace gmp::group_add;
 
     template <class T>
     GPU_HOST_DEVICE
-    inline void add_to_atomic(T* dst, T x) {
+    inline void add_to_atomic(T* dst, const int key, const T x, const HashTable<T>* hash_table = nullptr, const int local_tid = 0) {
     #ifndef __CUDA_ARCH__
-        *dst += x;                 // host compilation: plain +=
+        dst[key] += x;                 // host compilation: plain +=
     #else
-        atomicAdd(dst, x);         // device compilation: atomic
+        add_to_hash_table(dst, key, x, hash_table, local_tid);         // device compilation: atomic
     #endif
     }
 
@@ -82,23 +84,26 @@ namespace gmp { namespace mcsh {
     }
 
     template <typename T>
-    GPU_HOST_DEVICE void solid_mcsh_0(const array3d_t<T>& dr, const T r_sqr, const T temp, const T lambda, const T gamma, T* __restrict__ value) 
+    GPU_HOST_DEVICE void solid_mcsh_0(const array3d_t<T>& dr, const T r_sqr, const T temp, const T lambda, const T gamma, T* __restrict__ value, 
+        const int base_key, const HashTable<T>* hash_table = nullptr, const int local_tid = 0) 
     {
-        add_to_atomic(value, temp);
+        add_to_atomic(value, base_key, temp, hash_table, local_tid);
     }
 
     template <typename T>
-    GPU_HOST_DEVICE void solid_mcsh_1(const array3d_t<T>& dr, const T r_sqr, const T temp, const T lambda, const T gamma, T* __restrict__ value) 
+    GPU_HOST_DEVICE void solid_mcsh_1(const array3d_t<T>& dr, const T r_sqr, const T temp, const T lambda, const T gamma, T* __restrict__ value, 
+        const int base_key, const HashTable<T>* hash_table = nullptr, const int local_tid = 0) 
     {
         const T temp_lambda = temp * lambda;
         #pragma unroll 3
         for (int dim = 0; dim < 3; ++dim) {
-            add_to_atomic(value + dim, temp_lambda * dr[dim]);
+            add_to_atomic(value, base_key + dim, temp_lambda * dr[dim], hash_table, local_tid);
         }
     }
 
     template <typename T>
-    GPU_HOST_DEVICE void solid_mcsh_2(const array3d_t<T>& dr, const T r_sqr, const T temp, const T lambda, const T gamma, T* __restrict__ value) 
+    GPU_HOST_DEVICE void solid_mcsh_2(const array3d_t<T>& dr, const T r_sqr, const T temp, const T lambda, const T gamma, T* __restrict__ value, 
+        const int base_key, const HashTable<T>* hash_table = nullptr, const int local_tid = 0) 
     {
         const array3d_t<T> lambda_dr = dr * lambda;
         const array3d_t<T> lambda_dr2 = lambda_dr * lambda_dr;
@@ -113,7 +118,7 @@ namespace gmp { namespace mcsh {
         #pragma unroll
         for (int dim = 0; dim < 3; ++dim) {
             const T term = (3.0 * P2_vals[dim]) - sum_P2;
-            add_to_atomic(value + dim, temp * term);
+            add_to_atomic(value, base_key + dim, temp * term, hash_table, local_tid);
         }
 
         const T temp_times_three = 3.0 * temp;
@@ -124,12 +129,13 @@ namespace gmp { namespace mcsh {
 
         #pragma unroll
         for (int pair = 0; pair < 3; ++pair) {
-            add_to_atomic(value + 3 + pair, temp_times_three * lambda_products[pair]);
+            add_to_atomic(value, base_key + 3 + pair, temp_times_three * lambda_products[pair], hash_table, local_tid);
         }
     }
 
     template <typename T>
-    GPU_HOST_DEVICE void solid_mcsh_3(const array3d_t<T>& dr, const T r_sqr, const T temp, const T lambda, const T gamma, T* __restrict__ value) 
+    GPU_HOST_DEVICE void solid_mcsh_3(const array3d_t<T>& dr, const T r_sqr, const T temp, const T lambda, const T gamma, T* __restrict__ value, 
+        const int base_key, const HashTable<T>* hash_table = nullptr, const int local_tid = 0) 
     {
         const array3d_t<T> lambda_dr = dr * lambda;
         const array3d_t<T> lambda_dr2 = lambda_dr * lambda_dr;
@@ -150,7 +156,7 @@ namespace gmp { namespace mcsh {
         #pragma unroll
         for (int dim = 0; dim < 3; ++dim) {
             const T gp1_term = (6.0 * P3_vals[dim]) - (9.0 * P1_vals[dim] * (sum_P2 - P2_vals[dim]));
-            add_to_atomic(value + dim, temp * gp1_term);
+            add_to_atomic(value, base_key + dim, temp * gp1_term, hash_table, local_tid);
         }
 
         constexpr int pairs[6][2] = {{0, 1}, {1, 0}, {0, 2}, {2, 0}, {1, 2}, {2, 1}};
@@ -160,15 +166,16 @@ namespace gmp { namespace mcsh {
             const int b = pairs[pair][1];
             const int c = 3 - a - b;
             const T gp2_term = (12.0 * P2_vals[a] * P1_vals[b]) - (3.0 * P3_vals[b]) - (3.0 * P1_vals[b] * P2_vals[c]);
-            add_to_atomic(value + 3 + pair, temp * gp2_term);
+            add_to_atomic(value, base_key + 3 + pair, temp * gp2_term, hash_table, local_tid);
         }
 
         const T gp3_term = 15.0 * temp * (lambda_dr[0] * lambda_dr[1] * lambda_dr[2]);
-        add_to_atomic(value + 9, gp3_term);
+        add_to_atomic(value, base_key + 9, gp3_term, hash_table, local_tid);
     }
 
     template <typename T>
-    GPU_HOST_DEVICE void solid_mcsh_4(const array3d_t<T>& dr, const T r_sqr, const T temp, const T lambda, const T gamma, T* __restrict__ value) 
+    GPU_HOST_DEVICE void solid_mcsh_4(const array3d_t<T>& dr, const T r_sqr, const T temp, const T lambda, const T gamma, T* __restrict__ value, 
+        const int base_key, const HashTable<T>* hash_table = nullptr, const int local_tid = 0) 
     {
 
         const T lambda_x0 = lambda * dr[0];
@@ -212,9 +219,12 @@ namespace gmp { namespace mcsh {
         const T gp1_miu_2 = temp * gp1_term_y;
         const T gp1_miu_3 = temp * gp1_term_z;
 
-        add_to_atomic(value, gp1_miu_1);
-        add_to_atomic(value + 1, gp1_miu_2);
-        add_to_atomic(value + 2, gp1_miu_3);
+        // add_to_atomic(value, gp1_miu_1, hash_table, local_tid);
+        // add_to_atomic(value + 1, gp1_miu_2, hash_table, local_tid);
+        // add_to_atomic(value + 2, gp1_miu_3, hash_table, local_tid);
+        add_to_atomic(value, base_key, gp1_miu_1, hash_table, local_tid);
+        add_to_atomic(value, base_key + 1, gp1_miu_2, hash_table, local_tid);
+        add_to_atomic(value, base_key + 2, gp1_miu_3, hash_table, local_tid);
 
         // group 2
         const T gp2_term_1 = (60.0 * P3x * P1y) - (45.0 * (P1x * P3y + P1x * P1y * P2z));
@@ -231,12 +241,19 @@ namespace gmp { namespace mcsh {
         const T gp2_miu_5 = temp * gp2_term_5;
         const T gp2_miu_6 = temp * gp2_term_6;
 
-        add_to_atomic(value + 3, gp2_miu_1);
-        add_to_atomic(value + 4, gp2_miu_2);
-        add_to_atomic(value + 5, gp2_miu_3);
-        add_to_atomic(value + 6, gp2_miu_4);
-        add_to_atomic(value + 7, gp2_miu_5);
-        add_to_atomic(value + 8, gp2_miu_6);
+        // add_to_atomic(value + 3, gp2_miu_1, hash_table, local_tid);
+        // add_to_atomic(value + 4, gp2_miu_2, hash_table, local_tid);
+        // add_to_atomic(value + 5, gp2_miu_3, hash_table, local_tid);
+        // add_to_atomic(value + 6, gp2_miu_4, hash_table, local_tid);
+        // add_to_atomic(value + 7, gp2_miu_5, hash_table, local_tid);
+        // add_to_atomic(value + 8, gp2_miu_6, hash_table, local_tid);
+        add_to_atomic(value, base_key + 3, gp2_miu_1, hash_table, local_tid);
+        add_to_atomic(value, base_key + 4, gp2_miu_2, hash_table, local_tid);
+        add_to_atomic(value, base_key + 5, gp2_miu_3, hash_table, local_tid);
+        add_to_atomic(value, base_key + 6, gp2_miu_4, hash_table, local_tid);
+        add_to_atomic(value, base_key + 7, gp2_miu_5, hash_table, local_tid);
+        add_to_atomic(value, base_key + 8, gp2_miu_6, hash_table, local_tid);
+        
 
 
         // group 3
@@ -248,9 +265,12 @@ namespace gmp { namespace mcsh {
         const T gp3_miu_2 = temp * gp3_term_2;
         const T gp3_miu_3 = temp * gp3_term_3;
 
-        add_to_atomic(value + 9, gp3_miu_1);
-        add_to_atomic(value + 10, gp3_miu_2);
-        add_to_atomic(value + 11, gp3_miu_3);
+        // add_to_atomic(value + 9, gp3_miu_1, hash_table, local_tid);
+        // add_to_atomic(value + 10, gp3_miu_2, hash_table, local_tid);
+        // add_to_atomic(value + 11, gp3_miu_3, hash_table, local_tid);
+        add_to_atomic(value, base_key + 9, gp3_miu_1, hash_table, local_tid);
+        add_to_atomic(value, base_key + 10, gp3_miu_2, hash_table, local_tid);
+        add_to_atomic(value, base_key + 11, gp3_miu_3, hash_table, local_tid);
 
         // group 4
         const T gp4_term_1 = 90.0 * P2x * P1y * P1z - 15.0 * (P3y * P1z + P1y * P3z);
@@ -261,13 +281,17 @@ namespace gmp { namespace mcsh {
         const T gp4_miu_2 = temp * gp4_term_2;
         const T gp4_miu_3 = temp * gp4_term_3;
 
-        add_to_atomic(value + 12, gp4_miu_1);
-        add_to_atomic(value + 13, gp4_miu_2);
-        add_to_atomic(value + 14, gp4_miu_3);
+        // add_to_atomic(value + 12, gp4_miu_1, hash_table, local_tid);
+        // add_to_atomic(value + 13, gp4_miu_2, hash_table, local_tid);
+        // add_to_atomic(value + 14, gp4_miu_3, hash_table, local_tid);
+        add_to_atomic(value, base_key + 12, gp4_miu_1, hash_table, local_tid);
+        add_to_atomic(value, base_key + 13, gp4_miu_2, hash_table, local_tid);
+        add_to_atomic(value, base_key + 14, gp4_miu_3, hash_table, local_tid);
     }
 
     template <typename T>
-    GPU_HOST_DEVICE void solid_mcsh_5(const array3d_t<T>& dr, const T r_sqr, const T temp, const T lambda, const T gamma, T* __restrict__ value) 
+    GPU_HOST_DEVICE void solid_mcsh_5(const array3d_t<T>& dr, const T r_sqr, const T temp, const T lambda, const T gamma, T* __restrict__ value, 
+        const int base_key, const HashTable<T>* hash_table = nullptr, const int local_tid = 0) 
     {
 
         const T lambda_x0 = lambda * dr[0];
@@ -397,7 +421,8 @@ namespace gmp { namespace mcsh {
     }
 
     template <typename T>
-    GPU_HOST_DEVICE void solid_mcsh_6(const array3d_t<T>& dr, const T r_sqr, const T temp, const T lambda, const T gamma, T* value) 
+    GPU_HOST_DEVICE void solid_mcsh_6(const array3d_t<T>& dr, const T r_sqr, const T temp, const T lambda, const T gamma, T* value, 
+        const int base_key, const HashTable<T>* hash_table = nullptr, const int local_tid = 0) 
     {
 
         const T lambda_x0 = lambda * dr[0];
@@ -562,7 +587,8 @@ namespace gmp { namespace mcsh {
     }
 
     template <typename T>
-    GPU_HOST_DEVICE void solid_mcsh_7(const array3d_t<T>& dr, const T r_sqr, const T temp, const T lambda, const T gamma, T* value) 
+    GPU_HOST_DEVICE void solid_mcsh_7(const array3d_t<T>& dr, const T r_sqr, const T temp, const T lambda, const T gamma, T* value, 
+        const int base_key, const HashTable<T>* hash_table = nullptr, const int local_tid = 0) 
     {
 
         const T lambda_x0 = lambda * dr[0];
@@ -769,7 +795,8 @@ namespace gmp { namespace mcsh {
     }
     
     template <typename T>
-    GPU_HOST_DEVICE void solid_mcsh_8(const array3d_t<T>& dr, const T r_sqr, const T temp, const T lambda, const T gamma, T* __restrict__ value) 
+    GPU_HOST_DEVICE void solid_mcsh_8(const array3d_t<T>& dr, const T r_sqr, const T temp, const T lambda, const T gamma, T* __restrict__ value, 
+        const int base_key, const HashTable<T>* hash_table = nullptr, const int local_tid = 0) 
     {
         const T lambda_x0 = lambda * dr[0];
         const T lambda_x0_2 = lambda_x0 * lambda_x0;
@@ -1021,7 +1048,8 @@ namespace gmp { namespace mcsh {
     }
 
     template <typename T>
-    GPU_HOST_DEVICE void solid_mcsh_9(const array3d_t<T>& dr, const T r_sqr, const T temp, const T lambda, const T gamma, T* __restrict__ value) 
+    GPU_HOST_DEVICE void solid_mcsh_9(const array3d_t<T>& dr, const T r_sqr, const T temp, const T lambda, const T gamma, T* __restrict__ value, 
+        const int base_key, const HashTable<T>* hash_table = nullptr, const int local_tid = 0) 
     {
         const T lambda_x0 = lambda * dr[0];
         const T lambda_x0_2 = lambda_x0 * lambda_x0;

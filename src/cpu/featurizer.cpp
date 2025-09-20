@@ -226,6 +226,34 @@ namespace gmp { namespace featurizer {
     }
 
     template <typename T>
+    void launch_mcsh_kernel(
+        const int order, 
+        const array3d_t<T>& shift, const T distance2, const T temp, const T lambda, const T gamma,
+        T* desc_values, const int num_values)
+    {
+        switch (order) {
+#define LAUNCH_MCSH_KERNEL_CASE(order_value) \
+            case order_value: \
+                gmp::mcsh::solid_mcsh<order_value>(shift, distance2, temp, lambda, gamma, desc_values); \
+                break;
+            LAUNCH_MCSH_KERNEL_CASE(-1)
+            LAUNCH_MCSH_KERNEL_CASE(0)
+            LAUNCH_MCSH_KERNEL_CASE(1)
+            LAUNCH_MCSH_KERNEL_CASE(2)
+            LAUNCH_MCSH_KERNEL_CASE(3)
+            LAUNCH_MCSH_KERNEL_CASE(4)
+            LAUNCH_MCSH_KERNEL_CASE(5)
+            LAUNCH_MCSH_KERNEL_CASE(6)
+            LAUNCH_MCSH_KERNEL_CASE(7)
+            LAUNCH_MCSH_KERNEL_CASE(8)
+            LAUNCH_MCSH_KERNEL_CASE(9)
+#undef LAUNCH_MCSH_KERNEL_CASE
+            default:
+                throw std::invalid_argument("Unsupported MCSH order");
+        }
+    }
+
+    template <typename T>
     std::vector<std::vector<T>> featurizer_t<T>::compute(const vector<point3d_t<T>>& ref_positions, 
         const descriptor_config_t<T>* descriptor_config, const unit_cell_t<T>* unit_cell, const psp_config_t<T>* psp_config)
     {
@@ -298,7 +326,7 @@ namespace gmp { namespace featurizer {
                                 const auto temp = C1 * std::exp(C2 * distance2) * occ;
                                 const auto shift = result.difference;
 
-                                mcsh::solid_mcsh(order, shift, distance2, temp, lambda, gamma, desc_values.data());
+                                launch_mcsh_kernel<T>(order, shift, distance2, temp, lambda, gamma, desc_values.data(), num_values);
                             }
                         }
 

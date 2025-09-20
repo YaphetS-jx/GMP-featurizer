@@ -17,6 +17,7 @@
 namespace gmp { namespace featurizer {    
 
     using namespace gmp::thrust_ops;
+    using namespace gmp::group_add;
 
     // Main CUDA featurizer implementation
     template <typename T>
@@ -178,33 +179,57 @@ namespace gmp { namespace featurizer {
         T* desc_values, const int num_values
     )
     {
-        auto idx = blockIdx.x * blockDim.x + threadIdx.x;
-        if (idx >= num_selected) return;
+        // Shared memory hash table
+        constexpr int HASH_SIZE = 1024;  // Increase size to reduce collisions
+        __shared__ int   hash_keys[HASH_SIZE];
+        __shared__ T hash_vals[HASH_SIZE];
+        
+        int tid = blockDim.x * blockIdx.x + threadIdx.x;
+        int local_tid = threadIdx.x;
+        
+        // Create hash table structure
+        HashTable<T> hash_table(hash_keys, hash_vals, HASH_SIZE);
+        
+        // Initialize hash table
+        hash_table.initialize(local_tid, blockDim.x);
+        __syncthreads();
 
-        int32_t target_idx = target_list[idx];
-        auto query_idx = query_indexes[idx];
-        assert(query_idx < num_query_results);
-        auto point_idx = point_indexes[idx];
+        // Process elements
+        if (tid < num_selected) {
+            int32_t target_idx = target_list[tid];
+            auto query_idx = query_indexes[tid];
+            assert(query_idx < num_query_results);
+            auto point_idx = point_indexes[tid];
 
-        // get gaussian 
-        auto local_gaussian_idx = query_idx > 0 ? (target_idx - num_gaussian_offset[query_idx - 1]) : target_idx;
-        auto result = query_results[query_idx];
-        auto atom = atoms[result.neighbor_index];
-        auto gaussian_idx = cutoff_list.load_info(feature_idx, atom.type_id, local_gaussian_idx);
-        auto gaussian = psp_config.load(gaussian_idx);
-        auto B = gaussian.B;
-        if (gmp::math::isZero(B)) return;
+            // get gaussian 
+            auto local_gaussian_idx = query_idx > 0 ? (target_idx - num_gaussian_offset[query_idx - 1]) : target_idx;
+            auto result = query_results[query_idx];
+            auto atom = atoms[result.neighbor_index];
+            auto gaussian_idx = cutoff_list.load_info(feature_idx, atom.type_id, local_gaussian_idx);
+            auto gaussian = psp_config.load(gaussian_idx);
+            auto B = gaussian.B;
+            // if (gmp::math::isZero(B)) continue;
 
-        // get kernel parameters
-        auto kp = kernel_params_table.load(feature_idx, gaussian_idx);
+            // get kernel parameters
+            auto kp = kernel_params_table.load(feature_idx, gaussian_idx);
 
-        // get query result
-        auto occ = atom.occ;
-        const auto temp = kp.C1 * std::exp(kp.C2 * result.distance_squared) * occ;
-        const auto shift = result.difference;
+            // get query result
+            auto occ = atom.occ;
+            const auto temp = kp.C1 * std::exp(kp.C2 * result.distance_squared) * occ;
+            const auto shift = result.difference;
 
-        // calculate mcsh values
-        mcsh::cuda_solid_mcsh<Order>(shift, result.distance_squared, temp, kp.lambda, kp.gamma, desc_values + point_idx * num_values);
+            // calculate mcsh values
+            mcsh::solid_mcsh<Order>(shift, result.distance_squared, temp, kp.lambda, kp.gamma, 
+                desc_values, point_idx * num_values, &hash_table, local_tid);
+        }
+
+        __syncthreads();
+        // Flush hash table to global memory
+        for (int i = local_tid; i < HASH_SIZE; i += blockDim.x) {
+            if (hash_keys[i] != -1 && hash_vals[i] != 0.0) {
+                atomicAdd(desc_values + hash_keys[i], hash_vals[i]);
+            }
+        }
     }
 
     template <typename T>
@@ -332,13 +357,6 @@ namespace gmp { namespace featurizer {
             vector_device<T> desc_values(num_values * num_positions, stream);
             cudaMemsetAsync(desc_values.data(), 0, num_values * num_positions * sizeof(T), stream);
             grid_size.x = (num_selected + block_size.x - 1) / block_size.x;
-            // featurizer_kernel<<<grid_size, block_size, 0, stream>>>(
-            //     feature_idx, order, target_list.data(), num_selected, 
-            //     num_gaussian_offset.data(), 
-            //     query_indexes.data(), point_indexes.data(),
-            //     query_results.data(), num_query_results, 
-            //     d_atoms.data(), d_psp_config, d_cutoff, d_kernel_params, 
-            //     desc_values.data(), num_values);
             launch_featurizer_kernel<T>(order, grid_size, block_size, stream,
                 feature_idx, target_list.data(), num_selected,
                 num_gaussian_offset.data(),
