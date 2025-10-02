@@ -180,7 +180,7 @@ namespace gmp { namespace featurizer {
     )
     {
         // Shared memory hash table
-        constexpr int HASH_SIZE = 1024;  // Increase size to reduce collisions
+        constexpr int HASH_SIZE = 128;  // Increase size to reduce collisions
         __shared__ int   hash_keys[HASH_SIZE];
         __shared__ T hash_vals[HASH_SIZE];
         

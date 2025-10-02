@@ -236,7 +236,7 @@ namespace gmp { namespace tree {
     template <class Checker, typename MortonCodeType, typename FloatType, typename IndexType, int MAX_STACK>
     __global__
     void cuda_tree_traverse_warp(const cudaTextureObject_t internal_nodes_tex, const cudaTextureObject_t leaf_nodes_tex, const IndexType num_leaf_nodes, 
-        const Checker check_method, const point3d_t<FloatType>* positions, const IndexType* query_target_indexes,
+        const Checker& check_method, const point3d_t<FloatType>* positions, const IndexType* query_target_indexes,
         const array3d_t<IndexType>* cell_shifts, const IndexType num_queries,
         IndexType* indexes, IndexType* num_indexes, const IndexType* num_indexes_offset)
     {
@@ -319,14 +319,14 @@ namespace gmp { namespace tree {
     template __global__
     void cuda_tree_traverse_warp<cuda_check_intersect_box_t<uint32_t, gmp::gmp_float, int32_t>, uint32_t, gmp::gmp_float, int32_t, 24>
     (const cudaTextureObject_t internal_nodes_tex, const cudaTextureObject_t leaf_nodes_tex, const int32_t num_leaf_nodes, 
-        const cuda_check_intersect_box_t<uint32_t, gmp::gmp_float, int32_t> check_method, 
+        const cuda_check_intersect_box_t<uint32_t, gmp::gmp_float, int32_t>& check_method, 
         const point3d_t<gmp::gmp_float>* positions, const int32_t* query_target_indexes, const array3d_t<int32_t>* cell_shifts, const int32_t num_queries,
         int32_t* indexes, int32_t* num_indexes, const int32_t* num_indexes_offset);
 
     template __global__
     void cuda_tree_traverse_warp<cuda_check_sphere_t<uint32_t, gmp::gmp_float, int32_t>, uint32_t, gmp::gmp_float, int32_t, 24>
     (const cudaTextureObject_t internal_nodes_tex, const cudaTextureObject_t leaf_nodes_tex, const int32_t num_leaf_nodes, 
-        const cuda_check_sphere_t<uint32_t, gmp::gmp_float, int32_t> check_method, 
+        const cuda_check_sphere_t<uint32_t, gmp::gmp_float, int32_t>& check_method, 
         const point3d_t<gmp::gmp_float>* positions, const int32_t* query_target_indexes, const array3d_t<int32_t>* cell_shifts, const int32_t num_queries,
         int32_t* indexes, int32_t* num_indexes, const int32_t* num_indexes_offset);
         
