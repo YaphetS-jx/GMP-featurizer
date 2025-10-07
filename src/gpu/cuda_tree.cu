@@ -24,9 +24,9 @@ namespace gmp { namespace tree {
         };
 
         array3d_t<FloatType> difference = {
-            get_difference(min_bounds[0] + cell_shift[0], max_bounds[0] + cell_shift[0], position.x),
-            get_difference(min_bounds[1] + cell_shift[1], max_bounds[1] + cell_shift[1], position.y),
-            get_difference(min_bounds[2] + cell_shift[2], max_bounds[2] + cell_shift[2], position.z)
+            get_difference(min_bounds[0] + static_cast<FloatType>(cell_shift[0]), max_bounds[0] + static_cast<FloatType>(cell_shift[0]), position.x),
+            get_difference(min_bounds[1] + static_cast<FloatType>(cell_shift[1]), max_bounds[1] + static_cast<FloatType>(cell_shift[1]), position.y),
+            get_difference(min_bounds[2] + static_cast<FloatType>(cell_shift[2]), max_bounds[2] + static_cast<FloatType>(cell_shift[2]), position.z)
         };
         auto distance_squared = gmp::util::cuda_calculate_distance_squared(metric, difference);
         return distance_squared <= radius2;
@@ -45,9 +45,9 @@ namespace gmp { namespace tree {
         };
 
         array3d_t<FloatType> difference = {
-            get_difference(min_bounds[0] + cell_shift[0], max_bounds[0] + cell_shift[0], position.x),
-            get_difference(min_bounds[1] + cell_shift[1], max_bounds[1] + cell_shift[1], position.y),
-            get_difference(min_bounds[2] + cell_shift[2], max_bounds[2] + cell_shift[2], position.z)
+            get_difference(min_bounds[0] + static_cast<FloatType>(cell_shift[0]), max_bounds[0] + static_cast<FloatType>(cell_shift[0]), position.x),
+            get_difference(min_bounds[1] + static_cast<FloatType>(cell_shift[1]), max_bounds[1] + static_cast<FloatType>(cell_shift[1]), position.y),
+            get_difference(min_bounds[2] + static_cast<FloatType>(cell_shift[2]), max_bounds[2] + static_cast<FloatType>(cell_shift[2]), position.z)
         };
 
         auto distance_squared = gmp::util::cuda_calculate_distance_squared(metric, difference);
@@ -227,22 +227,20 @@ namespace gmp { namespace tree {
     void cuda_tree_traverse(const cudaTextureObject_t internal_nodes_tex, const cudaTextureObject_t internal_bounds_tex,
         const cudaTextureObject_t internal_min_bounds_tex, const cudaTextureObject_t internal_max_bounds_tex,
         const cudaTextureObject_t leaf_nodes_tex, const cudaTextureObject_t leaf_min_bounds_tex, const cudaTextureObject_t leaf_max_bounds_tex,
-        const Checker check_method, const point3d_t<FloatType> position, const array3d_t<IndexType> cell_shift, IndexType* indexes, IndexType& num_indexes, const IndexType indexes_offset)
+        const IndexType num_leaf_nodes, const Checker check_method, const point3d_t<FloatType> position, const array3d_t<IndexType> cell_shift,
+        IndexType* indexes, IndexType& num_indexes, const IndexType indexes_offset)
     {
         // Fixed stack for traversal
         IndexType stack_data[64];
         int stack_top = -1;
 
-        IndexType result_index = 0;
-        IndexType n = num_leaf_nodes;
-        
         // Start with root (internal node index n)
-        stack_data[++stack_top] = n;
-        
+        stack_data[++stack_top] = num_leaf_nodes;
+
         while (stack_top >= 0) {
             IndexType node_index = stack_data[stack_top--];
-            
-            if (node_index < n) {
+
+            if (node_index < num_leaf_nodes) {
                 if constexpr (std::is_same_v<Checker, cuda_check_sphere_t<MortonCodeType, FloatType, IndexType>>) {
                     IndexType bounds_base = node_index * 3;
                     array3d_t<FloatType> min_bounds = {
@@ -262,12 +260,14 @@ namespace gmp { namespace tree {
                 }
             } else {
                 // Internal node
-                IndexType metadata_base = (node_index - n) * 2;
+                IndexType internal_index = node_index - num_leaf_nodes;
+                IndexType metadata_base = internal_index * 2;
                 IndexType left = tex1Dfetch<IndexType>(internal_nodes_tex, metadata_base);
                 IndexType right = tex1Dfetch<IndexType>(internal_nodes_tex, metadata_base + 1);
+
                 bool should_traverse;
                 if constexpr (std::is_same_v<Checker, cuda_check_sphere_t<MortonCodeType, FloatType, IndexType>>) {
-                    IndexType bounds_base = (node_index - n) * 3;
+                    IndexType bounds_base = internal_index * 3;
                     array3d_t<FloatType> min_bounds = {
                         tex1Dfetch<FloatType>(internal_min_bounds_tex, bounds_base),
                         tex1Dfetch<FloatType>(internal_min_bounds_tex, bounds_base + 1),
@@ -400,8 +400,6 @@ namespace gmp { namespace tree {
             bool lane_active = ((unsigned)mask & (1u << lane)) != 0;
 
             if (node_index < num_leaf_nodes) {
-                MortonCodeType morton_code = lane == 0 ? tex1Dfetch<MortonCodeType>(leaf_nodes_tex, node_index) : 0;
-                morton_code = __shfl_sync(0xffffffff, morton_code, 0);
                 if constexpr (std::is_same_v<Checker, cuda_check_sphere_t<MortonCodeType, FloatType, IndexType>>) {
                     FloatType min_x = FloatType(0), min_y = FloatType(0), min_z = FloatType(0);
                     FloatType max_x = FloatType(0), max_y = FloatType(0), max_z = FloatType(0);
@@ -425,26 +423,26 @@ namespace gmp { namespace tree {
                     array3d_t<FloatType> max_bounds = {max_x, max_y, max_z};
                     check_method(min_bounds, max_bounds, position, cell_shift, indexes, num_index, indexes_offset);
                 } else {
+                    MortonCodeType morton_code = lane == 0 ? tex1Dfetch<MortonCodeType>(leaf_nodes_tex, node_index) : 0;
+                    morton_code = __shfl_sync(0xffffffff, morton_code, 0);
                     if (!lane_active) continue;
                     check_method(morton_code, node_index, position, cell_shift, indexes, num_index, indexes_offset);
                 }
             } else {
-                IndexType metadata_base = (node_index - num_leaf_nodes) * 2;
-                MortonCodeType lower_bound = lane == 0 ? tex1Dfetch<MortonCodeType>(internal_bounds_tex, metadata_base) : 0;
-                MortonCodeType upper_bound = lane == 0 ? tex1Dfetch<MortonCodeType>(internal_bounds_tex, metadata_base + 1) : 0;
-                IndexType left = lane == 0 ? tex1Dfetch<IndexType>(internal_nodes_tex, metadata_base) : 0;
-                IndexType right = lane == 0 ? tex1Dfetch<IndexType>(internal_nodes_tex, metadata_base + 1) : 0;
-                lower_bound = __shfl_sync(0xffffffff, lower_bound, 0);
-                upper_bound = __shfl_sync(0xffffffff, upper_bound, 0);
-                left = __shfl_sync(0xffffffff, left, 0);
-                right = __shfl_sync(0xffffffff, right, 0);
+                IndexType internal_index = node_index - num_leaf_nodes;
+                IndexType metadata_base = internal_index * 2;
+                IndexType left = 0, right = 0;
+                if (lane == 0) {
+                    left = tex1Dfetch<IndexType>(internal_nodes_tex, metadata_base);
+                    right = tex1Dfetch<IndexType>(internal_nodes_tex, metadata_base + 1);
+                }
 
                 bool hit;
                 if constexpr (std::is_same_v<Checker, cuda_check_sphere_t<MortonCodeType, FloatType, IndexType>>) {
                     FloatType min_x = FloatType(0), min_y = FloatType(0), min_z = FloatType(0);
                     FloatType max_x = FloatType(0), max_y = FloatType(0), max_z = FloatType(0);
                     if (lane == 0) {
-                        IndexType bounds_base = (node_index - num_leaf_nodes) * 3;
+                        IndexType bounds_base = internal_index * 3;
                         min_x = tex1Dfetch<FloatType>(internal_min_bounds_tex, bounds_base);
                         min_y = tex1Dfetch<FloatType>(internal_min_bounds_tex, bounds_base + 1);
                         min_z = tex1Dfetch<FloatType>(internal_min_bounds_tex, bounds_base + 2);
@@ -462,8 +460,13 @@ namespace gmp { namespace tree {
                     array3d_t<FloatType> max_bounds = {max_x, max_y, max_z};
                     hit = lane_active && check_method(min_bounds, max_bounds, position, cell_shift);
                 } else {
+                    MortonCodeType lower_bound = lane == 0 ? tex1Dfetch<MortonCodeType>(internal_bounds_tex, metadata_base) : 0;
+                    MortonCodeType upper_bound = lane == 0 ? tex1Dfetch<MortonCodeType>(internal_bounds_tex, metadata_base + 1) : 0;
+                    lower_bound = __shfl_sync(0xffffffff, lower_bound, 0);
+                    upper_bound = __shfl_sync(0xffffffff, upper_bound, 0);
                     hit = lane_active && check_method(lower_bound, upper_bound, position, cell_shift);
                 }
+
                 IndexType parent_mask  = __ballot_sync(0xffffffff, hit);
 
                 if (lane == 0 && parent_mask) {

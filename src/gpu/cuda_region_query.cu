@@ -114,11 +114,13 @@ namespace gmp { namespace region_query {
 
     template <typename MortonCodeType, typename FloatType, typename IndexType>
     __global__
-    void cuda_traverse_sphere_kernel(const cudaTextureObject_t internal_nodes_tex, const cudaTextureObject_t leaf_nodes_tex, 
+    void cuda_traverse_sphere_kernel(const cudaTextureObject_t internal_nodes_tex, const cudaTextureObject_t internal_bounds_tex,
+        const cudaTextureObject_t internal_min_bounds_tex, const cudaTextureObject_t internal_max_bounds_tex,
+        const cudaTextureObject_t leaf_nodes_tex, const cudaTextureObject_t leaf_min_bounds_tex, const cudaTextureObject_t leaf_max_bounds_tex,
         const IndexType num_leaf_nodes, const cuda_check_sphere_t<MortonCodeType, FloatType, IndexType> check_method,
-        const point3d_t<FloatType>* positions, 
+        const point3d_t<FloatType>* positions,
         const IndexType* query_target_indexes, const array3d_t<IndexType>* query_target_cell_shifts,
-        const IndexType num_queries, 
+        const IndexType num_queries,
         IndexType* indexes, IndexType* num_indexes, const IndexType* indexes_offset = nullptr)
     {
         auto tid = blockIdx.x * blockDim.x + threadIdx.x;
@@ -129,8 +131,9 @@ namespace gmp { namespace region_query {
         auto cell_shift = query_target_cell_shifts[tid];
 
         cuda_tree_traverse<cuda_check_sphere_t<MortonCodeType, FloatType, IndexType>, MortonCodeType, FloatType, IndexType>(
-            internal_nodes_tex, leaf_nodes_tex, num_leaf_nodes, check_method, 
-            position, cell_shift, indexes, num_indexes[tid], 
+            internal_nodes_tex, internal_bounds_tex, internal_min_bounds_tex, internal_max_bounds_tex,
+            leaf_nodes_tex, leaf_min_bounds_tex, leaf_max_bounds_tex, num_leaf_nodes, check_method,
+            position, cell_shift, indexes, num_indexes[tid],
             indexes_offset ? (tid > 0 ? indexes_offset[tid - 1] : 0) : 0);
     }
 

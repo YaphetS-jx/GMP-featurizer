@@ -22,4 +22,5 @@ namespace gmp { namespace tree {
         array3d_t<FloatType> min_bounds;
         array3d_t<FloatType> max_bounds;
     };
-}}
+
+}} // namespace gmp::tree

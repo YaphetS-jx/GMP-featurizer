@@ -124,7 +124,8 @@ namespace gmp { namespace tree {
     void cuda_tree_traverse(const cudaTextureObject_t internal_nodes_tex, const cudaTextureObject_t internal_bounds_tex,
         const cudaTextureObject_t internal_min_bounds_tex, const cudaTextureObject_t internal_max_bounds_tex,
         const cudaTextureObject_t leaf_nodes_tex, const cudaTextureObject_t leaf_min_bounds_tex, const cudaTextureObject_t leaf_max_bounds_tex,
-        const Checker check_method, const point3d_t<FloatType> position, const array3d_t<IndexType> cell_shift, IndexType* indexes, IndexType& num_indexes, const IndexType indexes_offset = 0);
+        const IndexType num_leaf_nodes, const Checker check_method, const point3d_t<FloatType> position, const array3d_t<IndexType> cell_shift,
+        IndexType* indexes, IndexType& num_indexes, const IndexType indexes_offset = 0);
 
     // Texture memory setup and teardown
     void bind_texture_memory(void* data_ptr, uint32_t size, int bits_per_channel, cudaChannelFormatKind format, cudaTextureObject_t& tex);

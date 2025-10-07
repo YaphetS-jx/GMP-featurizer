@@ -103,4 +103,4 @@ namespace gmp { namespace tree {
     // Explicit instantiations for binary_radix_tree_t (used in tests)
     template class binary_radix_tree_t<uint32_t, int32_t>;
 
-}} // namespace gmp::tree 
+}} // namespace gmp::tree
