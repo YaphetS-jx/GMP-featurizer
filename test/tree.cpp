@@ -8,6 +8,8 @@
 using namespace gmp::tree;
 using namespace gmp::tree::morton_codes;
 using namespace gmp::containers;
+using gmp::math::array3d_t;
+using gmp::gmp_float;
 
 // Helper function to compare two internal nodes
 bool compare_nodes(const internal_node_t<uint32_t, int32_t>& a, const internal_node_t<uint32_t, int32_t>& b) {
@@ -20,13 +22,33 @@ bool compare_nodes(const internal_node_t<uint32_t, int32_t>& a, const internal_n
 // Helper function to print node details for debugging
 std::string node_to_string(const internal_node_t<uint32_t, int32_t>& node) {
     std::stringstream ss;
-    ss << "Node {" 
-       << "left=" << node.left 
-       << ", right=" << node.right 
-       << ", lower_bound=" << node.lower_bound 
-       << ", upper_bound=" << node.upper_bound 
+    ss << "Node {"
+       << "left=" << node.left
+       << ", right=" << node.right
+       << ", lower_bound=" << node.lower_bound
+       << ", upper_bound=" << node.upper_bound
+       << ", min_bounds=[" << node.min_bounds[0] << ", " << node.min_bounds[1] << ", " << node.min_bounds[2] << "]"
+       << ", max_bounds=[" << node.max_bounds[0] << ", " << node.max_bounds[1] << ", " << node.max_bounds[2] << "]"
        << "}";
     return ss.str();
+}
+
+template <typename FloatType>
+array3d_t<FloatType> compute_min_bounds(uint32_t bound, int num_bits_per_dim) {
+    uint32_t x, y, z;
+    deinterleave_bits(bound, num_bits_per_dim, x, y, z);
+    return {
+        morton_code_to_coordinate<FloatType, int32_t, uint32_t>(x, num_bits_per_dim),
+        morton_code_to_coordinate<FloatType, int32_t, uint32_t>(y, num_bits_per_dim),
+        morton_code_to_coordinate<FloatType, int32_t, uint32_t>(z, num_bits_per_dim)
+    };
+}
+
+template <typename FloatType>
+array3d_t<FloatType> compute_max_bounds(uint32_t bound, int num_bits_per_dim) {
+    auto mins = compute_min_bounds<FloatType>(bound, num_bits_per_dim);
+    FloatType size_per_dim = FloatType(1) / FloatType(1 << (num_bits_per_dim - 1));
+    return {mins[0] + size_per_dim, mins[1] + size_per_dim, mins[2] + size_per_dim};
 }
 
 TEST(BinaryRadixTreeTest, BasicConstruction) {
@@ -48,8 +70,17 @@ TEST(BinaryRadixTreeTest, BasicConstruction) {
         {6, 7, 0, 127}
     }};
 
+    int num_bits_per_dim = num_bits / 3;
     for (int i = 0; i < 4; i++) {
         EXPECT_TRUE(compare_nodes(tree.get_internal_nodes()[i], benchmark[i])) << "Node " << i << " mismatch: " << node_to_string(tree.get_internal_nodes()[i]);
+        auto expected_min = compute_min_bounds<gmp_float>(benchmark[i].lower_bound, num_bits_per_dim);
+        auto expected_max = compute_max_bounds<gmp_float>(benchmark[i].upper_bound, num_bits_per_dim);
+        for (int axis = 0; axis < 3; ++axis) {
+            EXPECT_NEAR(static_cast<double>(tree.get_internal_nodes()[i].min_bounds[axis]), static_cast<double>(expected_min[axis]), 1e-6)
+                << "Node " << i << " min axis " << axis;
+            EXPECT_NEAR(static_cast<double>(tree.get_internal_nodes()[i].max_bounds[axis]), static_cast<double>(expected_max[axis]), 1e-6)
+                << "Node " << i << " max axis " << axis;
+        }
     }
 }
 

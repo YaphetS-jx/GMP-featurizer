@@ -231,7 +231,6 @@ namespace gmp { namespace region_query {
         using Checker = cuda_check_sphere_t<MortonCodeType, FloatType, IndexType>;
         Checker check_method;
         check_method.radius2 = cutoff * cutoff;
-        check_method.num_bits_per_dim = region_query.num_bits_per_dim;
         check_method.metric = lattice->get_metric();
 
         // create traverse result
@@ -243,7 +242,9 @@ namespace gmp { namespace region_query {
         constexpr int MAX_STACK = 24;  // Reduced from 64 to 24 for register optimization
         size_t shmem_bytes = 2 * warps_per_block * MAX_STACK * sizeof(IndexType);
         cuda_tree_traverse_warp<Checker, MortonCodeType, FloatType, IndexType, MAX_STACK><<<grid_size, block_size, shmem_bytes, stream>>>(
-            region_query.brt->internal_nodes_tex, region_query.brt->leaf_nodes_tex, region_query.brt->num_leaf_nodes, 
+            region_query.brt->internal_nodes_tex, region_query.brt->internal_bounds_tex,
+            region_query.brt->internal_min_bounds_tex, region_query.brt->internal_max_bounds_tex,
+            region_query.brt->leaf_nodes_tex, region_query.brt->leaf_min_bounds_tex, region_query.brt->leaf_max_bounds_tex, region_query.brt->num_leaf_nodes,
             check_method, positions.data(), query_target_indexes.data(), query_target_cell_shifts.data(), num_queries,
             nullptr, traverse_result.num_indexes.data(), nullptr);
 
@@ -264,7 +265,9 @@ namespace gmp { namespace region_query {
 
         // second traverse to get traverse result with optimized stack
         cuda_tree_traverse_warp<Checker, MortonCodeType, FloatType, IndexType, MAX_STACK><<<grid_size, block_size, shmem_bytes, stream>>>(
-            region_query.brt->internal_nodes_tex, region_query.brt->leaf_nodes_tex, region_query.brt->num_leaf_nodes, 
+            region_query.brt->internal_nodes_tex, region_query.brt->internal_bounds_tex,
+            region_query.brt->internal_min_bounds_tex, region_query.brt->internal_max_bounds_tex,
+            region_query.brt->leaf_nodes_tex, region_query.brt->leaf_min_bounds_tex, region_query.brt->leaf_max_bounds_tex, region_query.brt->num_leaf_nodes,
             check_method, positions.data(), query_target_indexes.data(), query_target_cell_shifts.data(), num_queries,
             traverse_result.indexes.data(), traverse_result.num_indexes.data(), traverse_result.num_indexes_offset.data());
 

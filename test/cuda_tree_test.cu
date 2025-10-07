@@ -14,6 +14,8 @@
 using namespace gmp::tree;
 using namespace gmp::tree::morton_codes;
 using namespace gmp::containers;
+using gmp::math::array3d_t;
+using gmp::gmp_float;
 
 // Helper function to compare two internal nodes
 bool compare_nodes(const internal_node_t<uint32_t, int32_t>& a, const internal_node_t<uint32_t, int32_t>& b) {
@@ -26,13 +28,33 @@ bool compare_nodes(const internal_node_t<uint32_t, int32_t>& a, const internal_n
 // Helper function to print node details for debugging
 std::string node_to_string(const internal_node_t<uint32_t, int32_t>& node) {
     std::stringstream ss;
-    ss << "Node {" 
-       << "left=" << node.left 
-       << ", right=" << node.right 
-       << ", lower_bound=" << node.lower_bound 
-       << ", upper_bound=" << node.upper_bound 
+    ss << "Node {"
+       << "left=" << node.left
+       << ", right=" << node.right
+       << ", lower_bound=" << node.lower_bound
+       << ", upper_bound=" << node.upper_bound
+       << ", min_bounds=[" << node.min_bounds[0] << ", " << node.min_bounds[1] << ", " << node.min_bounds[2] << "]"
+       << ", max_bounds=[" << node.max_bounds[0] << ", " << node.max_bounds[1] << ", " << node.max_bounds[2] << "]"
        << "}";
     return ss.str();
+}
+
+template <typename FloatType>
+array3d_t<FloatType> compute_min_bounds(uint32_t bound, int num_bits_per_dim) {
+    uint32_t x, y, z;
+    deinterleave_bits(bound, num_bits_per_dim, x, y, z);
+    return {
+        morton_code_to_coordinate<FloatType, int32_t, uint32_t>(x, num_bits_per_dim),
+        morton_code_to_coordinate<FloatType, int32_t, uint32_t>(y, num_bits_per_dim),
+        morton_code_to_coordinate<FloatType, int32_t, uint32_t>(z, num_bits_per_dim)
+    };
+}
+
+template <typename FloatType>
+array3d_t<FloatType> compute_max_bounds(uint32_t bound, int num_bits_per_dim) {
+    auto mins = compute_min_bounds<FloatType>(bound, num_bits_per_dim);
+    FloatType size_per_dim = FloatType(1) / FloatType(1 << (num_bits_per_dim - 1));
+    return {mins[0] + size_per_dim, mins[1] + size_per_dim, mins[2] + size_per_dim};
 }
 
 class CudaTreeTest : public ::testing::Test {
@@ -114,20 +136,32 @@ TEST_F(CudaTreeTest, ConstructorTest) {
         {6, 7, 0, 127}
     }};
     // Compare actual nodes with benchmark
+    int num_bits_per_dim = num_bits / 3;
     for (int i = 0; i < num_internal_nodes; i++) {
-        EXPECT_TRUE(compare_nodes(h_internal_nodes[i], benchmark[i])) 
+        EXPECT_TRUE(compare_nodes(h_internal_nodes[i], benchmark[i]))
             << "Node " << i << " mismatch: " << node_to_string(h_internal_nodes[i]);
+        auto expected_min = compute_min_bounds<gmp_float>(benchmark[i].lower_bound, num_bits_per_dim);
+        auto expected_max = compute_max_bounds<gmp_float>(benchmark[i].upper_bound, num_bits_per_dim);
+        for (int axis = 0; axis < 3; ++axis) {
+            EXPECT_NEAR(static_cast<double>(h_internal_nodes[i].min_bounds[axis]), static_cast<double>(expected_min[axis]), 1e-6)
+                << "Node " << i << " min axis " << axis;
+            EXPECT_NEAR(static_cast<double>(h_internal_nodes[i].max_bounds[axis]), static_cast<double>(expected_max[axis]), 1e-6)
+                << "Node " << i << " max axis " << axis;
+        }
     }
 }
 
 __global__
-void traverse_check_box_kernel(const cudaTextureObject_t internal_nodes_tex, const cudaTextureObject_t leaf_nodes_tex, 
+void traverse_check_box_kernel(const cudaTextureObject_t internal_nodes_tex, const cudaTextureObject_t internal_bounds_tex,
+    const cudaTextureObject_t internal_min_bounds_tex, const cudaTextureObject_t internal_max_bounds_tex,
+    const cudaTextureObject_t leaf_nodes_tex, const cudaTextureObject_t leaf_min_bounds_tex, const cudaTextureObject_t leaf_max_bounds_tex,
     int32_t num_leaf_nodes, const check_box_t check_box,
     int32_t* indexes, int32_t* num_indexes)
 {
     *num_indexes = 0;
     cuda_tree_traverse<check_box_t, uint32_t, float, int32_t>(
-        internal_nodes_tex, leaf_nodes_tex, num_leaf_nodes, check_box,
+        internal_nodes_tex, internal_bounds_tex, internal_min_bounds_tex, internal_max_bounds_tex,
+        leaf_nodes_tex, leaf_min_bounds_tex, leaf_max_bounds_tex, num_leaf_nodes, check_box,
         point3d_t<float>{0.0f, 0.0f, 0.0f}, array3d_t<int32_t>{0, 0, 0}, indexes, *num_indexes, 0);
     return;
 }
@@ -155,8 +189,10 @@ TEST_F(CudaTreeTest, TraverseBasicTest) {
     check_box.query_lower_bound = query_lower_bound;
     check_box.query_upper_bound = query_upper_bound;
 
-    traverse_check_box_kernel<<<1, 1, 0, stream>>>(tree.internal_nodes_tex, tree.leaf_nodes_tex, 
-        tree.num_leaf_nodes, check_box, 
+    traverse_check_box_kernel<<<1, 1, 0, stream>>>(tree.internal_nodes_tex, tree.internal_bounds_tex,
+        tree.internal_min_bounds_tex, tree.internal_max_bounds_tex,
+        tree.leaf_nodes_tex, tree.leaf_min_bounds_tex, tree.leaf_max_bounds_tex,
+        tree.num_leaf_nodes, check_box,
         result.indexes.data(), result.num_indexes.data());
 
     // Copy results to host
@@ -253,8 +289,10 @@ TEST_F(CudaTreeTest, Traverse_general_case) {
     check_box.query_lower_bound = query_min;
     check_box.query_upper_bound = query_max;
     
-    traverse_check_box_kernel<<<1, 1, 0, stream>>>(cuda_tree.internal_nodes_tex, cuda_tree.leaf_nodes_tex, 
-        cuda_tree.num_leaf_nodes, check_box, 
+    traverse_check_box_kernel<<<1, 1, 0, stream>>>(cuda_tree.internal_nodes_tex, cuda_tree.internal_bounds_tex,
+        cuda_tree.internal_min_bounds_tex, cuda_tree.internal_max_bounds_tex,
+        cuda_tree.leaf_nodes_tex, cuda_tree.leaf_min_bounds_tex, cuda_tree.leaf_max_bounds_tex,
+        cuda_tree.num_leaf_nodes, check_box,
         cuda_result.indexes.data(), cuda_result.num_indexes.data());
     
     // Copy results to host
