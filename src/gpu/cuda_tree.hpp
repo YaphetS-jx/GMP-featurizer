@@ -36,42 +36,6 @@ namespace gmp { namespace tree {
         }
         ~cuda_traverse_result_t() = default;
     };
-    
-    // check intersect box class for test purpose
-    template <typename MortonCodeType, typename FloatType, typename IndexType>
-    struct cuda_check_intersect_box_t 
-    {
-        IndexType num_bits_per_dim;
-        MortonCodeType query_lower_bound, query_upper_bound;
-        MortonCodeType x_mask, y_mask, z_mask;
-
-        __device__
-        bool operator()(const array3d_t<FloatType>& lower_coords, const array3d_t<FloatType>& upper_coords, 
-            const point3d_t<FloatType> position, const array3d_t<IndexType> cell_shift) const
-        {
-            return true;
-        }
-
-        __device__
-        void operator() (const array3d_t<FloatType> leaf_coords, const IndexType idx, 
-            const point3d_t<FloatType> position, const array3d_t<IndexType> cell_shift, 
-            IndexType* indexes, IndexType* num_indexes, const IndexType indexes_offset = 0) const /* indexes_offset is deprecated for box intersection check */
-        {
-            if (indexes == nullptr) return;
-            // Reconstruct morton code from coordinates to check bounds
-            uint32_t mc_x = coordinate_to_morton_code<FloatType, uint32_t, int32_t>(leaf_coords[0], num_bits_per_dim);
-            uint32_t mc_y = coordinate_to_morton_code<FloatType, uint32_t, int32_t>(leaf_coords[1], num_bits_per_dim);
-            uint32_t mc_z = coordinate_to_morton_code<FloatType, uint32_t, int32_t>(leaf_coords[2], num_bits_per_dim);
-            uint32_t morton_code = interleave_bits(mc_x, mc_y, mc_z, num_bits_per_dim);
-        
-            if (mc_is_less_than_or_equal(query_lower_bound, morton_code, x_mask, y_mask, z_mask) && 
-                mc_is_less_than_or_equal(morton_code, query_upper_bound, x_mask, y_mask, z_mask)) 
-            {
-                indexes[*num_indexes] = idx;
-                (*num_indexes)++;
-            }
-        }
-    };
 
     // check sphere class
     template <typename MortonCodeType, typename FloatType, typename IndexType>
@@ -113,21 +77,10 @@ namespace gmp { namespace tree {
         vector_device<array3d_t<FloatType>> leaf_nodes;
     };
 
-    template <class Checker, typename MortonCodeType, typename FloatType, typename IndexType>
-    __device__
-    void cuda_tree_traverse(const internal_node_t<IndexType, FloatType>* internal_nodes, const array3d_t<FloatType>* leaf_nodes, const IndexType num_leaf_nodes, 
-        const Checker check_method, const point3d_t<FloatType> position, const array3d_t<IndexType> cell_shift, IndexType* indexes, IndexType* num_indexes, const IndexType indexes_offset = 0);
-
-    template <class Checker, typename MortonCodeType, typename FloatType, typename IndexType, int MAX_STACK=64>
-    __global__
-    void cuda_tree_traverse_warp(const internal_node_t<IndexType, FloatType>* internal_nodes, const array3d_t<FloatType>* leaf_nodes, const IndexType num_leaf_nodes, 
-        const Checker& check_method, const point3d_t<FloatType>* positions, const IndexType* query_target_indexes,
-        const array3d_t<IndexType>* cell_shifts, const IndexType num_queries,
-        IndexType* indexes, IndexType* num_indexes, const IndexType* num_indexes_offset);
 
     template <typename MortonCodeType, typename FloatType, typename IndexType, int MAX_STACK>
     __global__
-    void cuda_tree_traverse_warp2(const internal_node_t<IndexType, FloatType>* internal_nodes, const array3d_t<FloatType>* leaf_nodes, const IndexType num_leaf_nodes, 
+    void cuda_tree_traverse_warp(const internal_node_t<IndexType, FloatType>* internal_nodes, const array3d_t<FloatType>* leaf_nodes, const IndexType num_leaf_nodes, 
         const point3d_t<FloatType>* positions, const IndexType* query_target_indexes,
         const array3d_t<IndexType>* cell_shifts, const IndexType num_queries,
         IndexType* indexes, IndexType* num_indexes, const IndexType* num_indexes_offset);

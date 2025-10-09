@@ -173,164 +173,12 @@ namespace gmp { namespace tree {
         return;
     }
 
-    template <class Checker, typename MortonCodeType, typename FloatType, typename IndexType>
-    __device__
-    void cuda_tree_traverse(const internal_node_t<IndexType, FloatType>* __restrict__ internal_nodes, 
-        const array3d_t<FloatType>* __restrict__ leaf_nodes, const IndexType num_leaf_nodes, 
-        const Checker check_method, const point3d_t<FloatType> position, 
-        const array3d_t<IndexType> cell_shift, IndexType* __restrict__ indexes, 
-        IndexType* num_indexes, const IndexType indexes_offset)
-    {
-        // Fixed stack for traversal
-        IndexType stack_data[64];
-        int stack_top = -1;
-        
-        IndexType result_index = 0;
-        IndexType n = num_leaf_nodes;
-        
-        // Start with root (internal node index n)
-        stack_data[++stack_top] = n;
-        
-        while (stack_top >= 0) {
-            IndexType node_index = stack_data[stack_top--];
-            
-            if (node_index < n) {
-                // Leaf node
-                const auto& leaf_coords = leaf_nodes[node_index];
-                
-                // Check if leaf coords is within query bounds
-                check_method(leaf_coords, node_index, position, cell_shift, indexes, num_indexes, indexes_offset);
-            } else {
-                // Internal node
-                const internal_node_t<IndexType, FloatType>& node = internal_nodes[node_index - n];
-                IndexType left = node.get_left();
-                IndexType right = node.get_right();
-                
-                // Use float coordinates directly for checking
-                if (check_method(node.lower_bound_coords, node.upper_bound_coords, position, cell_shift)) {
-                    if (stack_top < 63) stack_data[++stack_top] = left;
-                    if (stack_top < 63) stack_data[++stack_top] = right;
-                }
-            }
-        }
-        return;
-    }
 
-    template __device__
-    void cuda_tree_traverse<cuda_check_intersect_box_t<uint32_t, gmp::gmp_float, int32_t>, uint32_t, gmp::gmp_float, int32_t>
-    (const internal_node_t<int32_t, gmp::gmp_float>* internal_nodes, const array3d_t<gmp::gmp_float>* leaf_nodes, const int32_t num_leaf_nodes, 
-        const cuda_check_intersect_box_t<uint32_t, gmp::gmp_float, int32_t> check_method, 
-        const point3d_t<gmp::gmp_float> position, const array3d_t<int32_t> cell_shift, int32_t* indexes, int32_t* num_indexes, const int32_t indexes_offset);
-
-    template __device__
-    void cuda_tree_traverse<cuda_check_sphere_t<uint32_t, gmp::gmp_float, int32_t>, uint32_t, gmp::gmp_float, int32_t>
-    (const internal_node_t<int32_t, gmp::gmp_float>* internal_nodes, const array3d_t<gmp::gmp_float>* leaf_nodes, const int32_t num_leaf_nodes, 
-        const cuda_check_sphere_t<uint32_t, gmp::gmp_float, int32_t> check_method, 
-        const point3d_t<gmp::gmp_float> position, const array3d_t<int32_t> cell_shift, int32_t* indexes, int32_t* num_indexes, const int32_t indexes_offset);
-
-
-
-    template <class Checker, typename MortonCodeType, typename FloatType, typename IndexType, int MAX_STACK>
-    __global__
-    void cuda_tree_traverse_warp(const internal_node_t<IndexType, FloatType>* internal_nodes, const array3d_t<FloatType>* leaf_nodes, const IndexType num_leaf_nodes, 
-        const Checker& check_method, const point3d_t<FloatType>* positions, const IndexType* query_target_indexes,
-        const array3d_t<IndexType>* cell_shifts, const IndexType num_queries,
-        IndexType* indexes, IndexType* num_indexes, const IndexType* num_indexes_offset)
-    {
-        const IndexType lane  = threadIdx.x & 31;
-        // const IndexType warp  = threadIdx.x >> 5;
-        // const IndexType warps_per_block = blockDim.x >> 5;
-        // const IndexType global_warp = blockIdx.x * (blockDim.x >> 5) + (threadIdx.x >> 5);
-        const IndexType q0 = (blockIdx.x * (blockDim.x >> 5) + (threadIdx.x >> 5)) << 5;
-        if (q0 >= num_queries) return; // warp level inactive, skip
-
-        const IndexType tid = q0 + lane;
-        IndexType packet_mask = __ballot_sync(0xffffffff, tid < num_queries);
-        if (!packet_mask) return; // warp level inactive, skip
-
-        // const auto& query_target_index = tid < num_queries ? query_target_indexes[tid] : 0;
-        const auto& position = positions[tid < num_queries ? query_target_indexes[tid] : 0];
-        const auto& cell_shift = tid < num_queries ? cell_shifts[tid] : array3d_t<IndexType>{0, 0, 0};
-
-        extern __shared__ IndexType smem[];
-        IndexType *stack_nodes = smem;                                  // [warps_per_block * MAX_STACK]
-        IndexType *stack_masks = smem + (blockDim.x >> 5) * MAX_STACK;    // [warps_per_block * MAX_STACK]
-
-        auto sidx = [&](IndexType sp)->IndexType { return (threadIdx.x >> 5) * MAX_STACK + sp; };
-        IndexType stack_top = -1;
-        if (lane == 0) {
-            ++stack_top;
-            stack_nodes[sidx(stack_top)] = num_leaf_nodes;
-            stack_masks[sidx(stack_top)] = packet_mask;
-        }
-        // broadcast stack_top
-        // assert((packet_mask & 1u));
-        stack_top = __shfl_sync(0xffffffff, stack_top, 0);
-        
-        while (stack_top >= 0) {
-            IndexType node_index, mask;
-            if (lane == 0) {
-                node_index = stack_nodes[sidx(stack_top)];
-                mask = stack_masks[sidx(stack_top)];
-                --stack_top;
-            }
-            // broadcast node_index and mask
-            node_index = __shfl_sync(0xffffffff, node_index, 0);
-            mask = __shfl_sync(0xffffffff, mask, 0);
-            // broadcast stack_top
-            stack_top = __shfl_sync(0xffffffff, stack_top, 0);
-            bool lane_active = ((unsigned)mask & (1u << lane)) != 0;
-            
-            if (node_index < num_leaf_nodes) {
-                array3d_t<FloatType> leaf_coords = lane == 0 ? leaf_nodes[node_index] : array3d_t<FloatType>{0, 0, 0};
-                leaf_coords[0] = __shfl_sync(0xffffffff, leaf_coords[0], 0);
-                leaf_coords[1] = __shfl_sync(0xffffffff, leaf_coords[1], 0);
-                leaf_coords[2] = __shfl_sync(0xffffffff, leaf_coords[2], 0);
-                if (!lane_active) continue; 
-                check_method(leaf_coords, node_index, position, cell_shift, indexes, 
-                    (tid < num_queries) ? num_indexes+tid : nullptr, 
-                    tid < num_queries ? (num_indexes_offset ? (tid > 0 ? num_indexes_offset[tid - 1] : 0) : 0) : 0);
-            } else {
-                // Access internal node using global memory
-                const internal_node_t<IndexType, FloatType>& node = internal_nodes[node_index - num_leaf_nodes];
-                
-                // Use float coordinates directly for checking
-                bool hit = lane_active && check_method(node.lower_bound_coords, node.upper_bound_coords, position, cell_shift);
-                IndexType parent_mask  = __ballot_sync(0xffffffff, hit);
-
-                if (lane == 0 && parent_mask) {
-                    IndexType left = node.get_left();
-                    IndexType right = node.get_right();
-
-                    ++stack_top;
-                    stack_nodes[sidx(stack_top)] = left; stack_masks[sidx(stack_top)] = parent_mask;
-                    ++stack_top;
-                    stack_nodes[sidx(stack_top)] = right; stack_masks[sidx(stack_top)] = parent_mask;
-                }
-                // broadcast stack_top
-                stack_top = __shfl_sync(0xffffffff, stack_top, 0);
-            }
-        }
-    }
-
-    template __global__
-    void cuda_tree_traverse_warp<cuda_check_intersect_box_t<uint32_t, gmp::gmp_float, int32_t>, uint32_t, gmp::gmp_float, int32_t, 24>
-    (const internal_node_t<int32_t, gmp::gmp_float>* internal_nodes, const array3d_t<gmp::gmp_float>* leaf_nodes, const int32_t num_leaf_nodes, 
-        const cuda_check_intersect_box_t<uint32_t, gmp::gmp_float, int32_t>& check_method, 
-        const point3d_t<gmp::gmp_float>* positions, const int32_t* query_target_indexes, const array3d_t<int32_t>* cell_shifts, const int32_t num_queries,
-        int32_t* indexes, int32_t* num_indexes, const int32_t* num_indexes_offset);
-
-    template __global__
-    void cuda_tree_traverse_warp<cuda_check_sphere_t<uint32_t, gmp::gmp_float, int32_t>, uint32_t, gmp::gmp_float, int32_t, 24>
-    (const internal_node_t<int32_t, gmp::gmp_float>* internal_nodes, const array3d_t<gmp::gmp_float>* leaf_nodes, const int32_t num_leaf_nodes, 
-        const cuda_check_sphere_t<uint32_t, gmp::gmp_float, int32_t>& check_method, 
-        const point3d_t<gmp::gmp_float>* positions, const int32_t* query_target_indexes, const array3d_t<int32_t>* cell_shifts, const int32_t num_queries,
-        int32_t* indexes, int32_t* num_indexes, const int32_t* num_indexes_offset);
 
 
     template <typename MortonCodeType, typename FloatType, typename IndexType, int MAX_STACK>
     __global__
-    void cuda_tree_traverse_warp2(const internal_node_t<IndexType, FloatType>* internal_nodes, const array3d_t<FloatType>* leaf_nodes, const IndexType num_leaf_nodes, 
+    void cuda_tree_traverse_warp(const internal_node_t<IndexType, FloatType>* internal_nodes, const array3d_t<FloatType>* leaf_nodes, const IndexType num_leaf_nodes, 
         const point3d_t<FloatType>* positions, const IndexType* query_target_indexes,
         const array3d_t<IndexType>* cell_shifts, const IndexType num_queries,
         IndexType* indexes, IndexType* num_indexes, const IndexType* num_indexes_offset)
@@ -413,7 +261,7 @@ namespace gmp { namespace tree {
     }
 
     template __global__
-    void cuda_tree_traverse_warp2<uint32_t, gmp::gmp_float, int32_t, 24>
+    void cuda_tree_traverse_warp<uint32_t, gmp::gmp_float, int32_t, 24>
     (const internal_node_t<int32_t, gmp::gmp_float>* internal_nodes, const array3d_t<gmp::gmp_float>* leaf_nodes, const int32_t num_leaf_nodes, 
         const point3d_t<gmp::gmp_float>* positions, const int32_t* query_target_indexes, 
         const array3d_t<int32_t>* cell_shifts, const int32_t num_queries,

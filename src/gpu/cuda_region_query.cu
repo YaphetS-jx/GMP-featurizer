@@ -112,27 +112,6 @@ namespace gmp { namespace region_query {
 
     template class cuda_region_query_t<uint32_t, int32_t, gmp::gmp_float>;
 
-    template <typename MortonCodeType, typename FloatType, typename IndexType>
-    __global__
-    void cuda_traverse_sphere_kernel(const cudaTextureObject_t internal_nodes_tex, const cudaTextureObject_t leaf_nodes_tex, 
-        const IndexType num_leaf_nodes, const cuda_check_sphere_t<MortonCodeType, FloatType, IndexType> check_method,
-        const point3d_t<FloatType>* positions, 
-        const IndexType* query_target_indexes, const array3d_t<IndexType>* query_target_cell_shifts,
-        const IndexType num_queries, 
-        IndexType* indexes, IndexType* num_indexes, const IndexType* indexes_offset = nullptr)
-    {
-        auto tid = blockIdx.x * blockDim.x + threadIdx.x;
-        if (tid >= num_queries) return;
-
-        auto query_target_index = query_target_indexes[tid];
-        auto position = positions[query_target_index];
-        auto cell_shift = query_target_cell_shifts[tid];
-
-        cuda_tree_traverse<cuda_check_sphere_t<MortonCodeType, FloatType, IndexType>, MortonCodeType, FloatType, IndexType>(
-            internal_nodes_tex, leaf_nodes_tex, num_leaf_nodes, check_method, 
-            position, cell_shift, indexes, num_indexes[tid], 
-            indexes_offset ? (tid > 0 ? indexes_offset[tid - 1] : 0) : 0);
-    }
 
     template <typename MortonCodeType, typename IndexType, typename FloatType>
     __global__
@@ -244,7 +223,7 @@ namespace gmp { namespace region_query {
         const int warps_per_block = block_size.x >> 5;
         constexpr int MAX_STACK = 24;  // Reduced from 64 to 24 for register optimization
         size_t shmem_bytes = 2 * warps_per_block * MAX_STACK * sizeof(IndexType);
-        cuda_tree_traverse_warp2<MortonCodeType, FloatType, IndexType, MAX_STACK><<<grid_size, block_size, shmem_bytes, stream>>>(
+        cuda_tree_traverse_warp<MortonCodeType, FloatType, IndexType, MAX_STACK><<<grid_size, block_size, shmem_bytes, stream>>>(
             region_query.brt->internal_nodes.data(), region_query.brt->leaf_nodes.data(), region_query.brt->num_leaf_nodes, 
             positions.data(), query_target_indexes.data(), query_target_cell_shifts.data(), num_queries,
             nullptr, traverse_result.num_indexes.data(), nullptr);
@@ -265,7 +244,7 @@ namespace gmp { namespace region_query {
         traverse_result.indexes.resize(num_traverse_results, stream);
 
         // second traverse to get traverse result with optimized stack
-        cuda_tree_traverse_warp2<MortonCodeType, FloatType, IndexType, MAX_STACK><<<grid_size, block_size, shmem_bytes, stream>>>(
+        cuda_tree_traverse_warp<MortonCodeType, FloatType, IndexType, MAX_STACK><<<grid_size, block_size, shmem_bytes, stream>>>(
             region_query.brt->internal_nodes.data(), region_query.brt->leaf_nodes.data(), region_query.brt->num_leaf_nodes, 
             positions.data(), query_target_indexes.data(), query_target_cell_shifts.data(), num_queries,
             traverse_result.indexes.data(), traverse_result.num_indexes.data(), traverse_result.num_indexes_offset.data());
