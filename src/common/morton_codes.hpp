@@ -39,10 +39,24 @@ namespace gmp { namespace tree { namespace morton_codes {
         assert(num_bits_per_dim >= 1 && num_bits_per_dim <= sizeof(BinaryType) * 8);
 
         x = 0; y = 0; z = 0;
+        // #pragma unroll
         for (BitSizeType i = 0; i < num_bits_per_dim; ++i) {
             x |= (static_cast<BinaryType>(morton_code & (static_cast<BinaryType>(1) << (3 * i))) >> (2 * i));
             y |= (static_cast<BinaryType>(morton_code & (static_cast<BinaryType>(1) << (3 * i + 1))) >> (2 * i + 1));
             z |= (static_cast<BinaryType>(morton_code & (static_cast<BinaryType>(1) << (3 * i + 2))) >> (2 * i + 2));
+        }
+    }
+
+    template <typename BinaryType, typename BitSizeType>
+    GPU_HOST_DEVICE
+    void deinterleave_bits(BinaryType morton_code, BitSizeType num_bits_per_dim, BinaryType& x, const int dim) 
+    {
+        assert(num_bits_per_dim >= 1 && num_bits_per_dim <= sizeof(BinaryType) * 8);
+
+        x = 0;
+        // #pragma unroll
+        for (BitSizeType i = 0; i < num_bits_per_dim; ++i) {
+            x |= (static_cast<BinaryType>(morton_code & (static_cast<BinaryType>(1) << (3 * i + dim))) >> (2 * i + dim));
         }
     }
 
@@ -72,7 +86,11 @@ namespace gmp { namespace tree { namespace morton_codes {
     GPU_HOST_DEVICE
     CodeType coordinate_to_morton_code(FractionalType num, BitSizeType num_bits) 
     {
-        assert(num >= 0 && num < 1.0);        
+        // Temporarily disable assertion to debug the issue
+        assert(num >= 0 && num < 1.0);
+        // Clamp the value to the valid range
+        // if (num < 0) num = 0;
+        // if (num >= 1.0) num = 0.999999f;
         return fractional_to_binary<FractionalType, BitSizeType, CodeType>(num, num_bits - 1);
     }
 
@@ -94,7 +112,11 @@ namespace gmp { namespace tree { namespace morton_codes {
     GPU_HOST_DEVICE
     FractionalType morton_code_to_coordinate(CodeType morton_code, BitSizeType num_bits) 
     {
+        // Temporarily disable assertion to debug the issue
         assert(num_bits >= 1 && 3 * num_bits <= sizeof(CodeType) * 8 && (morton_code & (static_cast<CodeType>(1) << (num_bits - 1))) == 0);
+        // Mask the morton code to ensure it doesn't have more bits than expected
+        // CodeType mask = (1 << num_bits) - 1;
+        // morton_code &= mask;
         return binary_to_fractional<CodeType, BitSizeType, FractionalType>(morton_code, num_bits - 1);
     }
 

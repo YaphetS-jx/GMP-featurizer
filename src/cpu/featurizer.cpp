@@ -10,6 +10,7 @@
 #include "mcsh.hpp"
 #include "resources.hpp"
 #include "featurizer.hpp"
+#include "gmp_float.hpp"
 
 namespace gmp { namespace featurizer {
 
@@ -359,6 +360,5 @@ namespace gmp { namespace featurizer {
     }
 
     // Explicit instantiations for featurizer_t (only the class that's used externally)
-    template class featurizer_t<float>;
-    template class featurizer_t<double>;
+    template class featurizer_t<gmp::gmp_float>;
 }} 

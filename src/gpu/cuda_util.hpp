@@ -93,4 +93,10 @@ namespace gmp { namespace util {
         std::cout << std::endl;
     }
 
+    template <typename FloatType>
+    __device__
+    FloatType get_difference(FloatType min, FloatType max, FloatType point) {
+        return (min <= point && point <= max) ? 0 : (point < min) ? min - point : point - max;
+    };
+
 }} // namespace gmp::util

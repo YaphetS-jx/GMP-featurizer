@@ -1,18 +1,19 @@
 #include "region_query.hpp"
 #include <algorithm>
 #include <cmath>
+#include "gmp_float.hpp"
 
 namespace gmp { namespace region_query {
 
     // check_sphere_t implementations
-    template <typename MortonCodeType, typename FloatType, typename IndexType>
-    check_sphere_t<MortonCodeType, FloatType, IndexType>::check_sphere_t(
+    template <typename FloatType, typename IndexType>
+    check_sphere_t<FloatType, IndexType>::check_sphere_t(
         const IndexType num_bits_per_dim, const array3d_bool periodicity, const lattice_t<FloatType>* lattice)
         : num_bits_per_dim(num_bits_per_dim), periodicity(periodicity), lattice(lattice) 
     {}
 
-    template <typename MortonCodeType, typename FloatType, typename IndexType>
-    void check_sphere_t<MortonCodeType, FloatType, IndexType>::update_point_radius(
+    template <typename FloatType, typename IndexType>
+    void check_sphere_t<FloatType, IndexType>::update_point_radius(
         point3d_t<FloatType> position_in, FloatType radius) {
         // get fractional radius 
         radius2 = radius * radius;
@@ -28,37 +29,21 @@ namespace gmp { namespace region_query {
         cell_shift_end[2] = std::floor(position.z + frac_radius[2]);
     }
 
-    template <typename MortonCodeType, typename FloatType, typename IndexType>
-    array3d_t<IndexType> check_sphere_t<MortonCodeType, FloatType, IndexType>::get_cell_shift_start() const {
+    template <typename FloatType, typename IndexType>
+    array3d_t<IndexType> check_sphere_t<FloatType, IndexType>::get_cell_shift_start() const {
         return cell_shift_start;
     }
 
-    template <typename MortonCodeType, typename FloatType, typename IndexType>
-    array3d_t<IndexType> check_sphere_t<MortonCodeType, FloatType, IndexType>::get_cell_shift_end() const {
+    template <typename FloatType, typename IndexType>
+    array3d_t<IndexType> check_sphere_t<FloatType, IndexType>::get_cell_shift_end() const {
         return cell_shift_end;
     }
 
-    template <typename MortonCodeType, typename FloatType, typename IndexType>
-    bool check_sphere_t<MortonCodeType, FloatType, IndexType>::operator()(
-        MortonCodeType lower_bound, MortonCodeType upper_bound) const {
-        MortonCodeType x_min, y_min, z_min;
-        deinterleave_bits(lower_bound, num_bits_per_dim, x_min, y_min, z_min);
-        MortonCodeType x_max, y_max, z_max;
-        deinterleave_bits(upper_bound, num_bits_per_dim, x_max, y_max, z_max);
-
-        auto x_min_f = morton_code_to_coordinate<FloatType, IndexType, MortonCodeType>(x_min, num_bits_per_dim);
-        auto y_min_f = morton_code_to_coordinate<FloatType, IndexType, MortonCodeType>(y_min, num_bits_per_dim);
-        auto z_min_f = morton_code_to_coordinate<FloatType, IndexType, MortonCodeType>(z_min, num_bits_per_dim);
-
-        FloatType size_per_dim = 1.0 / (1 << (num_bits_per_dim - 1));
-        auto x_max_f = morton_code_to_coordinate<FloatType, IndexType, MortonCodeType>(x_max, num_bits_per_dim) + size_per_dim;
-        auto y_max_f = morton_code_to_coordinate<FloatType, IndexType, MortonCodeType>(y_max, num_bits_per_dim) + size_per_dim;
-        auto z_max_f = morton_code_to_coordinate<FloatType, IndexType, MortonCodeType>(z_max, num_bits_per_dim) + size_per_dim;
-
-        auto point_x = position.x;
-        auto point_y = position.y;
-        auto point_z = position.z;
-
+    template <typename FloatType, typename IndexType>
+    bool check_sphere_t<FloatType, IndexType>::operator()(
+        const array3d_t<FloatType>& lower_coords, const array3d_t<FloatType>& upper_coords) const 
+    {
+        
         auto get_difference = [](FloatType min, FloatType max, FloatType point) {
             return (min <= point && point <= max) ? 0 : (point < min) ? min - point : point - max;
         };
@@ -66,17 +51,17 @@ namespace gmp { namespace region_query {
         for (auto shift_z = cell_shift_start[2]; shift_z <= cell_shift_end[2]; shift_z++) {
             for (auto shift_y = cell_shift_start[1]; shift_y <= cell_shift_end[1]; shift_y++) {
                 for (auto shift_x = cell_shift_start[0]; shift_x <= cell_shift_end[0]; shift_x++) {
-                    auto x_min_shift = x_min_f + shift_x;
-                    auto y_min_shift = y_min_f + shift_y;
-                    auto z_min_shift = z_min_f + shift_z;
-                    auto x_max_shift = x_max_f + shift_x;
-                    auto y_max_shift = y_max_f + shift_y;
-                    auto z_max_shift = z_max_f + shift_z;
+                    auto x_min_shift = lower_coords[0] + shift_x;
+                    auto y_min_shift = lower_coords[1] + shift_y;
+                    auto z_min_shift = lower_coords[2] + shift_z;
+                    auto x_max_shift = upper_coords[0] + shift_x;
+                    auto y_max_shift = upper_coords[1] + shift_y;
+                    auto z_max_shift = upper_coords[2] + shift_z;
 
                     array3d_t<FloatType> difference = {
-                        get_difference(x_min_shift, x_max_shift, point_x), 
-                        get_difference(y_min_shift, y_max_shift, point_y),
-                        get_difference(z_min_shift, z_max_shift, point_z)
+                        get_difference(x_min_shift, x_max_shift, position.x), 
+                        get_difference(y_min_shift, y_max_shift, position.y),
+                        get_difference(z_min_shift, z_max_shift, position.z)
                     };
                     auto distance_squared = lattice->calculate_distance_squared(difference);                        
                     if (distance_squared <= radius2) {
@@ -88,23 +73,10 @@ namespace gmp { namespace region_query {
         return false;
     }
 
-    template <typename MortonCodeType, typename FloatType, typename IndexType>
-    std::vector<array3d_t<IndexType>> check_sphere_t<MortonCodeType, FloatType, IndexType>::operator()(MortonCodeType morton_code) const {
-        MortonCodeType x_min, y_min, z_min;
-        deinterleave_bits(morton_code, num_bits_per_dim, x_min, y_min, z_min);
-        
-        FloatType size_per_dim = 1.0 / (1 << (num_bits_per_dim - 1));
-        auto x_min_f = morton_code_to_coordinate<FloatType, IndexType, MortonCodeType>(x_min, num_bits_per_dim);
-        auto y_min_f = morton_code_to_coordinate<FloatType, IndexType, MortonCodeType>(y_min, num_bits_per_dim);
-        auto z_min_f = morton_code_to_coordinate<FloatType, IndexType, MortonCodeType>(z_min, num_bits_per_dim);
-        auto x_max_f = x_min_f + size_per_dim;
-        auto y_max_f = y_min_f + size_per_dim;
-        auto z_max_f = z_min_f + size_per_dim;
-
-        auto point_x = position.x;
-        auto point_y = position.y;
-        auto point_z = position.z;
-
+    template <typename FloatType, typename IndexType>
+    std::vector<array3d_t<IndexType>> check_sphere_t<FloatType, IndexType>::operator()(
+        const array3d_t<FloatType>& lower_coords, FloatType size_per_dim) const 
+    {
         auto get_difference = [](FloatType min, FloatType max, FloatType point) {
             return (min <= point && point <= max) ? 0 : (point < min) ? min - point : point - max;
         };
@@ -114,17 +86,17 @@ namespace gmp { namespace region_query {
         for (auto shift_z = cell_shift_start[2]; shift_z <= cell_shift_end[2]; shift_z++) {
             for (auto shift_y = cell_shift_start[1]; shift_y <= cell_shift_end[1]; shift_y++) {
                 for (auto shift_x = cell_shift_start[0]; shift_x <= cell_shift_end[0]; shift_x++) {
-                    auto x_min_shift = x_min_f + shift_x;
-                    auto y_min_shift = y_min_f + shift_y;
-                    auto z_min_shift = z_min_f + shift_z;
-                    auto x_max_shift = x_max_f + shift_x;
-                    auto y_max_shift = y_max_f + shift_y;
-                    auto z_max_shift = z_max_f + shift_z;
+                    auto x_min_shift = lower_coords[0] + shift_x;
+                    auto y_min_shift = lower_coords[1] + shift_y;
+                    auto z_min_shift = lower_coords[2] + shift_z;
+                    auto x_max_shift = x_min_shift + size_per_dim;
+                    auto y_max_shift = y_min_shift + size_per_dim;
+                    auto z_max_shift = z_min_shift + size_per_dim;
 
                     array3d_t<FloatType> difference = {
-                        get_difference(x_min_shift, x_max_shift, point_x), 
-                        get_difference(y_min_shift, y_max_shift, point_y),
-                        get_difference(z_min_shift, z_max_shift, point_z)
+                        get_difference(x_min_shift, x_max_shift, position.x), 
+                        get_difference(y_min_shift, y_max_shift, position.y),
+                        get_difference(z_min_shift, z_max_shift, position.z)
                     };
                     auto distance_squared = lattice->calculate_distance_squared(difference);
                     if (distance_squared <= radius2) {
@@ -140,8 +112,7 @@ namespace gmp { namespace region_query {
         return result;
     }
 
-    template class check_sphere_t<uint32_t, float, int32_t>;
-    template class check_sphere_t<uint32_t, double, int32_t>;
+    template class check_sphere_t<gmp::gmp_float, int32_t>;
 
     // region_query_t implementations
     template <typename MortonCodeType, typename IndexType, typename FloatType>
@@ -217,7 +188,7 @@ namespace gmp { namespace region_query {
     typename region_query_t<MortonCodeType, IndexType, FloatType>::result_t 
     region_query_t<MortonCodeType, IndexType, FloatType>::query(
         const point3d_t<FloatType>& position, const FloatType cutoff, 
-        const binary_radix_tree_t<MortonCodeType, IndexType>* brt, const unit_cell_t<FloatType>* unit_cell) {
+        const binary_radix_tree_t<IndexType, FloatType>* brt, const unit_cell_t<FloatType>* unit_cell) {
         sphere_op_t compare_op(num_bits_per_dim, unit_cell->get_periodicity(), unit_cell->get_lattice());
         compare_op.update_point_radius(position, cutoff);
         auto cutoff_squared = cutoff * cutoff;
@@ -249,6 +220,5 @@ namespace gmp { namespace region_query {
         return result;
     }
     
-    template class region_query_t<uint32_t, int32_t, float>;
-    template class region_query_t<uint32_t, int32_t, double>;
+    template class region_query_t<uint32_t, int32_t, gmp::gmp_float>;
 }} 

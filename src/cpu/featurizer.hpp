@@ -64,7 +64,7 @@ namespace gmp { namespace featurizer {
             : kernel_params_table_(std::make_unique<kernel_params_table_t<T>>(descriptor_config, psp_config)), 
             cutoff_list_(std::make_unique<cutoff_list_t<T>>(descriptor_config, psp_config)),
             region_query_(std::make_unique<query_t>(unit_cell, descriptor_config->get_num_bits_per_dim())), 
-            brt_(std::make_unique<binary_radix_tree_t<uint32_t, int32_t>>(region_query_->get_unique_morton_codes(), 
+            brt_(std::make_unique<binary_radix_tree_t<int32_t, T>>(region_query_->get_unique_morton_codes(), 
                 descriptor_config->get_num_bits_per_dim() * 3))
         {}
 
@@ -78,7 +78,7 @@ namespace gmp { namespace featurizer {
         std::unique_ptr<kernel_params_table_t<T>> kernel_params_table_;
         std::unique_ptr<cutoff_list_t<T>> cutoff_list_;
         std::unique_ptr<query_t> region_query_;
-        std::unique_ptr<binary_radix_tree_t<uint32_t, int32_t>> brt_;
+        std::unique_ptr<binary_radix_tree_t<int32_t, T>> brt_;
     };
 
     // functions 

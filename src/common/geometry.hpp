@@ -19,8 +19,14 @@ namespace gmp { namespace geometry {
 
     // 3d point class
     template <typename T>
-    struct point3d_t {
+    struct alignas(sizeof(T) * 4) point3d_t {
         T x, y, z;
+
+        // accessor 
+        GPU_HOST_DEVICE const T& operator[](size_t i) const { 
+            assert(i < 3);
+            return (i == 0) ? x : (i == 1) ? y : z; 
+        }
     };
 
     // Stream insertion operator for point3d_t

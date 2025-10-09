@@ -8,7 +8,6 @@
 #include "atom.hpp"
 #include "mcsh.hpp"
 #include "gmp_float.hpp"
-#include "common_types.hpp"
 #include "cuda_tree.hpp"
 #include "resources.hpp"
 #include "featurizer.hpp"

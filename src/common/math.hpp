@@ -48,7 +48,7 @@ namespace gmp { namespace math {
     }
 
     template <typename T>
-    struct array_2d_t {
+    struct alignas(sizeof(T) * 2) array_2d_t {
         T data_[2];
 
         // Array access
@@ -63,8 +63,62 @@ namespace gmp { namespace math {
     };
 
     template <typename T>
-    struct array3d_t {
+    struct alignas(sizeof(T) * 4) array3d_t {
         T data_[3];
+        T padding_;
+
+        // extra data - template version for different integer types
+        template<typename IntType>
+        GPU_HOST_DEVICE void set_extra(IntType v) {
+            static_assert(std::is_integral_v<IntType>, "IntType must be an integral type");
+            if constexpr (sizeof(T) == 4) {
+                if constexpr (sizeof(IntType) <= 4) {
+                    std::uint32_t val = static_cast<std::uint32_t>(v);
+                    padding_ = *reinterpret_cast<const T*>(&val);
+                } else {
+                    // For larger int types, truncate to 32 bits
+                    std::uint32_t val = static_cast<std::uint32_t>(v & 0xFFFFFFFFu);
+                    padding_ = *reinterpret_cast<const T*>(&val);
+                }
+            } else { // sizeof(T) == 8
+                if constexpr (sizeof(IntType) <= 8) {
+                    std::uint64_t val = static_cast<std::uint64_t>(v);
+                    padding_ = *reinterpret_cast<const T*>(&val);
+                } else {
+                    // For larger int types, truncate to 64 bits
+                    std::uint64_t val = static_cast<std::uint64_t>(v & 0xFFFFFFFFFFFFFFFFu);
+                    padding_ = *reinterpret_cast<const T*>(&val);
+                }
+            }
+        }
+        
+        template<typename IntType>
+        GPU_HOST_DEVICE IntType get_extra() const {
+            static_assert(std::is_integral_v<IntType>, "IntType must be an integral type");
+            if constexpr (sizeof(T) == 4) {
+                auto val = *reinterpret_cast<const std::uint32_t*>(&padding_);
+                if constexpr (std::is_signed_v<IntType>) {
+                    return static_cast<IntType>(static_cast<std::int32_t>(val));
+                } else {
+                    return static_cast<IntType>(val);
+                }
+            } else { // sizeof(T) == 8
+                auto val = *reinterpret_cast<const std::uint64_t*>(&padding_);
+                if constexpr (std::is_signed_v<IntType>) {
+                    return static_cast<IntType>(static_cast<std::int64_t>(val));
+                } else {
+                    return static_cast<IntType>(val);
+                }
+            }
+        }
+        
+        // Convenience methods for backward compatibility
+        GPU_HOST_DEVICE void set_extra(int v) {
+            set_extra<int>(v);
+        }
+        GPU_HOST_DEVICE int get_extra() const {
+            return get_extra<int>();
+        }
 
         // Array access
         GPU_HOST_DEVICE T& operator[](size_t i) { 
@@ -105,7 +159,7 @@ namespace gmp { namespace math {
 
         // comparison operator
         GPU_HOST_DEVICE bool operator==(const array3d_t<T>& other) const {
-            return data_[0] == other.data_[0] && data_[1] == other.data_[1] && data_[2] == other.data_[2];
+            return data_[0] == other.data_[0] && data_[1] == other.data_[1] && data_[2] == other.data_[2] && padding_ == other.padding_;
         }
         GPU_HOST_DEVICE bool operator!=(const array3d_t<T>& other) const {
             return !(*this == other);

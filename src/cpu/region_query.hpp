@@ -21,8 +21,8 @@ namespace gmp { namespace region_query {
         int neighbor_index;
     };
 
-    template <typename MortonCodeType, typename FloatType, typename IndexType>
-    class check_sphere_t : public compare_op_t<MortonCodeType> {
+    template <typename FloatType, typename IndexType>
+    class check_sphere_t : public compare_op_t<FloatType> {
     private:
         point3d_t<FloatType> position;
         FloatType radius;
@@ -41,8 +41,8 @@ namespace gmp { namespace region_query {
         array3d_t<IndexType> get_cell_shift_start() const;
         array3d_t<IndexType> get_cell_shift_end() const;
 
-        bool operator()(MortonCodeType lower_bound, MortonCodeType upper_bound) const override;
-        std::vector<array3d_t<IndexType>> operator()(MortonCodeType morton_code) const override;
+        bool operator()(const array3d_t<FloatType>& lower_coords, const array3d_t<FloatType>& upper_coords) const override;
+        std::vector<array3d_t<IndexType>> operator()(const array3d_t<FloatType>& lower_coords, FloatType size_per_dim) const override;
     };
 
     template <typename MortonCodeType, typename IndexType, typename FloatType>
@@ -65,9 +65,9 @@ namespace gmp { namespace region_query {
         const vector<IndexType>& get_offsets() const;
         const vector<IndexType>& get_sorted_indexes() const;
         using result_t = std::vector<query_result_t<FloatType>>;
-        using sphere_op_t = check_sphere_t<MortonCodeType, FloatType, IndexType>;
+        using sphere_op_t = check_sphere_t<FloatType, IndexType>;
 
         result_t query(const point3d_t<FloatType>& position, const FloatType cutoff, 
-            const binary_radix_tree_t<MortonCodeType, IndexType>* brt, const unit_cell_t<FloatType>* unit_cell);
+            const binary_radix_tree_t<IndexType, FloatType>* brt, const unit_cell_t<FloatType>* unit_cell);
     };
 }}

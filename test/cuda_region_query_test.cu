@@ -78,7 +78,7 @@ TEST(CudaRegionQueryTest, basic_query) {
     region_query_t<uint32_t, int32_t, gmp::gmp_float> region_query(&unit_cell, num_bits_per_dim);
 
     // build tree
-    auto brt = std::make_unique<binary_radix_tree_t<uint32_t, int32_t>>(region_query.get_unique_morton_codes(), num_bits_per_dim * 3);
+    auto brt = std::make_unique<binary_radix_tree_t<int32_t, gmp::gmp_float>>(region_query.get_unique_morton_codes(), num_bits_per_dim * 3);
 
     // query
     std::vector<std::vector<query_result_t<gmp::gmp_float>>> cpu_results;
@@ -134,7 +134,9 @@ TEST(CudaRegionQueryTest, basic_query) {
         for (auto j = 0; j < cpu_results[i].size(); j++) {
             EXPECT_FLOAT_EQ(h_query_results[gpu_offset + j].distance_squared, cpu_results[i][j].distance_squared);
             EXPECT_EQ(h_query_results[gpu_offset + j].neighbor_index, cpu_results[i][j].neighbor_index);
-            EXPECT_EQ(h_query_results[gpu_offset + j].difference, cpu_results[i][j].difference);
+            EXPECT_EQ(h_query_results[gpu_offset + j].difference[0], cpu_results[i][j].difference[0]);
+            EXPECT_EQ(h_query_results[gpu_offset + j].difference[1], cpu_results[i][j].difference[1]);
+            EXPECT_EQ(h_query_results[gpu_offset + j].difference[2], cpu_results[i][j].difference[2]);
         }
     }
 }

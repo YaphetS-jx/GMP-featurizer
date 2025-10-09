@@ -34,7 +34,7 @@ namespace gmp { namespace region_query {
         vector_device<IndexType> sorted_indexes;
 
         // binary radix tree
-        std::unique_ptr<cuda_binary_radix_tree_t<MortonCodeType, IndexType>> brt;
+        std::unique_ptr<cuda_binary_radix_tree_t<IndexType, FloatType>> brt;
         IndexType num_bits_per_dim;
     };
 

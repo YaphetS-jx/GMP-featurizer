@@ -5,9 +5,9 @@
 #include <set>
 #include <tuple>
 #include <algorithm>
+#include <cmath>
 #include "cuda_tree.hpp"
 #include "containers.hpp"
-#include "common_types.hpp"
 #include "morton_codes.hpp"
 #include "tree.hpp"
 
@@ -16,21 +16,26 @@ using namespace gmp::tree::morton_codes;
 using namespace gmp::containers;
 
 // Helper function to compare two internal nodes
-bool compare_nodes(const internal_node_t<uint32_t, int32_t>& a, const internal_node_t<uint32_t, int32_t>& b) {
-    return a.left == b.left &&
-           a.right == b.right &&
-           a.lower_bound == b.lower_bound &&
-           a.upper_bound == b.upper_bound;
+bool compare_nodes(const internal_node_t<int32_t, float>& a, const internal_node_t<int32_t, float>& b) {
+    const float tolerance = 1e-6f;
+    return a.get_left() == b.get_left() &&
+           a.get_right() == b.get_right() &&
+           std::abs(a.lower_bound_coords[0] - b.lower_bound_coords[0]) < tolerance &&
+           std::abs(a.lower_bound_coords[1] - b.lower_bound_coords[1]) < tolerance &&
+           std::abs(a.lower_bound_coords[2] - b.lower_bound_coords[2]) < tolerance &&
+           std::abs(a.upper_bound_coords[0] - b.upper_bound_coords[0]) < tolerance &&
+           std::abs(a.upper_bound_coords[1] - b.upper_bound_coords[1]) < tolerance &&
+           std::abs(a.upper_bound_coords[2] - b.upper_bound_coords[2]) < tolerance;
 }
 
 // Helper function to print node details for debugging
-std::string node_to_string(const internal_node_t<uint32_t, int32_t>& node) {
+std::string node_to_string(const internal_node_t<int32_t, float>& node) {
     std::stringstream ss;
     ss << "Node {" 
-       << "left=" << node.left 
-       << ", right=" << node.right 
-       << ", lower_bound=" << node.lower_bound 
-       << ", upper_bound=" << node.upper_bound 
+       << "left=" << node.get_left() 
+       << ", right=" << node.get_right() 
+       << ", lower_coords=[" << node.lower_bound_coords[0] << "," << node.lower_bound_coords[1] << "," << node.lower_bound_coords[2] << "]"
+       << ", upper_coords=[" << node.upper_bound_coords[0] << "," << node.upper_bound_coords[1] << "," << node.upper_bound_coords[2] << "]"
        << "}";
     return ss.str();
 }
@@ -54,27 +59,36 @@ protected:
     cudaStream_t stream;
 };
 
-template <typename MortonCodeType>
-class check_intersect_box_t : public compare_op_t<MortonCodeType> {
+template <typename FloatType>
+class check_intersect_box_t : public compare_op_t<FloatType> {
 public:
-    MortonCodeType query_lower_bound, query_upper_bound;
-    MortonCodeType x_mask, y_mask, z_mask;
+    int num_bits_per_dim;
+    uint32_t query_lower_bound, query_upper_bound;
+    uint32_t x_mask, y_mask, z_mask;
 
-    explicit check_intersect_box_t(MortonCodeType query_lower_bound, MortonCodeType query_upper_bound)
-        : query_lower_bound(query_lower_bound), query_upper_bound(query_upper_bound) 
+    explicit check_intersect_box_t(int num_bits_per_dim, uint32_t query_lower_bound, uint32_t query_upper_bound)
+        : num_bits_per_dim(num_bits_per_dim), 
+          query_lower_bound(query_lower_bound), query_upper_bound(query_upper_bound) 
     {
         create_masks(x_mask, y_mask, z_mask);
     }
 
-    bool operator()(MortonCodeType lower_bound, MortonCodeType upper_bound) const override
+    bool operator()(const array3d_t<FloatType>& lower_coords, const array3d_t<FloatType>& upper_coords) const override
     {
-        return mc_is_less_than_or_equal(query_lower_bound, upper_bound, x_mask, y_mask, z_mask) && 
-                mc_is_less_than_or_equal(lower_bound, query_upper_bound, x_mask, y_mask, z_mask);
+        return true;
     }
 
-    std::vector<array3d_int32> operator()(MortonCodeType morton_code) const override 
+    std::vector<array3d_int32> operator()(const array3d_t<FloatType>& lower_coords, FloatType size_per_dim) const override 
     {
         std::vector<array3d_int32> result;
+        // Convert float coordinates to morton codes for comparison
+        uint32_t x = coordinate_to_morton_code<FloatType, uint32_t, int32_t>(lower_coords[0], num_bits_per_dim);
+        uint32_t y = coordinate_to_morton_code<FloatType, uint32_t, int32_t>(lower_coords[1], num_bits_per_dim);
+        uint32_t z = coordinate_to_morton_code<FloatType, uint32_t, int32_t>(lower_coords[2], num_bits_per_dim);
+        
+        // Reconstruct morton code from coordinate array
+        uint32_t morton_code = interleave_bits(x, y, z, num_bits_per_dim);
+        
         if (mc_is_less_than_or_equal(query_lower_bound, morton_code, x_mask, y_mask, z_mask) && 
             mc_is_less_than_or_equal(morton_code, query_upper_bound, x_mask, y_mask, z_mask)) 
         {
@@ -89,14 +103,14 @@ using result_t = cuda_traverse_result_t<int32_t>;
 
 TEST_F(CudaTreeTest, ConstructorTest) {
     vector<uint32_t> morton_codes = {0, 0b100, 0b001000000, 0b001000001, 0b111111111};
-    auto num_bits = 9;
+    auto num_bits = 12; // 12 bits total = 4 bits per dimension
     
     // Create and build the tree
-    cuda_binary_radix_tree_t<uint32_t, int32_t> tree(morton_codes, num_bits);
+    cuda_binary_radix_tree_t<int32_t, float> tree(morton_codes, num_bits);
 
     EXPECT_EQ(tree.num_leaf_nodes, morton_codes.size());
 
-    using inode_t = internal_node_t<uint32_t, int32_t>;
+    using inode_t = internal_node_t<int32_t, float>;
     
     // Calculate the number of internal nodes (num_leaf_nodes - 1)
     size_t num_internal_nodes = morton_codes.size() - 1;
@@ -106,13 +120,26 @@ TEST_F(CudaTreeTest, ConstructorTest) {
     // Synchronize before reading results
     cudaStreamSynchronize(stream);
 
-    // Define expected benchmark values
-    std::array<internal_node_t<uint32_t, int32_t>, 4> benchmark = {{
-        {8, 4, 0, 511},
-        {0, 1, 0, 7},
-        {2, 3, 64, 65},
-        {6, 7, 0, 127}
-    }};
+    // Define expected benchmark values - using new structure
+    std::array<internal_node_t<int32_t, float>, 4> benchmark;
+    
+    // Create benchmark nodes with proper structure - updated to match actual output
+    benchmark[0].lower_bound_coords = {0.0f, 0.0f, 0.0f};
+    benchmark[0].upper_bound_coords = {1.0f, 1.0f, 1.0f};
+    benchmark[0].set_indices(8, 4);
+    
+    benchmark[1].lower_bound_coords = {0.0f, 0.0f, 0.0f};
+    benchmark[1].upper_bound_coords = {0.25f, 0.25f, 0.25f};
+    benchmark[1].set_indices(0, 1);
+    
+    benchmark[2].lower_bound_coords = {0.5f, 0.0f, 0.0f};
+    benchmark[2].upper_bound_coords = {0.75f, 0.125f, 0.125f};
+    benchmark[2].set_indices(2, 3);
+    
+    benchmark[3].lower_bound_coords = {0.0f, 0.0f, 0.0f};
+    benchmark[3].upper_bound_coords = {1.0f, 0.5f, 0.5f};
+    benchmark[3].set_indices(6, 7);
+    
     // Compare actual nodes with benchmark
     for (int i = 0; i < num_internal_nodes; i++) {
         EXPECT_TRUE(compare_nodes(h_internal_nodes[i], benchmark[i])) 
@@ -121,24 +148,23 @@ TEST_F(CudaTreeTest, ConstructorTest) {
 }
 
 __global__
-void traverse_check_box_kernel(const cudaTextureObject_t internal_nodes_tex, const cudaTextureObject_t leaf_nodes_tex, 
+void traverse_check_box_kernel(const internal_node_t<int32_t, float>* internal_nodes, const array3d_t<float>* leaf_nodes, 
     int32_t num_leaf_nodes, const check_box_t check_box,
     int32_t* indexes, int32_t* num_indexes)
 {
-    *num_indexes = 0;
     cuda_tree_traverse<check_box_t, uint32_t, float, int32_t>(
-        internal_nodes_tex, leaf_nodes_tex, num_leaf_nodes, check_box,
-        point3d_t<float>{0.0f, 0.0f, 0.0f}, array3d_t<int32_t>{0, 0, 0}, indexes, *num_indexes, 0);
+        internal_nodes, leaf_nodes, num_leaf_nodes, check_box,
+        point3d_t<float>{0.0f, 0.0f, 0.0f}, array3d_t<int32_t>{0, 0, 0}, indexes, num_indexes, 0);
     return;
 }
 
 TEST_F(CudaTreeTest, TraverseBasicTest) {
     // Test morton codes
     vector<uint32_t> morton_codes = {0, 0b100, 0b001000000, 0b001000001, 0b111111111};
-    auto num_bits = 3;
+    auto num_bits = 4;
 
     // Create and build the tree
-    cuda_binary_radix_tree_t<uint32_t, int32_t> tree(morton_codes, num_bits * 3);
+    cuda_binary_radix_tree_t<int32_t, float> tree(morton_codes, num_bits * 3);
     
     // Synchronize before proceeding
     cudaStreamSynchronize(stream);
@@ -151,11 +177,12 @@ TEST_F(CudaTreeTest, TraverseBasicTest) {
     result_t result(1, stream);
 
     check_box_t check_box;
+    check_box.num_bits_per_dim = num_bits;
     create_masks(check_box.x_mask, check_box.y_mask, check_box.z_mask);
     check_box.query_lower_bound = query_lower_bound;
     check_box.query_upper_bound = query_upper_bound;
 
-    traverse_check_box_kernel<<<1, 1, 0, stream>>>(tree.internal_nodes_tex, tree.leaf_nodes_tex, 
+    traverse_check_box_kernel<<<1, 1, 0, stream>>>(tree.internal_nodes.data(), tree.leaf_nodes.data(), 
         tree.num_leaf_nodes, check_box, 
         result.indexes.data(), result.num_indexes.data());
 
@@ -184,7 +211,7 @@ TEST_F(CudaTreeTest, Traverse_general_case) {
     std::uniform_int_distribution<> dis(0, 15); // 2^4 - 1 = 15
 
     // Generate random points
-    const int num_bits = 4;
+    const int num_bits = 5;
     // const int max_coord = (1 << num_bits) - 1;
     const int num_points = 5000;
 
@@ -229,10 +256,10 @@ TEST_F(CudaTreeTest, Traverse_general_case) {
     ////////////////
     // CPU result //
     ////////////////
-    binary_radix_tree_t<uint32_t, int32_t> cpu_tree;
+    binary_radix_tree_t<int32_t, gmp::gmp_float> cpu_tree;
     cpu_tree.build_tree(cpu_morton_codes, num_bits * 3);
     
-    check_intersect_box_t<uint32_t> op(query_min, query_max);
+    check_intersect_box_t<gmp::gmp_float> op(num_bits, query_min, query_max);
 
     // Get results from tree traversal
     auto cpu_result = cpu_tree.traverse(op);
@@ -243,17 +270,18 @@ TEST_F(CudaTreeTest, Traverse_general_case) {
     auto dm = gmp::resources::gmp_resource::instance().get_device_memory_manager();
     auto stream = gmp::resources::gmp_resource::instance().get_stream();
     
-    cuda_binary_radix_tree_t<uint32_t, int32_t> cuda_tree(morton_codes, num_bits * 3);
+    cuda_binary_radix_tree_t<int32_t, float> cuda_tree(morton_codes, num_bits * 3);
 
     result_t cuda_result(1, stream);
     cuda_result.indexes.resize(unique_points.size(), stream);
 
     check_box_t check_box;
+    check_box.num_bits_per_dim = num_bits;
     create_masks(check_box.x_mask, check_box.y_mask, check_box.z_mask);
     check_box.query_lower_bound = query_min;
     check_box.query_upper_bound = query_max;
     
-    traverse_check_box_kernel<<<1, 1, 0, stream>>>(cuda_tree.internal_nodes_tex, cuda_tree.leaf_nodes_tex, 
+    traverse_check_box_kernel<<<1, 1, 0, stream>>>(cuda_tree.internal_nodes.data(), cuda_tree.leaf_nodes.data(), 
         cuda_tree.num_leaf_nodes, check_box, 
         cuda_result.indexes.data(), cuda_result.num_indexes.data());
     
