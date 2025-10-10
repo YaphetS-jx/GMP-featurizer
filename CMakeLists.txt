@@ -130,6 +130,9 @@ set(NLOHMANN_JSON_INCLUDE_DIR "/usr/local/src/json/single_include" CACHE PATH "P
 # Option to build tests
 option(BUILD_TESTS "Build the tests" OFF)
 
+# Option to build Python module
+option(BUILD_PYTHON_MODULE "Build Python module with pybind11" OFF)
+
 # Create a library target with header files
 add_library(gmp-featurizer-lib STATIC)
 set_cuda_architectures_for_target(gmp-featurizer-lib)
@@ -701,4 +704,75 @@ if(BUILD_TESTS)
             COMMENT "Running CPU tests..."
         )
     endif()
+endif()
+
+# Build Python module if requested
+if(BUILD_PYTHON_MODULE)
+    # Find pybind11
+    find_package(pybind11 REQUIRED)
+    
+    # Find Python
+    find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
+    
+    message(STATUS "Building Python module with pybind11")
+    message(STATUS "Python executable: ${Python3_EXECUTABLE}")
+    message(STATUS "Python version: ${Python3_VERSION}")
+    message(STATUS "Python include dirs: ${Python3_INCLUDE_DIRS}")
+    message(STATUS "Python libraries: ${Python3_LIBRARIES}")
+    
+    # Create Python module
+    pybind11_add_module(gmp_featurizer
+        src/python/gmp_featurizer.cpp
+    )
+    
+    # Set CUDA architectures for Python module
+    set_cuda_architectures_for_target(gmp_featurizer)
+    
+    # Link against the main library
+    target_link_libraries(gmp_featurizer
+        PRIVATE
+        gmp-featurizer-lib
+        pybind11::module
+        pybind11::lto
+        pybind11::windows_extras
+    )
+    
+    # Set include directories
+    target_include_directories(gmp_featurizer
+        PRIVATE
+        ${CMAKE_SOURCE_DIR}/src/common
+        ${CMAKE_SOURCE_DIR}/src/cpu
+        ${CMAKE_SOURCE_DIR}/src/gpu
+        ${CMAKE_SOURCE_DIR}/src/infra
+        ${NLOHMANN_JSON_INCLUDE_DIR}
+        ${GEMMI_INCLUDE_DIR}
+    )
+    
+    # Add CUDA include directories if CUDA is enabled
+    if(ENABLE_CUDA)
+        target_include_directories(gmp_featurizer
+            PRIVATE
+            ${CUDA_INCLUDE_DIRS}
+            /usr/local/cuda/include
+        )
+        
+        # Set CUDA properties for the Python module
+        set_target_properties(gmp_featurizer PROPERTIES
+            CUDA_SEPARABLE_COMPILATION ON
+        )
+    endif()
+    
+    # Set output directory for Python module
+    set_target_properties(gmp_featurizer PROPERTIES
+        LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/python
+    )
+    
+    # Create a custom target to install the Python module
+    add_custom_target(install_python_module
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/python
+        COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:gmp_featurizer> ${CMAKE_BINARY_DIR}/python/
+        COMMENT "Installing Python module"
+    )
+    
+    message(STATUS "Python module will be built as: ${CMAKE_BINARY_DIR}/python/gmp_featurizer.so")
 endif()

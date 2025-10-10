@@ -1,6 +1,8 @@
 #include <chrono>
 #include "cpu_featurizer.hpp"
 #include "input.hpp"
+#include "util.hpp"
+#include "atom.hpp"
 #ifdef GMP_ENABLE_CUDA
 #include "resources.hpp"
 #include "gpu_featurizer.hpp"
@@ -22,17 +24,26 @@ int main(int argc, char* argv[]) {
     
 #ifndef GMP_ENABLE_CUDA
     // CPU featurizer (CUDA not available)
-    gmp::run_cpu_featurizer(input.get());
+    auto result = gmp::run_cpu_featurizer(input.get());
+    gmp::util::write_vector_2d(result, input->files->get_output_file());
 #else
     // Parse input to check GPU preference when CUDA is available
     bool use_gpu = input->get_descriptor_config()->get_enable_gpu();
 
     if (use_gpu) {
         // GPU featurizer
-        gmp::run_gpu_featurizer(input.get());
+        auto result = gmp::run_gpu_featurizer(input.get());
+        // Get reference positions for dimensions
+        auto unit_cell = gmp::atom::unit_cell_flt(input->files->get_atom_file());
+        auto ref_positions = gmp::atom::set_ref_positions(input->descriptor_config->get_ref_grid(), 
+                                                         unit_cell.get_atoms());
+        gmp::util::write_vector_1d(result, input->files->get_output_file(), 
+                                   input->descriptor_config->get_feature_list().size(), 
+                                   ref_positions.size(), false);
     } else {
         // CPU featurizer
-        gmp::run_cpu_featurizer(input.get());
+        auto result = gmp::run_cpu_featurizer(input.get());
+        gmp::util::write_vector_2d(result, input->files->get_output_file());
     }
 #endif
 

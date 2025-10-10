@@ -17,8 +17,20 @@ RUN apt-get update && apt-get install -y \
     ca-certificates \
     tar \
     gdb gdbserver \
+    # Python and pybind11 dependencies
+    python3 \
+    python3-dev \
+    python3-pip \
+    python3-numpy \
+    python3-matplotlib \
+    python3-setuptools \
+    python3-wheel \
+    pkg-config \
   && update-ca-certificates \
   && rm -rf /var/lib/apt/lists/*
+
+# Install pybind11 via pip
+RUN pip3 install --break-system-packages pybind11[global]>=2.6.0
 
 # Set working directory
 WORKDIR /app
@@ -40,6 +52,14 @@ RUN echo '"\e[A": history-search-backward' >> /root/.inputrc && \
 
 # Copy your application files
 COPY . .
+
+# Create a symlink for python command
+RUN ln -s /usr/bin/python3 /usr/bin/python
+
+# Example: Build the Python module (uncomment to build automatically)
+# RUN mkdir -p build && cd build && \
+#     cmake -DBUILD_PYTHON_MODULE=ON .. && \
+#     make gmp_featurizer
 
 # Set default command
 CMD ["/bin/bash"]

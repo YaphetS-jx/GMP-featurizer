@@ -1,0 +1,12 @@
+# GMP Featurizer Python Interface Requirements
+
+# Core dependencies
+numpy>=1.15.0
+pybind11>=2.6.0
+
+# Optional dependencies for visualization
+matplotlib>=3.0.0
+
+# Development dependencies
+pytest>=6.0.0
+black>=21.0.0

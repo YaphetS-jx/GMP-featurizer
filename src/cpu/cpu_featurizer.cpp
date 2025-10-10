@@ -12,7 +12,7 @@
 
 namespace gmp {
 
-    void run_cpu_featurizer(input::input_t* input) 
+    std::vector<std::vector<gmp::gmp_float>> run_cpu_featurizer(input::input_t* input) 
     {
         using namespace gmp;
         using namespace gmp::containers;
@@ -40,7 +40,8 @@ namespace gmp {
         auto t2 = std::chrono::high_resolution_clock::now();
         auto compute_time = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1);
         std::cout << "CPU featurizer time: " << static_cast<double>(compute_time.count()) << " ms" << std::endl;
-        util::write_vector_2d(result, input->files->get_output_file());
+        
+        return result;
     }
 
 } // namespace gmp

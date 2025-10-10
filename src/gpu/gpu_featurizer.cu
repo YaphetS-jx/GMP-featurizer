@@ -14,18 +14,16 @@
 
 namespace gmp {
 
-    void run_gpu_featurizer(input::input_t* input) 
+    vector<gmp::gmp_float> run_gpu_featurizer(input::input_t* input) 
     {
         using namespace gmp;
-        using namespace gmp::containers;
-
         std::cout << "Running GPU featurizer..." << std::endl;
 
         // Ensure CUDA device is set before creating RMM resources
         cudaError_t cuda_status = cudaSetDevice(0);
         if (cuda_status != cudaSuccess) {
             std::cerr << "ERROR: Failed to set CUDA device: " << cudaGetErrorString(cuda_status) << std::endl;
-            return;
+            return vector<gmp::gmp_float>();
         }
 
         // create unit cell
@@ -73,9 +71,22 @@ namespace gmp {
         cudaEventElapsedTime(&milliseconds, start, stop);
         std::cout << "GPU featurizer time: " << milliseconds << " ms" << std::endl;
 
+        // Check for CUDA errors before cleanup
+        cudaError_t cuda_error = cudaGetLastError();
+        if (cuda_error != cudaSuccess) {
+            std::cerr << "WARNING: CUDA error detected: " << cudaGetErrorString(cuda_error) << std::endl;
+        }
+
+        // Clean up CUDA events
+        cudaEventDestroy(start);
+        cudaEventDestroy(stop);
+
+        // Final CUDA synchronization
+        cudaStreamSynchronize(stream);
+        
         GMP_CHECK(get_last_error());
-        util::write_vector_1d(result, input->files->get_output_file(), input->descriptor_config->get_feature_list().size(), ref_positions.size(), false);
-        GMP_CHECK(get_last_error());
+        
+        return result;
     }
 
 } // namespace gmp
