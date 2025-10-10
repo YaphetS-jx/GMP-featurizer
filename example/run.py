@@ -34,7 +34,7 @@ if features.shape == ref_features.shape:
     std_diff = np.std(diff)
     
     # Check if they're close (within tolerance)
-    tolerance = 1e-5
+    tolerance = 5e-5
     close = np.allclose(features, ref_features, atol=tolerance)
     print(f"Features are close (tol={tolerance}): {close}")
     

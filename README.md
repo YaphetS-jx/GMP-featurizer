@@ -21,25 +21,83 @@ To build the project:
 
     `chmod +x ./build.sh`
 
-2. Run the build script with single precision (float): 
+2. Build the main C++ executable:
 
-    `./build.sh float`
+    **Basic usage:**
+    ```bash
+    # Single precision (default)
+    ./build.sh
 
-    or with double precision (double):
+    # Double precision
+    ./build.sh --float-type double
+    ```
 
-    `./build.sh double`
+    **GPU support:**
+    ```bash
+    # GPU with single precision
+    ./build.sh --float-type float --build-type gpu
 
-3. Run the build script with GPU support and CUDA arch: 
+    # GPU with double precision and specific CUDA architecture
+    ./build.sh --float-type double --build-type gpu --cuda-arch 120
+    ```
 
-    `./build.sh float gpu 120`
+    **Parallel compilation:**
+    ```bash
+    # Use all available threads (default)
+    ./build.sh --parallel true
+
+    # Single-threaded compilation
+    ./build.sh --parallel false
+    ```
+
+3. Build the Python interface:
+
+    **CPU-only Python interface:**
+    ```bash
+    ./build.sh --python --float-type float
+    ```
+
+    **GPU Python interface:**
+    ```bash
+    ./build.sh --python --float-type float --build-type gpu --cuda-arch 120
+    ```
 
 4. Run the `gmp-featurizer` with a json configuration file:
 
-    `./build/gmp-featurizer  path/to/json`
+    `./build/gmp-featurizer path/to/json`
 
 5. Run all tests with command in build/ folder, make sure you enable test building in build.sh
 
     `make test`
+
+### Build Script Options
+
+The `./build.sh` script supports the following options (can be used in any order):
+
+| Option | Short | Description | Default |
+|--------|-------|-------------|---------|
+| `--float-type TYPE` | `-flt` | Floating point precision: `float` or `double` | `float` |
+| `--build-type TYPE` | `-bt` | Build type: `cpu` or `gpu` | `cpu` |
+| `--cuda-arch ARCH` | `-ca` | CUDA architecture (e.g., `120`, `130`) | `120` |
+| `--ptxas-verbose BOOL` | `-pv` | Enable PTXAS verbose output: `true` or `false` | `false` |
+| `--parallel BOOL` | `-p` | Parallel compilation: `true` or `false` | `true` |
+| `--python` | `-py` | Build Python interface | `false` |
+| `--help` | `-h` | Show help message | - |
+
+**Examples:**
+```bash
+# Show help
+./build.sh --help
+
+# GPU build with custom CUDA arch
+./build.sh -bt gpu -ca 130
+
+# Python interface with double precision
+./build.sh -py -flt double
+
+# Single-threaded CPU build
+./build.sh -p false
+```
 
 ### Input JSON file:
 
@@ -67,6 +125,50 @@ To build the project:
 
     `num threads` : number of threads (integer)
 
+    `enable gpu` : enable GPU acceleration (true or false) - only available in GPU builds
+
+## Python Interface
+
+The Python interface provides automatic resource management and simplified usage:
+
+### Installation
+
+Build the Python interface:
+```bash
+# CPU-only interface
+./build.sh --python --float-type float
+
+# GPU interface
+./build.sh --python --float-type float --build-type gpu --cuda-arch 120
+```
+
+### Usage
+
+```python
+import sys
+import os
+sys.path.insert(0, '/app/build/python')
+import gmp_featurizer
+
+# GPU resources are automatically initialized on import
+# and cleaned up on script exit - no manual calls needed!
+
+# Compute features from JSON configuration
+features = gmp_featurizer.compute_features('config.json')
+print(f"Features shape: {features.shape}")
+
+# The interface returns a NumPy array with shape (n_positions, n_features)
+# for GPU mode or (n_positions, n_features) for CPU mode
+```
+
+### Python Interface Features
+
+- **Automatic Resource Management**: GPU/CPU resources are initialized on import and cleaned up on exit
+- **No Manual Cleanup**: No need to call `initialize_gpu()` or `cleanup()` manually
+- **JSON Configuration**: Uses the same JSON configuration format as the C++ executable
+- **NumPy Integration**: Returns results as NumPy arrays for easy integration with Python data science tools
+- **Error Handling**: Graceful error handling with informative error messages
+
 ## Usage Examples
 
 ### Basic usage with required parameters:
@@ -92,7 +194,21 @@ To build the project:
     "scaling mode": 1,
     "reference grid": [10, 10, 10],
     "num bits per dim": 8,
-    "num threads": 4
+    "num threads": 4,
+    "enable gpu": true
+}
+```
+
+### GPU-specific usage:
+```json
+{
+    "system file path": "path/to/system.cif",
+    "psp file path": "path/to/pseudopotential.psp",
+    "output file path": "path/to/output.txt",
+    "orders": [0, 1, 2],
+    "sigmas": [0.1, 0.2, 0.3],
+    "enable gpu": true,
+    "reference grid": [16, 16, 16]
 }
 ```
 
