@@ -63,7 +63,7 @@ namespace gmp { namespace math {
     };
 
     template <typename T>
-    struct alignas(sizeof(T) * 4) array3d_t {
+    struct alignas(16) array3d_t {
         T data_[3];
         T padding_;
 
@@ -204,7 +204,7 @@ namespace gmp { namespace math {
     template<typename T>
     GPU_HOST_DEVICE
     array3d_t<T> make_array3d(T x, T y, T z) {
-        array3d_t<T> result;
+        array3d_t<T> result{};  // Zero-initialize
         result[0] = x;
         result[1] = y;
         result[2] = z;
@@ -319,8 +319,8 @@ namespace gmp { namespace math {
 
     template<typename T>
     GPU_HOST_DEVICE
-    matrix3d_t<T> make_matrix3d(array3d_t<T> row0, array3d_t<T> row1, array3d_t<T> row2) {
-        matrix3d_t<T> result;
+    matrix3d_t<T> make_matrix3d(const array3d_t<T>& row0, const array3d_t<T>& row1, const array3d_t<T>& row2) {
+        matrix3d_t<T> result{};  // Zero-initialize
         result[0] = row0;
         result[1] = row1;
         result[2] = row2;
@@ -364,6 +364,16 @@ namespace gmp { namespace math {
             return result;
         }
     };
+
+    // Helper function to create sym_matrix3d_t
+    template<typename T>
+    GPU_HOST_DEVICE
+    sym_matrix3d_t<T> make_sym_matrix3d(const array3d_t<T>& diag, const array3d_t<T>& off_diag) {
+        sym_matrix3d_t<T> result{};  // Zero-initialize
+        result.diag_ = diag;
+        result.off_diag_ = off_diag;
+        return result;
+    }
 
     // type aliases using configured floating-point type
     using sym_matrix3d_flt = sym_matrix3d_t<gmp::gmp_float>;

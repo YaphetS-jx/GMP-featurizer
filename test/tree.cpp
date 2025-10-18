@@ -12,7 +12,7 @@ using gmp::math::array3d_t;
 using gmp::gmp_float;
 
 // Helper function to compare two internal nodes
-bool compare_nodes(const internal_node_t<int32_t, float>& a, const internal_node_t<int32_t, float>& b) {
+bool compare_nodes(const internal_node_t<int32_t, gmp::gmp_float>& a, const internal_node_t<int32_t, gmp::gmp_float>& b) {
     return a.get_left() == b.get_left() &&
            a.get_right() == b.get_right() &&
            a.lower_bound_coords[0] == b.lower_bound_coords[0] &&
@@ -24,7 +24,7 @@ bool compare_nodes(const internal_node_t<int32_t, float>& a, const internal_node
 }
 
 // Helper function to print node details for debugging
-std::string node_to_string(const internal_node_t<int32_t, float>& node) {
+std::string node_to_string(const internal_node_t<int32_t, gmp::gmp_float>& node) {
     std::stringstream ss;
     ss << "Node {"
        << "left=" << node.get_left()
@@ -59,41 +59,41 @@ TEST(BinaryRadixTreeTest, BasicConstruction) {
     auto num_bits = 12;
 
     // Create and build the tree
-    binary_radix_tree_t<int32_t, float> tree;
+    binary_radix_tree_t<int32_t, gmp::gmp_float> tree;
     tree.build_tree(morton_codes, num_bits);
     
     // verify all the internal nodes 
     EXPECT_EQ(tree.get_internal_nodes().size(), 4);
 
-    std::array<internal_node_t<int32_t, float>, 4> benchmark;
+    std::array<internal_node_t<int32_t, gmp::gmp_float>, 4> benchmark;
     
     // Initialize benchmark nodes using the new structure
-    benchmark[0].lower_bound_coords = {0.0f, 0.0f, 0.0f};
-    benchmark[0].upper_bound_coords = {1.0f, 1.0f, 1.0f};
+    benchmark[0].lower_bound_coords = {0.0, 0.0, 0.0};
+    benchmark[0].upper_bound_coords = {1.0, 1.0, 1.0};
     benchmark[0].set_indices(8, 4);
     
-    benchmark[1].lower_bound_coords = {0.0f, 0.0f, 0.0f};
-    benchmark[1].upper_bound_coords = {0.25f, 0.25f, 0.25f};
+    benchmark[1].lower_bound_coords = {0.0, 0.0, 0.0};
+    benchmark[1].upper_bound_coords = {0.25, 0.25, 0.25};
     benchmark[1].set_indices(0, 1);
     
-    benchmark[2].lower_bound_coords = {0.5f, 0.0f, 0.0f};
-    benchmark[2].upper_bound_coords = {0.75f, 0.125f, 0.125f};
+    benchmark[2].lower_bound_coords = {0.5, 0.0, 0.0};
+    benchmark[2].upper_bound_coords = {0.75, 0.125, 0.125};
     benchmark[2].set_indices(2, 3);
     
-    benchmark[3].lower_bound_coords = {0.0f, 0.0f, 0.0f};
-    benchmark[3].upper_bound_coords = {1.0f, 0.5f, 0.5f};
+    benchmark[3].lower_bound_coords = {0.0, 0.0, 0.0};
+    benchmark[3].upper_bound_coords = {1.0, 0.5, 0.5};
     benchmark[3].set_indices(6, 7);
 
     int num_bits_per_dim = num_bits / 3;
     for (int i = 0; i < 4; i++) {
         EXPECT_TRUE(compare_nodes(tree.get_internal_nodes()[i], benchmark[i])) << "Node " << i << " mismatch: " << node_to_string(tree.get_internal_nodes()[i]);
         // Compare coordinates directly since we no longer store morton codes
-        EXPECT_FLOAT_EQ(tree.get_internal_nodes()[i].lower_bound_coords[0], benchmark[i].lower_bound_coords[0]);
-        EXPECT_FLOAT_EQ(tree.get_internal_nodes()[i].lower_bound_coords[1], benchmark[i].lower_bound_coords[1]);
-        EXPECT_FLOAT_EQ(tree.get_internal_nodes()[i].lower_bound_coords[2], benchmark[i].lower_bound_coords[2]);
-        EXPECT_FLOAT_EQ(tree.get_internal_nodes()[i].upper_bound_coords[0], benchmark[i].upper_bound_coords[0]);
-        EXPECT_FLOAT_EQ(tree.get_internal_nodes()[i].upper_bound_coords[1], benchmark[i].upper_bound_coords[1]);
-        EXPECT_FLOAT_EQ(tree.get_internal_nodes()[i].upper_bound_coords[2], benchmark[i].upper_bound_coords[2]);
+        EXPECT_DOUBLE_EQ(tree.get_internal_nodes()[i].lower_bound_coords[0], benchmark[i].lower_bound_coords[0]);
+        EXPECT_DOUBLE_EQ(tree.get_internal_nodes()[i].lower_bound_coords[1], benchmark[i].lower_bound_coords[1]);
+        EXPECT_DOUBLE_EQ(tree.get_internal_nodes()[i].lower_bound_coords[2], benchmark[i].lower_bound_coords[2]);
+        EXPECT_DOUBLE_EQ(tree.get_internal_nodes()[i].upper_bound_coords[0], benchmark[i].upper_bound_coords[0]);
+        EXPECT_DOUBLE_EQ(tree.get_internal_nodes()[i].upper_bound_coords[1], benchmark[i].upper_bound_coords[1]);
+        EXPECT_DOUBLE_EQ(tree.get_internal_nodes()[i].upper_bound_coords[2], benchmark[i].upper_bound_coords[2]);
     }
 }
 
@@ -108,7 +108,7 @@ TEST(BinaryRadixTreeTest, DeltaFunction) {
     EXPECT_EQ(delta(morton_codes.data(), static_cast<int>(morton_codes.size()), 3, 5, 10), 5); // 5 and 24 differ 5 bits
 }
 
-template <typename FloatType = float>
+template <typename FloatType = gmp::gmp_float>
 class check_intersect_box_t : public compare_op_t<FloatType> {
 public:
     uint32_t query_lower_bound, query_upper_bound;
@@ -152,13 +152,13 @@ TEST(BinaryRadixTreeTest, Traverse_for_test) {
     auto num_bits = 4;
 
     // Create and build the tree
-    binary_radix_tree_t<int32_t, float> tree;
+    binary_radix_tree_t<int32_t, gmp::gmp_float> tree;
     tree.build_tree(morton_codes, num_bits*3);
 
     uint32_t query_lower_bound = interleave_bits(0, 0, 0, num_bits);
     uint32_t query_upper_bound = interleave_bits(0b100, 0b100, 0b100, num_bits);
 
-    check_intersect_box_t<float> op(query_lower_bound, query_upper_bound);
+    check_intersect_box_t<gmp::gmp_float> op(query_lower_bound, query_upper_bound);
     auto result = tree.traverse(op);
     EXPECT_EQ(result.size(), 3);
     EXPECT_TRUE(result.find(0) != result.end());
@@ -260,7 +260,7 @@ TEST(BinaryRadixTreeTest, Traverse_general_case) {
 
     // Brute force check - calculate coordinates for each morton code
     std::vector<int32_t> bench_result;
-    gmp::gmp_float size_per_dim = 1.0f / (1 << (num_bits - 1));
+    gmp::gmp_float size_per_dim = 1.0 / (1 << (num_bits - 1));
     for (size_t i = 0; i < morton_codes.size(); ++i) {
         // Calculate coordinates from morton code for the test
         uint32_t x_min, y_min, z_min;

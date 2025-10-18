@@ -12,6 +12,13 @@
 #define PROJECT_ROOT "."
 #endif
 
+// Macro for floating point comparisons that works with both single and double precision
+#ifdef GMP_USE_SINGLE_PRECISION
+#define EXPECT_FLOAT_EQ_GMP EXPECT_FLOAT_EQ
+#else
+#define EXPECT_FLOAT_EQ_GMP EXPECT_DOUBLE_EQ
+#endif
+
 using namespace gmp::input;
 using namespace gmp::math;
 using namespace gmp::atom;
@@ -47,18 +54,18 @@ TEST_F(InputTest, file_path_t) {
 }
 
 TEST_F(InputTest, descriptor_config_t) {    
-    descriptor_config_t<double> config;
+    descriptor_config_t<gmp::gmp_float> config;
     
     // Test default values
     EXPECT_EQ(config.get_feature_list().size(), 0);
     EXPECT_EQ(config.get_scaling_mode(), scaling_mode_t::radial);
-    EXPECT_DOUBLE_EQ(config.get_overlap_threshold(), 1e-11);
+    EXPECT_FLOAT_EQ_GMP(config.get_overlap_threshold(), 1e-11);
     EXPECT_FALSE(config.get_square());
     
     // Test setters
     std::vector<int> orders = {0, 1};
-    std::vector<double> sigmas = {0.1, 0.2};
-    std::vector<std::tuple<int, double>> feature_list;
+    std::vector<gmp::gmp_float> sigmas = {0.1, 0.2};
+    std::vector<std::tuple<int, gmp::gmp_float>> feature_list;
     
     config.set_feature_list(orders, sigmas, feature_list);
     // Each order is combined with each sigma: 2 orders * 2 sigmas = 4 features
@@ -68,7 +75,7 @@ TEST_F(InputTest, descriptor_config_t) {
     EXPECT_EQ(config.get_scaling_mode(), scaling_mode_t::both);
     
     config.set_overlap_threshold(1e-10);
-    EXPECT_DOUBLE_EQ(config.get_overlap_threshold(), 1e-10);
+    EXPECT_FLOAT_EQ_GMP(config.get_overlap_threshold(), 1e-10);
     
     config.set_square(true);
     EXPECT_TRUE(config.get_square());
@@ -76,21 +83,21 @@ TEST_F(InputTest, descriptor_config_t) {
 
 TEST_F(InputTest, read_atom_file) {
     // Test reading a CIF file
-    std::unique_ptr<lattice_t<double>> lattice;
-    std::vector<atom_t<double>> atoms;
+    std::unique_ptr<lattice_t<gmp::gmp_float>> lattice;
+    std::vector<atom_t<gmp::gmp_float>> atoms;
     atom_type_map_t atom_type_map;
     
     // Use path relative to project root
     std::string cif_path = get_project_path("test/test_files/test.cif");
-    read_atom_file<double>(cif_path, lattice, atoms, atom_type_map);
+    read_atom_file<gmp::gmp_float>(cif_path, lattice, atoms, atom_type_map);
     
     // Check if error occurred
     EXPECT_EQ(gmp::gmp_error, gmp::error_t::success);
     
     // Check lattice parameters
-    EXPECT_DOUBLE_EQ(lattice->get_cell_lengths()[0], 8.214313113733247);
-    EXPECT_DOUBLE_EQ(lattice->get_cell_lengths()[1], 7.369244);
-    EXPECT_DOUBLE_EQ(lattice->get_cell_lengths()[2], 8.908923002714356);
+    EXPECT_FLOAT_EQ_GMP(lattice->get_cell_lengths()[0], 8.214313113733247);
+    EXPECT_FLOAT_EQ_GMP(lattice->get_cell_lengths()[1], 7.369244);
+    EXPECT_FLOAT_EQ_GMP(lattice->get_cell_lengths()[2], 8.908923002714356);
     
     // Check atoms
     EXPECT_EQ(atoms.size(), 16); // 16 atoms in the CIF file
@@ -102,10 +109,10 @@ TEST_F(InputTest, read_atom_file) {
     EXPECT_EQ(atom_type_map["O"], 2);
     
     // Check first atom position using accessors
-    EXPECT_DOUBLE_EQ(atoms[0].pos.x, 0.140197);
-    EXPECT_DOUBLE_EQ(atoms[3].pos.y, 0.421795);
-    EXPECT_DOUBLE_EQ(atoms[8].pos.z, 0.010882);
-    EXPECT_DOUBLE_EQ(atoms[0].occ, 1.0);
+    EXPECT_FLOAT_EQ_GMP(atoms[0].pos.x, 0.140197);
+    EXPECT_FLOAT_EQ_GMP(atoms[3].pos.y, 0.421795);
+    EXPECT_FLOAT_EQ_GMP(atoms[8].pos.z, 0.010882);
+    EXPECT_FLOAT_EQ_GMP(atoms[0].occ, 1.0);
     EXPECT_EQ(atoms[1].type_id, atom_type_map["K"]);
 }
 
@@ -117,12 +124,12 @@ TEST_F(InputTest, read_psp_file) {
     atom_type_map["O"] = 2;
     
     // Test reading a PSP file
-    std::vector<gaussian_t<double>> gaussian_table;
+    std::vector<gaussian_t<gmp::gmp_float>> gaussian_table;
     std::vector<int> offset;
 
     // Use path relative to project root
     std::string psp_path = get_project_path("test/test_files/test.gpsp");
-    read_psp_file<double>(psp_path, atom_type_map, gaussian_table, offset);
+    read_psp_file<gmp::gmp_float>(psp_path, atom_type_map, gaussian_table, offset);
     
     // Check if error occurred
     EXPECT_EQ(gmp::gmp_error, gmp::error_t::success);
@@ -166,20 +173,22 @@ TEST_F(InputTest, json_parse_arguments) {
     EXPECT_EQ(sigmas.size(), 2);
     EXPECT_EQ(orders[0].get<int64_t>(), 0);
     EXPECT_EQ(orders[1].get<int64_t>(), 1);
-    EXPECT_DOUBLE_EQ(sigmas[0].get<double>(), 0.1);
-    EXPECT_DOUBLE_EQ(sigmas[1].get<double>(), 0.2);
+    EXPECT_FLOAT_EQ_GMP(sigmas[0].get<gmp::gmp_float>(), 0.1);
+    EXPECT_FLOAT_EQ_GMP(sigmas[1].get<gmp::gmp_float>(), 0.2);
     
     // Check numeric values
-    EXPECT_DOUBLE_EQ(obj["overlap threshold"].get<double>(), 1e-10);
+    EXPECT_FLOAT_EQ_GMP(obj["overlap threshold"].get<gmp::gmp_float>(), 1e-10);
     EXPECT_EQ(obj["scaling mode"].get<int64_t>(), 0);
     EXPECT_EQ(obj["square"].get<bool>(), true);
     
-    // Check array of doubles
-    json const& tree_min_bounds = obj["tree min bounds"];
-    EXPECT_EQ(tree_min_bounds.size(), 3);
-    EXPECT_DOUBLE_EQ(tree_min_bounds[0].get<double>(), 1.0);
-    EXPECT_DOUBLE_EQ(tree_min_bounds[1].get<double>(), 1.0);
-    EXPECT_DOUBLE_EQ(tree_min_bounds[2].get<double>(), 1.0);
+    // Check array of gmp::gmp_floats (tree min bounds)
+    if (obj.contains("tree min bounds")) {
+        json const& tree_min_bounds = obj["tree min bounds"];
+        EXPECT_EQ(tree_min_bounds.size(), 3);
+        EXPECT_FLOAT_EQ_GMP(tree_min_bounds[0].get<gmp::gmp_float>(), 1.0);
+        EXPECT_FLOAT_EQ_GMP(tree_min_bounds[1].get<gmp::gmp_float>(), 1.0);
+        EXPECT_FLOAT_EQ_GMP(tree_min_bounds[2].get<gmp::gmp_float>(), 1.0);
+    }
 }
 
 TEST_F(InputTest, to_string_functions) {

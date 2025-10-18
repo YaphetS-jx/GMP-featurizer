@@ -31,16 +31,19 @@ namespace gmp { namespace input {
         std::string atom_file_;
         std::string psp_file_;
         std::string output_file_{"./gmpFeatures.dat"};
+        std::string reference_grid_file_;
     public:
         // accessor
         const std::string& get_atom_file() const { return atom_file_; }
         const std::string& get_psp_file() const { return psp_file_; }
         const std::string& get_output_file() const { return output_file_; }
+        const std::string& get_reference_grid_file() const { return reference_grid_file_; }
 
         // setter
         void set_atom_file(const std::string& atom_file) { this->atom_file_ = atom_file; }
         void set_psp_file(const std::string& psp_file) { this->psp_file_ = psp_file; }
         void set_output_file(const std::string& output_file) { this->output_file_ = output_file; }
+        void set_reference_grid_file(const std::string& reference_grid_file) { this->reference_grid_file_ = reference_grid_file; }
 
         // print config
         void dump() const;
@@ -111,6 +114,7 @@ namespace gmp { namespace input {
     class input_t {
     public:
         input_t(const std::string& json_file);
+        input_t(); // Default constructor for direct parameter setting
         ~input_t() = default;
 
     public: 
@@ -125,6 +129,10 @@ namespace gmp { namespace input {
         const descriptor_config_flt* get_descriptor_config() const { return descriptor_config.get(); }
 
         void parse_json(const std::string& json_file);
+        
+        // Reference grid functions
+        std::vector<gmp::geometry::point3d_t<gmp_float>> read_reference_grid_from_file(const std::string& file_path);
+        std::vector<gmp::geometry::point3d_t<gmp_float>> generate_uniform_reference_grid(const array3d_int32& grid_dims);
 
         void dump() const;
     

@@ -14,7 +14,7 @@ namespace gmp { namespace region_query {
 
     template <typename FloatType, typename IndexType>
     void check_sphere_t<FloatType, IndexType>::update_point_radius(
-        point3d_t<FloatType> position_in, FloatType radius) {
+        const point3d_t<FloatType>& position_in, FloatType radius) {
         // get fractional radius 
         radius2 = radius * radius;
         frac_radius = radius / lattice->get_cell_lengths();
@@ -188,7 +188,8 @@ namespace gmp { namespace region_query {
     typename region_query_t<MortonCodeType, IndexType, FloatType>::result_t 
     region_query_t<MortonCodeType, IndexType, FloatType>::query(
         const point3d_t<FloatType>& position, const FloatType cutoff, 
-        const binary_radix_tree_t<IndexType, FloatType>* brt, const unit_cell_t<FloatType>* unit_cell) {
+        const binary_radix_tree_t<IndexType, FloatType>* brt, const unit_cell_t<FloatType>* unit_cell) 
+    {
         sphere_op_t compare_op(num_bits_per_dim, unit_cell->get_periodicity(), unit_cell->get_lattice());
         compare_op.update_point_radius(position, cutoff);
         auto cutoff_squared = cutoff * cutoff;

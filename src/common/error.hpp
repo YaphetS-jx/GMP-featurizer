@@ -18,7 +18,8 @@ namespace gmp {
         incomplete_data_set,
         invalid_psp_file,
         invalid_atom_file,
-        missing_atom_psp, 
+        missing_atom_psp,
+        invalid_reference_grid_file,
         // math errors
         matrix_singular,
         invalid_mcsh_order,
@@ -62,6 +63,7 @@ namespace gmp {
             case error_t::invalid_psp_file: return "Invalid PSP File";
             case error_t::invalid_atom_file: return "Invalid Atom File";
             case error_t::missing_atom_psp: return "Missing Atom PSP";
+            case error_t::invalid_reference_grid_file: return "Invalid Reference Grid File";
             // math errors
             case error_t::matrix_singular: return "Matrix is singular";
             case error_t::invalid_mcsh_order: return "Invalid MCSH Order";

@@ -2,8 +2,9 @@
 #include <vector>
 #include <tuple>
 #include <fstream>
+#include <sstream>
 #include <nlohmann/json.hpp>
-
+#include "gmp_float.hpp"
 #include "input.hpp"
 #include "error.hpp"
 #include "util.hpp"
@@ -31,12 +32,26 @@ namespace gmp { namespace input {
     #endif
     }
 
+    input_t::input_t() : 
+        files(std::make_unique<file_path_t>()),
+        descriptor_config(std::make_unique<descriptor_config_flt>()) 
+    {
+        // Default constructor - no JSON parsing, use default values
+        // print config
+    #ifdef DEBUG
+        dump();
+    #endif
+    }
+
     // file path config
     void file_path_t::dump() const 
     {
         std::cout << "Atom file: " << atom_file_ << std::endl;
         std::cout << "PSP file: " << psp_file_ << std::endl;
         std::cout << "Output file: " << output_file_ << std::endl;
+        if (!reference_grid_file_.empty()) {
+            std::cout << "Reference grid file: " << reference_grid_file_ << std::endl;
+        }
     }
 
     // parse JSON  
@@ -94,6 +109,10 @@ namespace gmp { namespace input {
             }
         }
         
+        if (config.contains("reference grid file")) {
+            this->files->set_reference_grid_file(config["reference grid file"].get<std::string>());
+        }
+        
         if (config.contains("num bits per dim")) {
             this->descriptor_config->set_num_bits_per_dim(static_cast<uint8_t>(config["num bits per dim"].get<int32_t>()));
         }
@@ -143,6 +162,7 @@ namespace gmp { namespace input {
         std::cout << "  scaling mode <int>               Scaling mode (0 for radial, 1 for both)" << std::endl;
         std::cout << "  output file path <path>          Path to the output file" << std::endl;
         std::cout << "  reference grid <list>            Reference grid (e.g., 10,10,10)" << std::endl;
+        std::cout << "  reference grid file <path>       Path to reference grid file (n x 3 matrix)" << std::endl;
         std::cout << "  num bits per dim <int>           Number of bits per dimension" << std::endl;
         std::cout << "  num threads <int>                Number of threads" << std::endl;
         std::cout << "  enable gpu <bool>                Enable GPU when CUDA is available (true or false, default: true)" << std::endl;
@@ -212,8 +232,71 @@ namespace gmp { namespace input {
         std::cout << "Enable GPU: " << (enable_gpu_ ? "true" : "false") << std::endl;
     }
 
-    // Explicit instantiations for descriptor_config_t (used externally)
-    template class descriptor_config_t<float>;
-    template class descriptor_config_t<double>;
+    // Reference grid functions
+    std::vector<gmp::geometry::point3d_t<gmp_float>> input_t::read_reference_grid_from_file(const std::string& file_path) {
+        std::vector<gmp::geometry::point3d_t<gmp_float>> reference_positions;
+        
+        std::ifstream file(file_path);
+        if (!file.is_open()) {
+            update_error(gmp::error_t::invalid_reference_grid_file);
+            return reference_positions;
+        }
+        
+        std::string line;
+        while (std::getline(file, line)) {
+            // Skip empty lines
+            if (line.empty() || line.find_first_not_of(" \t\r\n") == std::string::npos) {
+                continue;
+            }
+            
+            std::istringstream iss(line);
+            std::vector<gmp_float> coords;
+            gmp_float coord;
+            
+            // Read 3 coordinates from the line
+            while (iss >> coord && coords.size() < 3) {
+                coords.push_back(coord);
+            }
+            
+            if (coords.size() != 3) {
+                update_error(gmp::error_t::invalid_reference_grid_file);
+                return reference_positions;
+            }
+            
+            reference_positions.emplace_back(gmp::geometry::point3d_t<gmp_float>{coords[0], coords[1], coords[2]});
+        }
+        
+        if (reference_positions.empty()) {
+            update_error(gmp::error_t::invalid_reference_grid_file);
+            return reference_positions;
+        }
+        
+        return reference_positions;
+    }
+    
+    std::vector<gmp::geometry::point3d_t<gmp_float>> input_t::generate_uniform_reference_grid(const array3d_int32& grid_dims) {
+        std::vector<gmp::geometry::point3d_t<gmp_float>> reference_positions;
+        
+        if (grid_dims[0] <= 0 || grid_dims[1] <= 0 || grid_dims[2] <= 0) {
+            update_error(gmp::error_t::invalid_reference_grid_file);
+            return reference_positions;
+        }
+        
+        // Generate uniform grid points (matching original atom::set_ref_positions logic)
+        for (int k = 0; k < grid_dims[2]; ++k) {
+            for (int j = 0; j < grid_dims[1]; ++j) {
+                for (int i = 0; i < grid_dims[0]; ++i) {
+                    gmp_float x = static_cast<gmp_float>(i) / static_cast<gmp_float>(grid_dims[0]);
+                    gmp_float y = static_cast<gmp_float>(j) / static_cast<gmp_float>(grid_dims[1]);
+                    gmp_float z = static_cast<gmp_float>(k) / static_cast<gmp_float>(grid_dims[2]);
+                    reference_positions.emplace_back(gmp::geometry::point3d_t<gmp_float>{x, y, z});
+                }
+            }
+        }
+        
+        return reference_positions;
+    }
 
+    // Explicit instantiations for descriptor_config_t (used externally)
+    template class descriptor_config_t<gmp::gmp_float>;
 }}

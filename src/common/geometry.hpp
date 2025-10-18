@@ -19,7 +19,7 @@ namespace gmp { namespace geometry {
 
     // 3d point class
     template <typename T>
-    struct alignas(sizeof(T) * 4) point3d_t {
+    struct alignas(16) point3d_t {
         T x, y, z;
 
         // accessor 
@@ -46,7 +46,7 @@ namespace gmp { namespace geometry {
         using sym_matrix3d_type = sym_matrix3d_t<T>;
         using point_type = point3d_t<T>;
 
-        lattice_t(matrix3d_type lattice_vectors);
+        lattice_t(const matrix3d_type& lattice_vectors);
         
         // Access lattice vectors
         const array3d_type& operator[](size_t i) const;

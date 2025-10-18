@@ -37,7 +37,7 @@ namespace gmp { namespace region_query {
     public:
         explicit check_sphere_t(const IndexType num_bits_per_dim, const array3d_bool periodicity, const lattice_t<FloatType>* lattice);
 
-        void update_point_radius(point3d_t<FloatType> position_in, FloatType radius);
+        void update_point_radius(const point3d_t<FloatType>& position_in, FloatType radius);
         array3d_t<IndexType> get_cell_shift_start() const;
         array3d_t<IndexType> get_cell_shift_end() const;
 

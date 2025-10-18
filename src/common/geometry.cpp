@@ -14,7 +14,7 @@ namespace gmp { namespace geometry {
 
     // lattice_t implementations
     template <typename T>
-    inline lattice_t<T>::lattice_t(matrix3d_type lattice_vectors) : lattice_vectors_(lattice_vectors), metric_{} 
+    inline lattice_t<T>::lattice_t(const matrix3d_type& lattice_vectors) : lattice_vectors_(lattice_vectors)
     {
         update_metric();
     }
@@ -33,12 +33,13 @@ namespace gmp { namespace geometry {
     // update lattice metric
     template <typename T>
     inline void lattice_t<T>::update_metric() {
-        metric_ = sym_matrix3d_type{{lattice_vectors_[0].dot(lattice_vectors_[0]),
-                              lattice_vectors_[1].dot(lattice_vectors_[1]),
-                              lattice_vectors_[2].dot(lattice_vectors_[2])},
-                              {lattice_vectors_[0].dot(lattice_vectors_[1]),
-                              lattice_vectors_[0].dot(lattice_vectors_[2]),
-                              lattice_vectors_[1].dot(lattice_vectors_[2])}};
+        auto diag = gmp::math::make_array3d(lattice_vectors_[0].dot(lattice_vectors_[0]),
+                                           lattice_vectors_[1].dot(lattice_vectors_[1]),
+                                           lattice_vectors_[2].dot(lattice_vectors_[2]));
+        auto off_diag = gmp::math::make_array3d(lattice_vectors_[0].dot(lattice_vectors_[1]),
+                                               lattice_vectors_[0].dot(lattice_vectors_[2]),
+                                               lattice_vectors_[1].dot(lattice_vectors_[2]));
+        metric_ = gmp::math::make_sym_matrix3d(diag, off_diag);
     }
 
     // get lattice metric

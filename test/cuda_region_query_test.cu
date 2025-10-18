@@ -18,11 +18,11 @@ TEST(CudaRegionQueryTest, basic_query) {
     auto stream = gmp::resources::gmp_resource::instance().get_stream();
 
     // create lattice using gmp_float for precision consistency
-    matrix3d_t<gmp::gmp_float> lattice_vectors = {
-        array3d_t<gmp::gmp_float>{1.0, 0.0, 0.0},
-        array3d_t<gmp::gmp_float>{0.0, 1.0, 0.0},
-        array3d_t<gmp::gmp_float>{0.0, 0.0, 1.0}
-    };
+    matrix3d_t<gmp::gmp_float> lattice_vectors = gmp::math::make_matrix3d<gmp::gmp_float>(
+        gmp::math::make_array3d<gmp::gmp_float>(1.0, 0.0, 0.0),
+        gmp::math::make_array3d<gmp::gmp_float>(0.0, 1.0, 0.0),
+        gmp::math::make_array3d<gmp::gmp_float>(0.0, 0.0, 1.0)
+    );
     auto lattice = std::make_unique<lattice_t<gmp::gmp_float>>(lattice_vectors);
     unit_cell_t<gmp::gmp_float> unit_cell;
     unit_cell.set_lattice(std::move(lattice));
