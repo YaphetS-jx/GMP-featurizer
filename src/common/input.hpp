@@ -57,7 +57,7 @@ namespace gmp { namespace input {
         feature_t(int order, T sigma) : sigma(sigma), order(order) {}
 
         bool operator<(const feature_t& other) const {
-            return (sigma < other.sigma) || (sigma == other.sigma && order < other.order);
+            return (order < other.order) || (order == other.order && sigma < other.sigma);
         }
     };
 
