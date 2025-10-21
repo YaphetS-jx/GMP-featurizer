@@ -5,7 +5,7 @@ Comprehensive GMP Featurizer Test Suite
 This script runs all tests in a single command:
 1. JSON interface test (original run.py)
 2. Direct parameter interface test (run_direct.py)
-3. 3x3x3 reference grid comparison test (test_3x3_grid_comparison.py)
+3. Uniform vs direct grid comparison test (uniform_reference_grid vs reference_grid)
 
 Usage: python run.py
 """
@@ -92,7 +92,7 @@ def test_direct_parameter_interface():
         square=False,
         overlap_threshold=1e-11,
         scaling_mode=0,  # 0 for radial
-        reference_grid=[16, 16, 16],
+        uniform_reference_grid=[16, 16, 16],  # Updated parameter name
         num_bits_per_dim=3,
         num_threads=20,
         enable_gpu=True
@@ -117,10 +117,15 @@ def test_direct_parameter_interface():
     print("✅ Both interfaces produce identical results")
     return success1  # Pass if direct vs JSON comparison succeeds
 
-def create_3x3x3_grid_file():
-    """Create a 3x3x3 uniform grid file (matching C++ loop order: k, j, i)"""
-    print("Creating 3x3x3 uniform grid file...")
+
+def test_3x3_grid_comparison():
+    """Test 3: 3x3x3 reference grid comparison - uniform vs direct grid points"""
+    print("\n" + "=" * 80)
+    print("TEST 3: 3x3x3 Reference Grid Comparison")
+    print("=" * 80)
     
+    # Create 3x3x3 grid points array
+    print("Creating 3x3x3 grid points array...")
     grid_points = []
     for k in range(3):
         for j in range(3):
@@ -128,49 +133,35 @@ def create_3x3x3_grid_file():
                 x = i / 3.0  # 0, 0.333..., 0.666...
                 y = j / 3.0  # 0, 0.333..., 0.666...
                 z = k / 3.0  # 0, 0.333..., 0.666...
-                grid_points.append([x, y, z])
+                grid_points.append([x, y, z]) 
     
-    with open("3x3x3_grid.txt", "w") as f:
-        for point in grid_points:
-            f.write(f"{point[0]:.6f} {point[1]:.6f} {point[2]:.6f}\n")
-    
+    grid_points_array = np.array(grid_points)
     print(f"Created 3x3x3 grid with {len(grid_points)} points")
-    return len(grid_points)
-
-def test_3x3_grid_comparison():
-    """Test 3: 3x3x3 reference grid comparison (test_3x3_grid_comparison.py functionality)"""
-    print("\n" + "=" * 80)
-    print("TEST 3: 3x3x3 Reference Grid Comparison")
-    print("=" * 80)
     
-    # Create 3x3x3 grid file
-    num_points = create_3x3x3_grid_file()
-    print(f"\nTesting with {num_points} reference points...")
-    
-    # Method 1: Using reference_grid parameter
-    print("\n1. Computing features with reference_grid=[3,3,3] parameter...")
+    # Method 1: Using uniform_reference_grid parameter (generates uniform grid)
+    print("\n1. Computing features with uniform_reference_grid=[3,3,3] parameter...")
     try:
-        features_param = gmp_featurizer.compute_features(
+        features_uniform = gmp_featurizer.compute_features(
             atom_file="./structure.cif",
             psp_file="./QE-kjpaw.gpsp",
-            reference_grid=[3, 3, 3],
+            uniform_reference_grid=[3, 3, 3],
             enable_gpu=True
         )
-        print(f"   ✓ Success: shape = {features_param.shape}")
+        print(f"   ✓ Success: shape = {features_uniform.shape}")
     except Exception as e:
         print(f"   ✗ Failed: {e}")
         return False
     
-    # Method 2: Using reference_grid_file
-    print("\n2. Computing features with reference_grid_file...")
+    # Method 2: Using reference_grid parameter (direct grid points)
+    print("\n2. Computing features with reference_grid (direct points)...")
     try:
-        features_file = gmp_featurizer.compute_features(
+        features_direct = gmp_featurizer.compute_features(
             atom_file="./structure.cif",
             psp_file="./QE-kjpaw.gpsp",
-            reference_grid_file="./3x3x3_grid.txt",
+            reference_grid=grid_points_array,
             enable_gpu=True
         )
-        print(f"   ✓ Success: shape = {features_file.shape}")
+        print(f"   ✓ Success: shape = {features_direct.shape}")
     except Exception as e:
         print(f"   ✗ Failed: {e}")
         return False
@@ -182,16 +173,16 @@ def test_3x3_grid_comparison():
     
     # Shape comparison
     print(f"\nShape comparison:")
-    print(f"   Parameter method: {features_param.shape}")
-    print(f"   File method:      {features_file.shape}")
-    print(f"   Shapes match:     {features_param.shape == features_file.shape}")
+    print(f"   Uniform method: {features_uniform.shape}")
+    print(f"   Direct method:  {features_direct.shape}")
+    print(f"   Shapes match:   {features_uniform.shape == features_direct.shape}")
     
-    if features_param.shape != features_file.shape:
+    if features_uniform.shape != features_direct.shape:
         print("❌ FAIL: Different shapes!")
         return False
     
     # Statistical comparison
-    diff = np.abs(features_param - features_file)
+    diff = np.abs(features_uniform - features_direct)
     
     print(f"\nStatistical analysis:")
     print(f"   Max difference:     {np.max(diff):.8e}")
@@ -208,28 +199,23 @@ def test_3x3_grid_comparison():
     print(f"\nTolerance-based comparison:")
     tolerances = [1e-15, 1e-12, 1e-9, 1e-6, 1e-3]
     for tol in tolerances:
-        close = np.allclose(features_param, features_file, atol=tol)
+        close = np.allclose(features_uniform, features_direct, atol=tol)
         print(f"   All close (tol={tol:.0e}): {close}")
     
     # Correlation
-    correlation = np.corrcoef(features_param.flatten(), features_file.flatten())[0, 1]
+    correlation = np.corrcoef(features_uniform.flatten(), features_direct.flatten())[0, 1]
     print(f"   Correlation:        {correlation:.8f}")
     
     # Final result (use realistic tolerance for numerical precision)
-    success = np.allclose(features_param, features_file, atol=1e-5)
+    success = np.allclose(features_uniform, features_direct, atol=1e-5)
     print(f"\n{'✅ PASS' if success else '❌ FAIL'}: 3x3x3 reference grid comparison test")
     
     if success:
-        print("✅ The reference grid file feature works correctly")
+        print("✅ The uniform and direct grid methods work correctly")
         print("✅ Both methods produce the same 3x3x3 uniform grid")
     else:
         print(f"❌ Results differ significantly (max diff: {np.max(diff):.2e})")
         print("Note: Small differences are expected due to numerical precision")
-    
-    # Cleanup
-    if os.path.exists("3x3x3_grid.txt"):
-        os.remove("3x3x3_grid.txt")
-        print("\n🧹 Cleaned up test files")
     
     return success
 
@@ -252,7 +238,7 @@ def main():
     
     print(f"Test 1 - JSON Interface:           {'✅ PASS' if test1_success else '❌ FAIL'}")
     print(f"Test 2 - Direct Parameter:         {'✅ PASS' if test2_success else '❌ FAIL'}")
-    print(f"Test 3 - 3x3x3 Grid Comparison:    {'✅ PASS' if test3_success else '❌ FAIL'}")
+    print(f"Test 3 - Uniform vs Direct Grid:   {'✅ PASS' if test3_success else '❌ FAIL'}")
     
     all_success = test1_success and test2_success and test3_success
     
@@ -262,7 +248,7 @@ def main():
         print("\n🎉 All tests completed successfully!")
         print("✅ JSON interface works correctly")
         print("✅ Direct parameter interface works correctly")
-        print("✅ Reference grid file feature works correctly")
+        print("✅ Uniform and direct grid methods work correctly")
         print("✅ Both interfaces produce identical results")
     else:
         print("\n❌ Some tests failed. Please check the output above.")

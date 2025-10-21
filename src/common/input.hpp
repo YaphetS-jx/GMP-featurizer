@@ -124,6 +124,9 @@ namespace gmp { namespace input {
         // descriptor_config
         std::unique_ptr<descriptor_config_flt> descriptor_config;
 
+        // reference positions (for direct input)
+        gmp::containers::vector<gmp::geometry::point3d_t<gmp_float>> reference_positions_;
+
     public: 
         // functions
         const descriptor_config_flt* get_descriptor_config() const { return descriptor_config.get(); }
@@ -131,8 +134,13 @@ namespace gmp { namespace input {
         void parse_json(const std::string& json_file);
         
         // Reference grid functions
-        std::vector<gmp::geometry::point3d_t<gmp_float>> read_reference_grid_from_file(const std::string& file_path);
-        std::vector<gmp::geometry::point3d_t<gmp_float>> generate_uniform_reference_grid(const array3d_int32& grid_dims);
+        gmp::containers::vector<gmp::geometry::point3d_t<gmp_float>> read_reference_grid_from_file(const std::string& file_path);
+        gmp::containers::vector<gmp::geometry::point3d_t<gmp_float>> generate_uniform_reference_grid(const array3d_int32& grid_dims);
+        
+        // Reference positions management
+        void set_reference_positions(const gmp::containers::vector<gmp::geometry::point3d_t<gmp_float>>& positions) { reference_positions_ = positions; }
+        const gmp::containers::vector<gmp::geometry::point3d_t<gmp_float>>& get_reference_positions() const { return reference_positions_; }
+        bool has_reference_positions() const { return !reference_positions_.empty(); }
 
         void dump() const;
     

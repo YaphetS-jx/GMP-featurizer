@@ -233,8 +233,8 @@ namespace gmp { namespace input {
     }
 
     // Reference grid functions
-    std::vector<gmp::geometry::point3d_t<gmp_float>> input_t::read_reference_grid_from_file(const std::string& file_path) {
-        std::vector<gmp::geometry::point3d_t<gmp_float>> reference_positions;
+    gmp::containers::vector<gmp::geometry::point3d_t<gmp_float>> input_t::read_reference_grid_from_file(const std::string& file_path) {
+        gmp::containers::vector<gmp::geometry::point3d_t<gmp_float>> reference_positions;
         
         std::ifstream file(file_path);
         if (!file.is_open()) {
@@ -274,8 +274,8 @@ namespace gmp { namespace input {
         return reference_positions;
     }
     
-    std::vector<gmp::geometry::point3d_t<gmp_float>> input_t::generate_uniform_reference_grid(const array3d_int32& grid_dims) {
-        std::vector<gmp::geometry::point3d_t<gmp_float>> reference_positions;
+    gmp::containers::vector<gmp::geometry::point3d_t<gmp_float>> input_t::generate_uniform_reference_grid(const array3d_int32& grid_dims) {
+        gmp::containers::vector<gmp::geometry::point3d_t<gmp_float>> reference_positions;
         
         if (grid_dims[0] <= 0 || grid_dims[1] <= 0 || grid_dims[2] <= 0) {
             update_error(gmp::error_t::invalid_reference_grid_file);

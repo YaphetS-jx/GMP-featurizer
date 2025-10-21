@@ -37,12 +37,14 @@ namespace gmp {
         // create reference positions
         gmp::containers::vector<gmp::geometry::point3d_t<gmp_float>> ref_positions;
         
-        // Check if reference grid file is provided
-        if (!input->files->get_reference_grid_file().empty()) {
+        // Check if reference positions are provided directly
+        if (input->has_reference_positions()) {
+            // Use provided reference positions directly (no copying needed)
+            ref_positions = input->get_reference_positions();
+        } else if (!input->files->get_reference_grid_file().empty()) {
             // Read reference positions from file
-            auto file_positions = input->read_reference_grid_from_file(input->files->get_reference_grid_file());
+            ref_positions = input->read_reference_grid_from_file(input->files->get_reference_grid_file());
             GMP_CHECK(get_last_error());
-            ref_positions.assign(file_positions.begin(), file_positions.end());
         } else {
             // Use original atom::set_ref_positions logic
             auto ref_grid = input->descriptor_config->get_ref_grid();
