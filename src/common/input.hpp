@@ -68,7 +68,7 @@ namespace gmp { namespace input {
             scaling_mode_(scaling_mode_t::radial), 
             ref_grid_({0, 0, 0}),
             overlap_threshold_(1e-11), square_(false),
-            num_bits_per_dim_(5), num_threads_(0), enable_gpu_(true) {}
+            num_bits_per_dim_(5), num_threads_(0), enable_gpu_(true), output_raw_data_(false) {}
         ~descriptor_config_t() = default;
 
     private:
@@ -80,6 +80,7 @@ namespace gmp { namespace input {
         uint8_t num_bits_per_dim_;
         size_t num_threads_;
         bool enable_gpu_;
+        bool output_raw_data_;
 
     public:
         // accessor
@@ -87,6 +88,7 @@ namespace gmp { namespace input {
         scaling_mode_t get_scaling_mode() const { return scaling_mode_; }        
         T get_overlap_threshold() const { return overlap_threshold_; }
         bool get_square() const { return square_; }
+        bool get_output_raw_data() const { return output_raw_data_; }
         const array3d_int32& get_ref_grid() const { return ref_grid_; }
         uint8_t get_num_bits_per_dim() const { return num_bits_per_dim_; }
         size_t get_num_threads() const { return num_threads_; }
@@ -97,6 +99,7 @@ namespace gmp { namespace input {
         void set_scaling_mode(const scaling_mode_t scaling_mode) { scaling_mode_ = scaling_mode; }
         void set_overlap_threshold(const T overlap_threshold) { overlap_threshold_ = overlap_threshold; }
         void set_square(const bool square) { square_ = square; }
+        void set_output_raw_data(const bool output_raw_data) { output_raw_data_ = output_raw_data; }
         void set_ref_grid(const array3d_int32& ref_grid) { ref_grid_ = ref_grid; }
         void set_num_bits_per_dim(const uint8_t num_bits_per_dim) { num_bits_per_dim_ = num_bits_per_dim; }
         void set_num_threads(const size_t num_threads) { num_threads_ = num_threads; }

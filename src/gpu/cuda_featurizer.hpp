@@ -132,7 +132,8 @@ namespace gmp { namespace featurizer {
     public: 
     vector<T> compute(
             std::vector<feature_t<T>> feature_list, const bool feature_square, const lattice_t<T>* lattice, 
-            cudaStream_t stream = gmp::resources::gmp_resource::instance().get_stream());
+            cudaStream_t stream = gmp::resources::gmp_resource::instance().get_stream(),
+            const bool output_raw_data = false);
     };
 
     // Type aliases using configured floating-point type

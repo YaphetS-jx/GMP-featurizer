@@ -294,8 +294,25 @@ namespace gmp { namespace featurizer {
     }
 
     template <typename T>
+    __global__
+    void copy_raw_data_kernel(const int num_values, const int num_positions, const int total_feature_size,
+        const int raw_offset, const T* desc_values, T* feature_collection)
+    {
+        auto pos_idx = blockIdx.x * blockDim.x + threadIdx.x;
+        if (pos_idx >= num_positions) return;
+        
+        const T* src = desc_values + pos_idx * num_values;
+        T* dst = feature_collection + pos_idx * total_feature_size + raw_offset;
+        
+        for (int i = 0; i < num_values; ++i) {
+            dst[i] = src[i];
+        }
+    }
+
+    template <typename T>
     vector<T> cuda_featurizer_t<T>::compute(
-        std::vector<feature_t<T>> feature_list, const bool feature_square, const lattice_t<T>* lattice, cudaStream_t stream)
+        std::vector<feature_t<T>> feature_list, const bool feature_square, const lattice_t<T>* lattice, 
+        cudaStream_t stream, const bool output_raw_data)
     {
         // get device memory manager
         auto dm = gmp::resources::gmp_resource::instance().get_device_memory_manager();
@@ -331,8 +348,19 @@ namespace gmp { namespace featurizer {
         // featurizer calculation 
         auto num_positions = d_positions.size();
         auto num_features = feature_list.size();
-        vector_device<T> feature_collection(num_positions * num_features, stream);
-        cudaMemsetAsync(feature_collection.data(), 0, num_positions * num_features * sizeof(T), stream);
+        
+        // Calculate total feature size
+        size_t total_feature_size = num_features;
+        if (output_raw_data) {
+            total_feature_size = 0;
+            for (const auto& feature : feature_list) {
+                int order = feature.order;
+                total_feature_size += (order < 0 ? 1 : mcsh::num_mcsh_values[order]);
+            }
+        }
+        
+        vector_device<T> feature_collection(num_positions * total_feature_size, stream);
+        cudaMemsetAsync(feature_collection.data(), 0, num_positions * total_feature_size * sizeof(T), stream);
 
         for (auto feature_idx = 0; feature_idx < num_features; ++feature_idx) {
             auto order = feature_list[feature_idx].order;
@@ -365,12 +393,28 @@ namespace gmp { namespace featurizer {
                 d_atoms.data(), d_psp_config, d_cutoff, d_kernel_params,
                 desc_values.data(), num_values);
             
-            // weighted square sum of the values
-            grid_size.x = (num_positions + block_size.x - 1) / block_size.x;
-            weighted_square_sum_kernel<<<grid_size, block_size, 0, stream>>>(
-                order, num_values, num_positions, 
-                feature_square, desc_values.data(), 
-                feature_collection.data() + feature_idx * num_positions);
+            if (output_raw_data) {
+                // Copy raw data directly (all values for all positions)
+                // Calculate offset in feature_collection for this feature
+                size_t raw_offset = 0;
+                for (int i = 0; i < feature_idx; ++i) {
+                    int feat_order = feature_list[i].order;
+                    raw_offset += (feat_order < 0 ? 1 : mcsh::num_mcsh_values[feat_order]);
+                }
+                
+                // Use kernel to copy raw data in parallel for all positions
+                grid_size.x = (num_positions + block_size.x - 1) / block_size.x;
+                copy_raw_data_kernel<<<grid_size, block_size, 0, stream>>>(
+                    num_values, num_positions, total_feature_size,
+                    raw_offset, desc_values.data(), feature_collection.data());
+            } else {
+                // weighted square sum of the values
+                grid_size.x = (num_positions + block_size.x - 1) / block_size.x;
+                weighted_square_sum_kernel<<<grid_size, block_size, 0, stream>>>(
+                    order, num_values, num_positions, 
+                    feature_square, desc_values.data(), 
+                    feature_collection.data() + feature_idx * num_positions);
+            }
         }
         
         // copy to host 

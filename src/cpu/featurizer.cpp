@@ -273,6 +273,17 @@ namespace gmp { namespace featurizer {
         std::vector<std::future<std::vector<std::pair<size_t, std::vector<T>>>>> futures;
         futures.reserve(num_threads);
 
+        // Calculate total feature size if raw data mode is enabled (once, outside the loop)
+        bool output_raw_data = descriptor_config->get_output_raw_data();
+        size_t total_feature_size = feature_list.size();
+        if (output_raw_data) {
+            total_feature_size = 0;
+            for (const auto& feature : feature_list) {
+                int order = feature.order;
+                total_feature_size += (order < 0 ? 1 : mcsh::num_mcsh_values[order]);
+            }
+        }
+
         // Submit chunked tasks to thread pool
         for (auto thread_idx = 0; thread_idx < num_threads; ++thread_idx) {
             const auto start_idx = thread_idx * chunk_size;
@@ -280,7 +291,7 @@ namespace gmp { namespace featurizer {
             
             if (start_idx >= end_idx) break;
             
-            futures.push_back(thread_pool.enqueue([&, start_idx, end_idx]() -> std::vector<std::pair<size_t, std::vector<T>>> {
+            futures.push_back(thread_pool.enqueue([&, start_idx, end_idx, total_feature_size, output_raw_data]() -> std::vector<std::pair<size_t, std::vector<T>>> {
                 std::vector<std::pair<size_t, std::vector<T>>> chunk_results;
                 chunk_results.reserve(end_idx - start_idx);
                 
@@ -292,7 +303,9 @@ namespace gmp { namespace featurizer {
                     auto query_results = region_query->query(ref_position, cutoff_list_->cutoff_max_, brt_.get(), unit_cell);
 
                     // calculate GMP features
-                    std::vector<T> feature(feature_list.size(), 0.0);
+                    std::vector<T> feature(total_feature_size, 0.0);
+                    
+                    size_t feature_offset = 0;
                     for (auto feature_idx = 0; feature_idx < feature_list.size(); ++feature_idx) {
                         auto order = feature_list[feature_idx].order;
                         auto sigma = feature_list[feature_idx].sigma;
@@ -331,12 +344,20 @@ namespace gmp { namespace featurizer {
                             }
                         }
 
-                        // weighted square sum of the values
-                        T squareSum = gmp::mcsh::weighted_square_sum(order, desc_values.data());
-                        if (descriptor_config->get_square()) {
-                            feature[feature_idx] = squareSum;
+                        if (output_raw_data) {
+                            // Store all raw data values continuously
+                            for (size_t j = 0; j < num_values; ++j) {
+                                feature[feature_offset + j] = desc_values[j];
+                            }
+                            feature_offset += num_values;
                         } else {
-                            feature[feature_idx] = std::sqrt(squareSum);
+                            // weighted square sum of the values
+                            T squareSum = gmp::mcsh::weighted_square_sum(order, desc_values.data());
+                            if (descriptor_config->get_square()) {
+                                feature[feature_idx] = squareSum;
+                            } else {
+                                feature[feature_idx] = std::sqrt(squareSum);
+                            }
                         }
                     }
                     

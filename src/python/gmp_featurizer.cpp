@@ -20,6 +20,8 @@
 #include "atom.hpp"
 #include "featurizer.hpp"
 #include "error.hpp"
+#include "math.hpp"
+#include "mcsh.hpp"
 #ifdef GMP_ENABLE_CUDA
 #include "resources.hpp"
 #include <cuda_runtime.h>
@@ -103,6 +105,7 @@ namespace gmp { namespace python {
     }
     
     // Helper function to convert 1D vector to numpy array (for GPU output)
+    // Format: [feature][position] -> [position][feature]
     template<typename Allocator>
     py::array_t<gmp::gmp_float> vector1d_to_numpy(const std::vector<gmp::gmp_float, Allocator>& data, 
                                         size_t n_positions, size_t n_features) {
@@ -110,13 +113,35 @@ namespace gmp { namespace python {
             return py::array_t<gmp::gmp_float>(std::vector<size_t>{0, 0});
         }
         
-        // Reshape 1D data to 2D: [n_features, n_positions]
+        // Reshape 1D data to 2D: [n_features, n_positions] -> [n_positions, n_features]
         auto result = py::array_t<gmp::gmp_float>(std::vector<size_t>{n_positions, n_features});
         auto buf = result.mutable_unchecked<2>();
         
         for (size_t j = 0; j < n_features; ++j) {
             for (size_t i = 0; i < n_positions; ++i) {
                 buf(i, j) = data[j * n_positions + i];
+            }
+        }
+        
+        return result;
+    }
+    
+    // Helper function to convert 1D vector to numpy array (for GPU raw data output)
+    // Format: [position][features] -> [position][features] (no transpose needed)
+    template<typename Allocator>
+    py::array_t<gmp::gmp_float> vector1d_to_numpy_raw(const std::vector<gmp::gmp_float, Allocator>& data, 
+                                        size_t n_positions, size_t n_raw_features) {
+        if (data.empty()) {
+            return py::array_t<gmp::gmp_float>(std::vector<size_t>{0, 0});
+        }
+        
+        // Reshape 1D data to 2D: [position][features] format (no transpose)
+        auto result = py::array_t<gmp::gmp_float>(std::vector<size_t>{n_positions, n_raw_features});
+        auto buf = result.mutable_unchecked<2>();
+        
+        for (size_t i = 0; i < n_positions; ++i) {
+            for (size_t j = 0; j < n_raw_features; ++j) {
+                buf(i, j) = data[i * n_raw_features + j];
             }
         }
         
@@ -159,7 +184,20 @@ namespace gmp { namespace python {
                 }
                 size_t n_features = input->descriptor_config->get_feature_list().size();
                 size_t n_positions = ref_positions.size();
-                return vector1d_to_numpy(result, n_positions, n_features);
+                
+                // Handle different output formats based on output mode
+                if (input->descriptor_config->get_output_raw_data()) {
+                    // Raw data mode: output is in [position][raw_features] format
+                    size_t total_raw_features = 0;
+                    for (const auto& feature : input->descriptor_config->get_feature_list()) {
+                        int order = feature.order;
+                        total_raw_features += (order < 0 ? 1 : gmp::mcsh::num_mcsh_values[order]);
+                    }
+                    return vector1d_to_numpy_raw(result, n_positions, total_raw_features);
+                } else {
+                    // Normal mode: output is in [feature][position] format, need transpose
+                    return vector1d_to_numpy(result, n_positions, n_features);
+                }
 #else
                 throw std::runtime_error("GPU support not compiled in this build");
 #endif
@@ -192,7 +230,8 @@ namespace gmp { namespace python {
         py::array_t<double> reference_grid = py::array_t<double>(),
         int num_bits_per_dim = 5,
         int num_threads = 0,
-        bool enable_gpu = true
+        bool enable_gpu = true,
+        bool output_raw_data = false
     ) {
         try {
             // Reset error state
@@ -209,6 +248,7 @@ namespace gmp { namespace python {
             
             // Set descriptor configuration
             input->descriptor_config->set_square(square);
+            input->descriptor_config->set_output_raw_data(output_raw_data);
             input->descriptor_config->set_overlap_threshold(static_cast<gmp::gmp_float>(overlap_threshold));
             input->descriptor_config->set_scaling_mode(static_cast<input::scaling_mode_t>(scaling_mode));
             input->descriptor_config->set_num_bits_per_dim(static_cast<uint8_t>(num_bits_per_dim));
@@ -292,7 +332,20 @@ namespace gmp { namespace python {
                 }
                 size_t n_features = input->descriptor_config->get_feature_list().size();
                 size_t n_positions = ref_positions.size();
-                return vector1d_to_numpy(result, n_positions, n_features);
+                
+                // Handle different output formats based on output mode
+                if (input->descriptor_config->get_output_raw_data()) {
+                    // Raw data mode: output is in [position][raw_features] format
+                    size_t total_raw_features = 0;
+                    for (const auto& feature : input->descriptor_config->get_feature_list()) {
+                        int order = feature.order;
+                        total_raw_features += (order < 0 ? 1 : gmp::mcsh::num_mcsh_values[order]);
+                    }
+                    return vector1d_to_numpy_raw(result, n_positions, total_raw_features);
+                } else {
+                    // Normal mode: output is in [feature][position] format, need transpose
+                    return vector1d_to_numpy(result, n_positions, n_features);
+                }
 #else
                 throw std::runtime_error("GPU support not compiled in this build");
 #endif
@@ -310,6 +363,83 @@ namespace gmp { namespace python {
         }
     }
 
+
+    // Function to compute weighted square sum from raw data
+    py::array_t<gmp::gmp_float> compute_weighted_square_sum(
+        py::array_t<gmp::gmp_float> raw_data,
+        const std::vector<int>& orders,
+        bool square = false
+    ) {
+        try {
+            // Reset error state
+            gmp::update_error(gmp::error_t::success);
+            
+            // Get input array info
+            auto buf = raw_data.unchecked<2>();
+            size_t n_positions = buf.shape(0);
+            size_t n_raw_features = buf.shape(1);
+            
+            // Verify orders list is not empty
+            if (orders.empty()) {
+                throw std::runtime_error("Orders list cannot be empty");
+            }
+            
+            // Calculate expected total raw features and validate
+            size_t expected_raw_features = 0;
+            for (int order : orders) {
+                if (order < -1 || order > 9) {
+                    throw std::runtime_error("Invalid order: " + std::to_string(order) + ". Must be between -1 and 9.");
+                }
+                expected_raw_features += (order < 0 ? 1 : gmp::mcsh::num_mcsh_values[order]);
+            }
+            
+            if (n_raw_features != expected_raw_features) {
+                throw std::runtime_error(
+                    "Mismatch between raw data features (" + std::to_string(n_raw_features) + 
+                    ") and expected features (" + std::to_string(expected_raw_features) + 
+                    ") based on orders list."
+                );
+            }
+            
+            // Create output array: [n_positions, n_features]
+            size_t n_features = orders.size();
+            auto result = py::array_t<gmp::gmp_float>(std::vector<size_t>{n_positions, n_features});
+            auto result_buf = result.mutable_unchecked<2>();
+            
+            // Process each position
+            for (size_t pos_idx = 0; pos_idx < n_positions; ++pos_idx) {
+                size_t raw_offset = 0;
+                
+                // Process each feature
+                for (size_t feat_idx = 0; feat_idx < n_features; ++feat_idx) {
+                    int order = orders[feat_idx];
+                    int num_values = (order < 0 ? 1 : gmp::mcsh::num_mcsh_values[order]);
+                    
+                    // Extract raw data for this feature
+                    std::vector<gmp::gmp_float> desc_values(num_values);
+                    for (int i = 0; i < num_values; ++i) {
+                        desc_values[i] = static_cast<gmp::gmp_float>(buf(pos_idx, raw_offset + i));
+                    }
+                    
+                    // Compute weighted square sum
+                    gmp::gmp_float squareSum = gmp::math::weighted_square_sum(order, desc_values.data());
+                    
+                    // Store result (with or without square root)
+                    if (square) {
+                        result_buf(pos_idx, feat_idx) = squareSum;
+                    } else {
+                        result_buf(pos_idx, feat_idx) = std::sqrt(squareSum);
+                    }
+                    
+                    raw_offset += num_values;
+                }
+            }
+            
+            return result;
+        } catch (const std::exception& e) {
+            throw std::runtime_error("Weighted square sum computation error: " + std::string(e.what()));
+        }
+    }
 
     // Cleanup function for GPU resources (manual control)
     void cleanup() {
@@ -342,9 +472,6 @@ namespace gmp { namespace python {
     }
 
 }} // namespace gmp::python
-
-// add the function to change reference grid
-// add the option not to take weighted sum 
 
 // Python module definition
 PYBIND11_MODULE(gmp_featurizer, m) {
@@ -383,7 +510,8 @@ PYBIND11_MODULE(gmp_featurizer, m) {
           py::arg("reference_grid") = py::array_t<double>(),
           py::arg("num_bits_per_dim") = 5,
           py::arg("num_threads") = 0,
-          py::arg("enable_gpu") = true);
+          py::arg("enable_gpu") = true,
+          py::arg("output_raw_data") = false);
     
     // Legacy interface - JSON-based (for backward compatibility)
     m.def("compute_features_from_json", &gmp::python::compute_features_from_json,
@@ -399,6 +527,13 @@ PYBIND11_MODULE(gmp_featurizer, m) {
     
     m.def("initialize_cpu", &gmp::python::initialize_cpu,
           "Manually initialize CPU resources (automatic initialization is enabled by default)");
+    
+    // Weighted square sum computation from raw data
+    m.def("compute_weighted_square_sum", &gmp::python::compute_weighted_square_sum,
+          "Compute weighted square sum from raw descriptor data",
+          py::arg("raw_data"),
+          py::arg("orders"),
+          py::arg("square") = false);
     
     // Add some constants
     m.attr("__version__") = "1.0.0";

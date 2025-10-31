@@ -90,6 +90,9 @@ namespace gmp { namespace input {
         if (config.contains("square")) {
             this->descriptor_config->set_square(config["square"].get<bool>());
         }
+        if (config.contains("output raw data")) {
+            this->descriptor_config->set_output_raw_data(config["output raw data"].get<bool>());
+        }
         if (config.contains("overlap threshold")) {
             this->descriptor_config->set_overlap_threshold(static_cast<gmp_float>(config["overlap threshold"].get<double>()));
         }
@@ -158,6 +161,7 @@ namespace gmp { namespace input {
         std::cout << "  sigmas <list>                    List of sigmas (e.g., 0.1,0.2,0.3)" << std::endl;
         std::cout << "  feature lists <list>             List of feature pairs (e.g., (1,0.1),(2,0.2))" << std::endl;
         std::cout << "  square <bool>                    Square option (true or false, default: false)" << std::endl;
+        std::cout << "  output raw data <bool>            Output raw data instead of weighted square sum (true or false, default: false)" << std::endl;
         std::cout << "  overlap threshold <double>       Overlap threshold" << std::endl;
         std::cout << "  scaling mode <int>               Scaling mode (0 for radial, 1 for both)" << std::endl;
         std::cout << "  output file path <path>          Path to the output file" << std::endl;

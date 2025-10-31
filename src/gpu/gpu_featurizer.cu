@@ -78,7 +78,8 @@ namespace gmp {
         auto result = cuda_featurizer->compute(
             input->descriptor_config->get_feature_list(), 
             input->descriptor_config->get_square(), 
-            unit_cell->get_lattice(), stream
+            unit_cell->get_lattice(), stream,
+            input->descriptor_config->get_output_raw_data()
         );
 
         cudaEventRecord(stop, stream);
