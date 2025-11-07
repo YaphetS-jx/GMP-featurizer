@@ -59,10 +59,8 @@ namespace gmp {
         cudaStream_t stream = gmp::resources::gmp_resource::instance().get_stream();
 
         // compute features
-        // Convert std::vector to gmp::containers::vector
-        gmp::containers::vector<gmp::geometry::point3d_t<gmp_float>> ref_positions_container(ref_positions.begin(), ref_positions.end());
         std::unique_ptr<featurizer::cuda_featurizer_flt> cuda_featurizer = std::make_unique<featurizer::cuda_featurizer_flt>(
-            ref_positions_container, unit_cell->get_atoms(), psp_config.get(), 
+            ref_positions, unit_cell->get_atoms(), psp_config.get(), 
             featurizer->kernel_params_table_.get(), featurizer->cutoff_list_.get(), 
             featurizer->region_query_->get_unique_morton_codes(), 
             input->descriptor_config->get_num_bits_per_dim(), 
