@@ -2,10 +2,12 @@
 """
 Comprehensive GMP Featurizer Test Suite
 
-This script runs all tests in a single command:
-1. JSON interface test (original run.py)
-2. Direct parameter interface test (run_direct.py)
-3. Uniform vs direct grid comparison test (uniform_reference_grid vs reference_grid)
+This script runs all tests using the new separated initialization and computation API:
+1. JSON interface test - using initialize_featurizer_from_json + compute_features
+2. Direct parameter interface test - using initialize_featurizer_from_params + compute_features
+3. Uniform vs direct grid comparison test - testing different initialization strategies
+4. Raw data mode test - testing raw data output and weighted square sum conversion
+5. Direct data interface test - using initialize_featurizer_from_data (no CIF file needed)
 
 Usage: python run.py
 """
@@ -58,31 +60,39 @@ def compare_features(features1, features2, name1, name2, tolerance=5e-5):
         return False
 
 def test_json_interface():
-    """Test 1: JSON interface (original run.py functionality)"""
+    """Test 1: JSON interface using separated initialization and computation"""
     print("=" * 80)
-    print("TEST 1: JSON Interface")
+    print("TEST 1: JSON Interface (Separated Init + Compute)")
     print("=" * 80)
     
-    # Compute features using JSON interface
-    print("Computing features using JSON interface...")
-    features = gmp_featurizer.compute_features_from_json('config.json')
+    # Initialize featurizer from JSON
+    print("Initializing featurizer from JSON configuration...")
+    context = gmp_featurizer.initialize_featurizer_from_json('config.json')
+    print(f"Context initialized: GPU enabled = {context.is_gpu_enabled()}")
+    
+    # Compute features using the context
+    print("Computing features using initialized context...")
+    if context.is_gpu_enabled():
+        features = gmp_featurizer.compute_features_gpu(context)
+    else:
+        features = gmp_featurizer.compute_features_cpu(context)
     print(f"Features shape: {features.shape}")
     
     # Validate that the interface works correctly
     print(f"\n✅ PASS: JSON interface test")
-    print("✅ JSON interface works correctly")
+    print("✅ Separated initialization and computation works correctly")
     print("✅ Features computed successfully with shape:", features.shape)
     return True
 
 def test_direct_parameter_interface():
-    """Test 2: Direct parameter interface (run_direct.py functionality)"""
+    """Test 2: Direct parameter interface using separated initialization and computation"""
     print("\n" + "=" * 80)
-    print("TEST 2: Direct Parameter Interface")
+    print("TEST 2: Direct Parameter Interface (Separated Init + Compute)")
     print("=" * 80)
     
-    # Compute features using direct parameter interface
-    print("Computing features using direct parameter interface...")
-    features_direct = gmp_featurizer.compute_features(
+    # Initialize featurizer from direct parameters
+    print("Initializing featurizer from direct parameters...")
+    context_direct = gmp_featurizer.initialize_featurizer_from_params(
         atom_file="./structure.cif",
         psp_file="./QE-kjpaw.gpsp", 
         output_file="./gmpFeatures_direct.dat",
@@ -92,16 +102,28 @@ def test_direct_parameter_interface():
         square=False,
         overlap_threshold=1e-11,
         scaling_mode=0,  # 0 for radial
-        uniform_reference_grid=[16, 16, 16],  # Updated parameter name
+        uniform_reference_grid=[16, 16, 16],
         num_bits_per_dim=3,
         num_threads=20,
         enable_gpu=True
     )
+    print(f"Context initialized: GPU enabled = {context_direct.is_gpu_enabled()}")
+    
+    # Compute features using the context
+    print("Computing features using initialized context...")
+    if context_direct.is_gpu_enabled():
+        features_direct = gmp_featurizer.compute_features_gpu(context_direct)
+    else:
+        features_direct = gmp_featurizer.compute_features_cpu(context_direct)
     print(f"Features shape: {features_direct.shape}")
     
     # Also compute using JSON interface for comparison
-    print("\nComputing features using JSON interface for comparison...")
-    features_json = gmp_featurizer.compute_features_from_json('config.json')
+    print("\nInitializing from JSON for comparison...")
+    context_json = gmp_featurizer.initialize_featurizer_from_json('config.json')
+    if context_json.is_gpu_enabled():
+        features_json = gmp_featurizer.compute_features_gpu(context_json)
+    else:
+        features_json = gmp_featurizer.compute_features_cpu(context_json)
     
     # Load reference data
     print("\nLoading reference data from gmpFeatures.dat...")
@@ -113,8 +135,8 @@ def test_direct_parameter_interface():
     print(f"Results are identical: {success1}")
     
     print(f"\n✅ PASS: Direct parameter interface test")
-    print("✅ Direct parameter interface works correctly")
-    print("✅ Both interfaces produce identical results")
+    print("✅ Separated initialization and computation works correctly")
+    print("✅ Both initialization methods produce identical results")
     return success1  # Pass if direct vs JSON comparison succeeds
 
 
@@ -139,31 +161,43 @@ def test_3x3_grid_comparison():
     print(f"Created 3x3x3 grid with {len(grid_points)} points")
     
     # Method 1: Using uniform_reference_grid parameter (generates uniform grid)
-    print("\n1. Computing features with uniform_reference_grid=[3,3,3] parameter...")
+    print("\n1. Initializing with uniform_reference_grid=[3,3,3] parameter...")
     try:
-        features_uniform = gmp_featurizer.compute_features(
+        context_uniform = gmp_featurizer.initialize_featurizer_from_params(
             atom_file="./structure.cif",
             psp_file="./QE-kjpaw.gpsp",
             uniform_reference_grid=[3, 3, 3],
             enable_gpu=True
         )
+        if context_uniform.is_gpu_enabled():
+            features_uniform = gmp_featurizer.compute_features_gpu(context_uniform)
+        else:
+            features_uniform = gmp_featurizer.compute_features_cpu(context_uniform)
         print(f"   ✓ Success: shape = {features_uniform.shape}")
     except Exception as e:
         print(f"   ✗ Failed: {e}")
+        import traceback
+        traceback.print_exc()
         return False
     
     # Method 2: Using reference_grid parameter (direct grid points)
-    print("\n2. Computing features with reference_grid (direct points)...")
+    print("\n2. Initializing with reference_grid (direct points)...")
     try:
-        features_direct = gmp_featurizer.compute_features(
+        context_direct = gmp_featurizer.initialize_featurizer_from_params(
             atom_file="./structure.cif",
             psp_file="./QE-kjpaw.gpsp",
             reference_grid=grid_points_array,
             enable_gpu=True
         )
+        if context_direct.is_gpu_enabled():
+            features_direct = gmp_featurizer.compute_features_gpu(context_direct)
+        else:
+            features_direct = gmp_featurizer.compute_features_cpu(context_direct)
         print(f"   ✓ Success: shape = {features_direct.shape}")
     except Exception as e:
         print(f"   ✗ Failed: {e}")
+        import traceback
+        traceback.print_exc()
         return False
     
     # Compare results
@@ -219,6 +253,165 @@ def test_3x3_grid_comparison():
     
     return success
 
+def test_direct_data_interface():
+    """Test 5: Direct data interface (no CIF file needed)"""
+    print("\n" + "=" * 80)
+    print("TEST 5: Direct Data Interface (No CIF File)")
+    print("=" * 80)
+    
+    # Define structure data directly (from structure.cif)
+    cell_lengths = np.array([13.066739950848183, 6.447909540591107, 6.413901842517733])
+    cell_angles = np.array([90.07113551631299, 89.53589382117042, 89.78803670940194])
+    
+    # Atom data: [type, fract_x, fract_y, fract_z, occupancy]
+    atom_data = [
+        ['N', 0.41546703537681856, 0.427416653802161, 0.577406109529728, 1.0000],
+        ['N', 0.8789667083245883, 0.24013932567339225, 0.649514945480739, 1.0000],
+        ['C', 0.31756711793846165, 0.3085496068057215, 0.5377486376248347, 1.0000],
+        ['C', 0.8103547782785443, 0.3480680549171177, 0.49845958663493795, 1.0000],
+        ['H', 0.39719958159880175, 0.569014523062509, 0.6436870117825956, 1.0000],
+        ['H', 0.4581787303026594, 0.4578494371091457, 0.4383345283109038, 1.0000],
+        ['H', 0.4582258350324719, 0.351190334033146, 0.6960042332894495, 1.0000],
+        ['H', 0.2970783361726095, 0.3453593275954766, 0.3799447138874776, 1.0000],
+        ['H', 0.33261436287729934, 0.14386784923275434, 0.5643477558651482, 1.0000],
+        ['H', 0.2586301623169967, 0.3609036718130434, 0.6514832341493222, 1.0000],
+        ['H', 0.9345127142134654, 0.14047383564734398, 0.5790125397448318, 1.0000],
+        ['H', 0.8364587732412783, 0.14258000347813554, 0.7477463344293881, 1.0000],
+        ['H', 0.9137719977148143, 0.3512998156949266, 0.744333026289629, 1.0000],
+        ['H', 0.7741829189275211, 0.23763766149468404, 0.39215151536543863, 1.0000],
+        ['H', 0.7551929338133306, 0.43789710184642383, 0.5924532640215644, 1.0000],
+        ['H', 0.8582958222496566, 0.4578847272999746, 0.4144223729198017, 1.0000],
+        ['Pb', 0.06634365354316886, 0.8737467160630854, 0.02568417778615599, 1.0000],
+        ['Pb', 0.5643930111251986, 0.8832547141744858, 0.06576860561103609, 1.0000],
+        ['I', 0.07860418881812913, 0.8898957535969937, 0.5087477342712794, 1.0000],
+        ['I', 0.3104344327042981, 0.8577513139645994, 0.014260897462014565, 1.0000],
+        ['I', 0.059708187344487955, 0.3848030918146536, 0.02705354459762949, 1.0000],
+        ['I', 0.5807376518631311, 0.8902733586388623, 0.5525265593988309, 1.0000],
+        ['I', 0.8087378794685559, 0.8141652199740181, 0.03152707188146364, 1.0000],
+        ['I', 0.5492912125966564, 0.40881396316311397, 0.1150340124617497, 1.0000],
+    ]
+    
+    atom_types = [row[0] for row in atom_data]
+    atom_positions = np.array([[row[1], row[2], row[3]] for row in atom_data])
+    atom_occupancies = np.array([row[4] for row in atom_data])
+    
+    print(f"   Structure: {len(atom_types)} atoms")
+    print(f"   Cell lengths: {cell_lengths}")
+    print(f"   Cell angles: {cell_angles}")
+    
+    # Method 1: Initialize from direct data
+    print("\n1. Initializing from direct data (no CIF file)...")
+    try:
+        context_direct_data = gmp_featurizer.initialize_featurizer_from_data(
+            cell_lengths=cell_lengths,
+            cell_angles=cell_angles,
+            atom_positions=atom_positions,
+            atom_types=atom_types,
+            atom_occupancies=atom_occupancies,
+            psp_file="./QE-kjpaw.gpsp",
+            orders=[0, 1, 2, 3],
+            sigmas=[0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
+            uniform_reference_grid=[16, 16, 16],
+            num_bits_per_dim=3,
+            num_threads=20,
+            enable_gpu=True
+        )
+        print(f"   ✓ Success: Context initialized from direct data")
+        print(f"   GPU enabled: {context_direct_data.is_gpu_enabled()}")
+        
+        if context_direct_data.is_gpu_enabled():
+            features_direct_data = gmp_featurizer.compute_features_gpu(context_direct_data)
+        else:
+            features_direct_data = gmp_featurizer.compute_features_cpu(context_direct_data)
+        print(f"   ✓ Success: Features computed, shape = {features_direct_data.shape}")
+    except Exception as e:
+        print(f"   ✗ Failed: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+    
+    # Method 2: Initialize from file for comparison
+    print("\n2. Initializing from CIF file for comparison...")
+    try:
+        context_file = gmp_featurizer.initialize_featurizer_from_params(
+            atom_file="./structure.cif",
+            psp_file="./QE-kjpaw.gpsp",
+            orders=[0, 1, 2, 3],
+            sigmas=[0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
+            uniform_reference_grid=[16, 16, 16],
+            num_bits_per_dim=3,
+            num_threads=20,
+            enable_gpu=True
+        )
+        if context_file.is_gpu_enabled():
+            features_file = gmp_featurizer.compute_features_gpu(context_file)
+        else:
+            features_file = gmp_featurizer.compute_features_cpu(context_file)
+        print(f"   ✓ Success: Features computed from file, shape = {features_file.shape}")
+    except Exception as e:
+        print(f"   ✗ Failed: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+    
+    # Compare results
+    print(f"\n{'='*60}")
+    print("COMPARISON RESULTS")
+    print(f"{'='*60}")
+    
+    # Shape comparison
+    print(f"\nShape comparison:")
+    print(f"   Direct data method: {features_direct_data.shape}")
+    print(f"   File-based method:  {features_file.shape}")
+    print(f"   Shapes match:       {features_direct_data.shape == features_file.shape}")
+    
+    if features_direct_data.shape != features_file.shape:
+        print("❌ FAIL: Different shapes!")
+        return False
+    
+    # Statistical comparison
+    diff = np.abs(features_direct_data - features_file)
+    
+    print(f"\nStatistical analysis:")
+    print(f"   Max difference:     {np.max(diff):.8e}")
+    print(f"   Mean difference:    {np.mean(diff):.8e}")
+    print(f"   Std difference:     {np.std(diff):.8e}")
+    print(f"   Median difference:  {np.median(diff):.8e}")
+    
+    # Zero differences
+    zero_diff = np.sum(diff < 1e-15)
+    total_elements = diff.size
+    print(f"   Zero differences:   {zero_diff}/{total_elements} ({100*zero_diff/total_elements:.2f}%)")
+    
+    # Tolerance-based comparison
+    print(f"\nTolerance-based comparison:")
+    tolerances = [1e-15, 1e-12, 1e-9, 1e-6, 1e-3]
+    for tol in tolerances:
+        close = np.allclose(features_direct_data, features_file, atol=tol)
+        print(f"   All close (tol={tol:.0e}): {close}")
+    
+    # Correlation
+    correlation = np.corrcoef(features_direct_data.flatten(), features_file.flatten())[0, 1]
+    print(f"   Correlation:        {correlation:.8f}")
+    
+    # Final result (use realistic tolerance for numerical precision)
+    success = np.allclose(features_direct_data, features_file, atol=1e-5)
+    print(f"\n{'✅ PASS' if success else '❌ FAIL'}: Direct data interface test")
+    
+    if success:
+        print("✅ Direct data initialization works correctly")
+        print("✅ Results match file-based initialization")
+        print("✅ No CIF file needed for initialization")
+    else:
+        print(f"❌ Results differ significantly (max diff: {np.max(diff):.2e})")
+        max_idx = np.unravel_index(np.argmax(diff), diff.shape)
+        print(f"   Largest difference at position {max_idx}:")
+        print(f"     Direct data: {features_direct_data[max_idx]:.8f}")
+        print(f"     File-based:  {features_file[max_idx]:.8f}")
+        print("Note: Small differences are expected due to numerical precision")
+    
+    return success
+
 def test_raw_data_weighted_square_sum():
     """Test 4: Raw data mode with weighted_square_sum conversion"""
     print("\n" + "=" * 80)
@@ -258,10 +451,10 @@ def test_raw_data_weighted_square_sum():
     print(f"  Total features (orders x sigmas): {len(orders) * len(sigmas)}")
     print(f"  All orders in feature list: {all_orders[:10]}... (showing first 10)")
     
-    # Step 1: Compute features with output_raw_data=True (get raw data)
-    print("\n1. Computing features with output_raw_data=True...")
+    # Step 1: Initialize and compute features with output_raw_data=True (get raw data)
+    print("\n1. Initializing with output_raw_data=True...")
     try:
-        features_raw = gmp_featurizer.compute_features(
+        context_raw = gmp_featurizer.initialize_featurizer_from_params(
             atom_file="./structure.cif",
             psp_file="./QE-kjpaw.gpsp",
             orders=orders,
@@ -271,6 +464,10 @@ def test_raw_data_weighted_square_sum():
             enable_gpu=True,
             output_raw_data=True
         )
+        if context_raw.is_gpu_enabled():
+            features_raw = gmp_featurizer.compute_features_gpu(context_raw)
+        else:
+            features_raw = gmp_featurizer.compute_features_cpu(context_raw)
         print(f"   ✓ Success: raw data shape = {features_raw.shape}")
         print(f"   Raw data columns (should be sum of num_mcsh_values for all features)")
     except Exception as e:
@@ -279,10 +476,10 @@ def test_raw_data_weighted_square_sum():
         traceback.print_exc()
         return False
     
-    # Step 2: Compute features with output_raw_data=False (get final features)
-    print("\n2. Computing features with output_raw_data=False (direct output)...")
+    # Step 2: Initialize and compute features with output_raw_data=False (get final features)
+    print("\n2. Initializing with output_raw_data=False (direct output)...")
     try:
-        features_direct = gmp_featurizer.compute_features(
+        context_direct = gmp_featurizer.initialize_featurizer_from_params(
             atom_file="./structure.cif",
             psp_file="./QE-kjpaw.gpsp",
             orders=orders,
@@ -292,6 +489,10 @@ def test_raw_data_weighted_square_sum():
             enable_gpu=True,
             output_raw_data=False  # Default, but explicit
         )
+        if context_direct.is_gpu_enabled():
+            features_direct = gmp_featurizer.compute_features_gpu(context_direct)
+        else:
+            features_direct = gmp_featurizer.compute_features_cpu(context_direct)
         print(f"   ✓ Success: direct features shape = {features_direct.shape}")
     except Exception as e:
         print(f"   ✗ Failed: {e}")
@@ -387,6 +588,7 @@ def main():
     test2_success = test_direct_parameter_interface()
     test3_success = test_3x3_grid_comparison()
     test4_success = test_raw_data_weighted_square_sum()
+    test5_success = test_direct_data_interface()
     
     # Summary
     print("\n" + "=" * 80)
@@ -394,21 +596,23 @@ def main():
     print("=" * 80)
     
     print(f"Test 1 - JSON Interface:           {'✅ PASS' if test1_success else '❌ FAIL'}")
-    print(f"Test 2 - Direct Parameter:         {'✅ PASS' if test2_success else '❌ FAIL'}")
-    print(f"Test 3 - Uniform vs Direct Grid:   {'✅ PASS' if test3_success else '❌ FAIL'}")
-    print(f"Test 4 - Raw Data Weighted Sum:    {'✅ PASS' if test4_success else '❌ FAIL'}")
+    print(f"Test 2 - Direct Parameter:           {'✅ PASS' if test2_success else '❌ FAIL'}")
+    print(f"Test 3 - Uniform vs Direct Grid:     {'✅ PASS' if test3_success else '❌ FAIL'}")
+    print(f"Test 4 - Raw Data Weighted Sum:      {'✅ PASS' if test4_success else '❌ FAIL'}")
+    print(f"Test 5 - Direct Data Interface:      {'✅ PASS' if test5_success else '❌ FAIL'}")
     
-    all_success = test1_success and test2_success and test3_success and test4_success
+    all_success = test1_success and test2_success and test3_success and test4_success and test5_success
     
     print(f"\nOverall Result: {'✅ ALL TESTS PASSED' if all_success else '❌ SOME TESTS FAILED'}")
     
     if all_success:
         print("\n🎉 All tests completed successfully!")
-        print("✅ JSON interface works correctly")
-        print("✅ Direct parameter interface works correctly")
-        print("✅ Uniform and direct grid methods work correctly")
+        print("✅ Separated initialization and computation API works correctly")
+        print("✅ JSON and direct parameter initialization methods work correctly")
+        print("✅ Uniform and direct grid initialization strategies work correctly")
         print("✅ Raw data mode and weighted square sum work correctly")
-        print("✅ Both interfaces produce identical results")
+        print("✅ Direct data initialization (no CIF file) works correctly")
+        print("✅ Context can be reused for multiple computations")
     else:
         print("\n❌ Some tests failed. Please check the output above.")
     

@@ -31,6 +31,14 @@ namespace gmp { namespace atom {
     public:
         unit_cell_t();
         unit_cell_t(std::string atom_file);
+        // Constructor from direct data (no file I/O)
+        unit_cell_t(
+            const gmp::math::array3d_t<T>& cell_lengths,
+            const gmp::math::array3d_t<T>& cell_angles,
+            const vector<atom_t<T>>& atoms,
+            const atom_type_map_t& atom_type_map,
+            const array3d_bool& periodicity = {true, true, true}
+        );
         ~unit_cell_t() = default;
 
         // accessors

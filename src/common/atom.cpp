@@ -35,6 +35,24 @@ namespace gmp { namespace atom {
     }
 
     template <typename T>
+    inline unit_cell_t<T>::unit_cell_t(
+        const gmp::math::array3d_t<T>& cell_lengths,
+        const gmp::math::array3d_t<T>& cell_angles,
+        const vector<atom_t<T>>& atoms,
+        const atom_type_map_t& atom_type_map,
+        const array3d_bool& periodicity
+    ) : atoms_(atoms), atom_type_map_(atom_type_map), periodicity_(periodicity)
+    {
+        // Create lattice from cell lengths and angles
+        lattice_ = gmp::geometry::cell_info_to_lattice<T>(cell_lengths, cell_angles);
+
+    #ifdef DEBUG
+        // dump
+        dump();
+    #endif
+    }
+
+    template <typename T>
     inline const vector<atom_t<T>>& unit_cell_t<T>::get_atoms() const { return atoms_; }
 
     template <typename T>

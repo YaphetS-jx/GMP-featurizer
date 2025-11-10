@@ -113,6 +113,51 @@ namespace gmp { namespace input {
     using descriptor_config_flt = descriptor_config_t<gmp::gmp_float>;
     using feature_flt = feature_t<gmp::gmp_float>;
 
+    // Forward declaration
+    class input_t;
+
+    // Featurizer initialization result structure
+    struct featurizer_init_result_t {
+        std::unique_ptr<unit_cell_flt> unit_cell;
+        std::unique_ptr<psp_config_flt> psp_config;
+        gmp::containers::vector<gmp::geometry::point3d_t<gmp::gmp_float>> ref_positions;
+    };
+
+    // ============================================================================
+    // Separate Initialization Functions (can be called independently)
+    // ============================================================================
+    
+    // Create unit_cell from CIF file
+    std::unique_ptr<unit_cell_flt> create_unit_cell_from_file(const std::string& atom_file);
+    
+    // Create unit_cell from direct data
+    std::unique_ptr<unit_cell_flt> create_unit_cell_from_data(
+        const gmp::math::array3d_t<gmp::gmp_float>& cell_lengths,
+        const gmp::math::array3d_t<gmp::gmp_float>& cell_angles,
+        const gmp::containers::vector<atom::atom_flt>& atoms,
+        const atom::atom_type_map_t& atom_type_map,
+        const gmp::math::array3d_bool& periodicity = {true, true, true}
+    );
+    
+    // Create psp_config from psp_file and unit_cell
+    std::unique_ptr<psp_config_flt> create_psp_config(
+        const std::string& psp_file,
+        const unit_cell_flt* unit_cell
+    );
+    
+    // Create reference positions from various sources
+    gmp::containers::vector<gmp::geometry::point3d_t<gmp::gmp_float>> create_ref_positions(
+        input_t* input,
+        const unit_cell_flt* unit_cell
+    );
+
+    // ============================================================================
+    // Convenience Function (backward compatibility)
+    // ============================================================================
+    
+    // Shared initialization function for featurizers (calls all separate functions)
+    featurizer_init_result_t initialize_featurizer(input_t* input);
+
     // input class
     class input_t {
     public:

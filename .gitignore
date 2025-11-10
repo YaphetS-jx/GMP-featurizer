@@ -10,3 +10,4 @@ example/ncu/
 example/nsys/
 example/data/
 test_all.sh
+__pycache__/

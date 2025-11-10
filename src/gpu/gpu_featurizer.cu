@@ -14,56 +14,29 @@
 
 namespace gmp {
 
-    vector<gmp::gmp_float> run_gpu_featurizer(input::input_t* input) 
+    // GPU featurization with raw data (core computation)
+    vector<gmp::gmp_float> run_gpu_featurizer_computation(
+        const input::descriptor_config_flt* descriptor_config,
+        const atom::unit_cell_flt* unit_cell,
+        const atom::psp_config_flt* psp_config,
+        const containers::vector<geometry::point3d_t<gmp_float>>& ref_positions
+    ) 
     {
         using namespace gmp;
-        std::cout << "Running GPU featurizer..." << std::endl;
-
-        // Ensure CUDA device is set before creating RMM resources
-        cudaError_t cuda_status = cudaSetDevice(0);
-        if (cuda_status != cudaSuccess) {
-            std::cerr << "ERROR: Failed to set CUDA device: " << cudaGetErrorString(cuda_status) << std::endl;
-            return vector<gmp::gmp_float>();
-        }
-
-        // create unit cell
-        std::unique_ptr<atom::unit_cell_flt> unit_cell = std::make_unique<atom::unit_cell_flt>(input->files->get_atom_file());
-        GMP_CHECK(get_last_error());
-
-        // create psp configuration
-        std::unique_ptr<atom::psp_config_flt> psp_config = std::make_unique<atom::psp_config_flt>(input->files->get_psp_file(), unit_cell.get());
-        GMP_CHECK(get_last_error());
-
-        // create reference positions
-        gmp::containers::vector<gmp::geometry::point3d_t<gmp_float>> ref_positions;
-        
-        // Check if reference positions are provided directly
-        if (input->has_reference_positions()) {
-            // Use provided reference positions directly (no copying needed)
-            ref_positions = input->get_reference_positions();
-        } else if (!input->files->get_reference_grid_file().empty()) {
-            // Read reference positions from file
-            ref_positions = input->read_reference_grid_from_file(input->files->get_reference_grid_file());
-            GMP_CHECK(get_last_error());
-        } else {
-            // Use original atom::set_ref_positions logic
-            auto ref_grid = input->descriptor_config->get_ref_grid();
-            ref_positions = atom::set_ref_positions(ref_grid, unit_cell->get_atoms());
-        }
 
         // create featurizer_t
         std::unique_ptr<featurizer::featurizer_flt> featurizer = std::make_unique<featurizer::featurizer_flt>(
-            input->descriptor_config.get(), unit_cell.get(), psp_config.get());
+            descriptor_config, unit_cell, psp_config);
         GMP_CHECK(get_last_error());
 
         cudaStream_t stream = gmp::resources::gmp_resource::instance().get_stream();
 
         // compute features
         std::unique_ptr<featurizer::cuda_featurizer_flt> cuda_featurizer = std::make_unique<featurizer::cuda_featurizer_flt>(
-            ref_positions, unit_cell->get_atoms(), psp_config.get(), 
+            ref_positions, unit_cell->get_atoms(), psp_config, 
             featurizer->kernel_params_table_.get(), featurizer->cutoff_list_.get(), 
             featurizer->region_query_->get_unique_morton_codes(), 
-            input->descriptor_config->get_num_bits_per_dim(), 
+            descriptor_config->get_num_bits_per_dim(), 
             featurizer->region_query_->get_offsets(), featurizer->region_query_->get_sorted_indexes());
         GMP_CHECK(get_last_error());
 
@@ -74,10 +47,10 @@ namespace gmp {
 
         // compute features
         auto result = cuda_featurizer->compute(
-            input->descriptor_config->get_feature_list(), 
-            input->descriptor_config->get_square(), 
+            descriptor_config->get_feature_list(), 
+            descriptor_config->get_square(), 
             unit_cell->get_lattice(), stream,
-            input->descriptor_config->get_output_raw_data()
+            descriptor_config->get_output_raw_data()
         );
 
         cudaEventRecord(stop, stream);
@@ -102,6 +75,32 @@ namespace gmp {
         GMP_CHECK(get_last_error());
         
         return result;
+    }
+
+    // GPU featurization from input_t (convenience wrapper)
+    vector<gmp::gmp_float> run_gpu_featurizer(input::input_t* input) 
+    {
+        using namespace gmp;
+        std::cout << "Running GPU featurizer..." << std::endl;
+
+        // Ensure CUDA device is set before creating RMM resources
+        cudaError_t cuda_status = cudaSetDevice(0);
+        if (cuda_status != cudaSuccess) {
+            std::cerr << "ERROR: Failed to set CUDA device: " << cudaGetErrorString(cuda_status) << std::endl;
+            return vector<gmp::gmp_float>();
+        }
+
+        // Initialize featurizer (creates unit_cell, psp_config, and ref_positions)
+        auto init_result = input::initialize_featurizer(input);
+        GMP_CHECK(get_last_error());
+
+        // Call the computation function with raw data
+        return run_gpu_featurizer_computation(
+            input->descriptor_config.get(),
+            init_result.unit_cell.get(),
+            init_result.psp_config.get(),
+            init_result.ref_positions
+        );
     }
 
 } // namespace gmp

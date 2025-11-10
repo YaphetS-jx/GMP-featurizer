@@ -301,6 +301,89 @@ namespace gmp { namespace input {
         return reference_positions;
     }
 
+    // ============================================================================
+    // Separate Initialization Functions
+    // ============================================================================
+
+    // Create unit_cell from CIF file
+    std::unique_ptr<unit_cell_flt> create_unit_cell_from_file(const std::string& atom_file) {
+        auto unit_cell = std::make_unique<unit_cell_flt>(atom_file);
+        GMP_CHECK(get_last_error());
+        return unit_cell;
+    }
+
+    // Create unit_cell from direct data
+    std::unique_ptr<unit_cell_flt> create_unit_cell_from_data(
+        const gmp::math::array3d_t<gmp::gmp_float>& cell_lengths,
+        const gmp::math::array3d_t<gmp::gmp_float>& cell_angles,
+        const gmp::containers::vector<atom::atom_flt>& atoms,
+        const atom::atom_type_map_t& atom_type_map,
+        const gmp::math::array3d_bool& periodicity
+    ) {
+        auto unit_cell = std::make_unique<unit_cell_flt>(
+            cell_lengths, cell_angles, atoms, atom_type_map, periodicity
+        );
+        GMP_CHECK(get_last_error());
+        return unit_cell;
+    }
+
+    // Create psp_config from psp_file and unit_cell
+    std::unique_ptr<psp_config_flt> create_psp_config(
+        const std::string& psp_file,
+        const unit_cell_flt* unit_cell
+    ) {
+        auto psp_config = std::make_unique<psp_config_flt>(psp_file, unit_cell);
+        GMP_CHECK(get_last_error());
+        return psp_config;
+    }
+
+    // Create reference positions from various sources
+    gmp::containers::vector<gmp::geometry::point3d_t<gmp::gmp_float>> create_ref_positions(
+        input_t* input,
+        const unit_cell_flt* unit_cell
+    ) {
+        gmp::containers::vector<gmp::geometry::point3d_t<gmp::gmp_float>> ref_positions;
+        
+        // Check if reference positions are provided directly
+        if (input->has_reference_positions()) {
+            // Use provided reference positions directly (no copying needed)
+            ref_positions = input->get_reference_positions();
+        } else if (!input->files->get_reference_grid_file().empty()) {
+            // Read reference positions from file
+            ref_positions = input->read_reference_grid_from_file(input->files->get_reference_grid_file());
+            GMP_CHECK(get_last_error());
+        } else {
+            // Use original atom::set_ref_positions logic
+            auto ref_grid = input->descriptor_config->get_ref_grid();
+            ref_positions = atom::set_ref_positions(ref_grid, unit_cell->get_atoms());
+        }
+        
+        return ref_positions;
+    }
+
+    // ============================================================================
+    // Convenience Function (backward compatibility)
+    // ============================================================================
+
+    // Shared initialization function for featurizers (calls all separate functions)
+    featurizer_init_result_t initialize_featurizer(input_t* input) {
+        featurizer_init_result_t result;
+
+        // Create unit cell from file
+        result.unit_cell = create_unit_cell_from_file(input->files->get_atom_file());
+        GMP_CHECK(get_last_error());
+
+        // Create psp configuration
+        result.psp_config = create_psp_config(input->files->get_psp_file(), result.unit_cell.get());
+        GMP_CHECK(get_last_error());
+
+        // Create reference positions
+        result.ref_positions = create_ref_positions(input, result.unit_cell.get());
+        GMP_CHECK(get_last_error());
+
+        return result;
+    }
+
     // Explicit instantiations for descriptor_config_t (used externally)
     template class descriptor_config_t<gmp::gmp_float>;
 }}
